@@ -14,7 +14,7 @@ class Register:
   with optional ability to view lower bits
   """
   def __init__(self, val, idx):
-    self.value = val
+    self.__value = val
 
     # Make sure the value has
     # less than 32 bits of value
@@ -22,6 +22,30 @@ class Register:
 
     self.idx = idx
     self.name = f"x{idx}"
+  
+  # Gettrs and setters
+  # for registers, primarily
+  # to protect x0 and force
+  # it to be 0
+  @property
+  def value(self):
+    if self.idx == 0:
+      assert self.__value == 0, "x0 register should always be 0"
+
+    return self.__value
+
+  @value.setter
+  def value(self, newVal):
+    if self.idx == 0:
+      # x0 is always 0
+      self.__value = 0
+
+      assert newVal == 0, "x0 register should always be 0"
+    else:
+      # Make sure the value has
+      # less than 32 bits of value
+      assert newVal >= 0 and newVal < 2 ** 32, "Register value out of bounds"
+      self.__value = newVal
 
 class MemoryAddress:
   """

@@ -112,24 +112,3 @@ class ADDI(Instruction):
 
     # Go return our new ADD instruction
     return cls(*asInts)
-
-if __name__ == "__main__":
-  # Testing out ADD
-  add = ADD.parseFromString("ADD x0, x1, x2")
-
-  # One more add, add 5 to x0
-  addi = ADDI.parseFromString("ADDI x0, x0, 5")
-
-  oldState = MachineState()
-
-  # For right now, set x1 and x2 to 1, 2
-  oldState.regs[1].value = 1
-  oldState.regs[2].value = 2
-
-  # Now, run the forward pass
-  # with add
-  newState = add.forward(oldState)
-  newState = addi.forward(newState)
-
-  # Print reg 1, reg 2, and reg 0
-  print (f"x1: {newState.regs[1].value}, x2: {newState.regs[2].value}, x0: {newState.regs[0].value}")
