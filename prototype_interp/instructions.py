@@ -70,9 +70,55 @@ class ADD(Instruction):
     # Go return our new ADD instruction
     return cls(*csv)
 
+# For now, let's just implement the add and addiinstructions, to show 2 ops
+class ADDI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ADD
+
+    dIdx = aIdx + bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal + immVal) % (2 ** 32)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "ADDI", "Not an ADD instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("ADDI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+
 if __name__ == "__main__":
   # Testing out ADD
   add = ADD.parseFromString("ADD x0, x1, x2")
+
+  # One more add, add 5 to x0
+  addi = ADDI.parseFromString("ADDI x0, x0, 5")
 
   oldState = MachineState()
 
@@ -83,6 +129,7 @@ if __name__ == "__main__":
   # Now, run the forward pass
   # with add
   newState = add.forward(oldState)
+  newState = addi.forward(newState)
 
   # Print reg 1, reg 2, and reg 0
   print (f"x1: {newState.regs[1].value}, x2: {newState.regs[2].value}, x0: {newState.regs[0].value}")
