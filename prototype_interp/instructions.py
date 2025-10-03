@@ -113,6 +113,246 @@ class ADDI(Instruction):
     # Go return our new ADD instruction
     return cls(*asInts)
 
+class XOR(Instruction):
+    def __init__(self, dIdx, aIdx, bIdx):
+      self.dIdx = dIdx
+      self.aIdx = aIdx
+      self.bIdx = bIdx
+
+    def forward(self, state : MachineState) -> MachineState:
+      """
+      Implements the forward pass of XOR
+      dIdx = aIdx ^ bIdx
+      """
+      # Get the values of a and b
+      aVal = state.regs[self.aIdx].value
+      bVal = state.regs[self.bIdx].value
+
+      # Add them together, and store in d, with
+      # overflow handling
+      state.regs[self.dIdx].value = (aVal ^ bVal)
+
+      return state
+    
+    @classmethod
+    def parseFromString(cls, s):
+      """
+      The format for this is literally just XOR x0, x1, x2 as a concept
+      """
+      spacedBraked = s.split(" ")
+      assert spacedBraked[0] == "XOR", "Not an XOR instruction"
+
+      # Start by replacing ADD with nothing, and then
+      # trimming
+      args = s.replace("XOR", "").strip()
+
+      # Now, split on commas
+      csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+      # Go return our new ADD instruction
+      return cls(*csv)
+
+class XORI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of XORI
+    dIdx = aIdx ^ bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal ^ immVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "XORI", "Not an XORI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("XORI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+
+class OR(Instruction):
+    def __init__(self, dIdx, aIdx, bIdx):
+      self.dIdx = dIdx
+      self.aIdx = aIdx
+      self.bIdx = bIdx
+
+    def forward(self, state : MachineState) -> MachineState:
+      """
+      Implements the forward pass of OR
+      dIdx = aIdx | bIdx
+      """
+      # Get the values of a and b
+      aVal = state.regs[self.aIdx].value
+      bVal = state.regs[self.bIdx].value
+
+      # Add them together, and store in d, with
+      # overflow handling
+      state.regs[self.dIdx].value = (aVal | bVal)
+
+      return state
+    
+    @classmethod
+    def parseFromString(cls, s):
+      """
+      The format for this is literally just OR x0, x1, x2 as a concept
+      """
+      spacedBraked = s.split(" ")
+      assert spacedBraked[0] == "OR", "Not an OR instruction"
+
+      # Start by replacing ADD with nothing, and then
+      # trimming
+      args = s.replace("OR", "").strip()
+
+      # Now, split on commas
+      csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+      # Go return our new ADD instruction
+      return cls(*csv)
+
+class ORI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ORI
+    dIdx = aIdx ^ bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal | immVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "ORI", "Not an ORI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("ORI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+
+class AND(Instruction):
+    def __init__(self, dIdx, aIdx, bIdx):
+      self.dIdx = dIdx
+      self.aIdx = aIdx
+      self.bIdx = bIdx
+
+    def forward(self, state : MachineState) -> MachineState:
+      """
+      Implements the forward pass of AND
+      dIdx = aIdx | bIdx
+      """
+      # Get the values of a and b
+      aVal = state.regs[self.aIdx].value
+      bVal = state.regs[self.bIdx].value
+
+      # Add them together, and store in d, with
+      # overflow handling
+      state.regs[self.dIdx].value = (aVal & bVal)
+
+      return state
+    
+    @classmethod
+    def parseFromString(cls, s):
+      """
+      The format for this is literally just AND x0, x1, x2 as a concept
+      """
+      spacedBraked = s.split(" ")
+      assert spacedBraked[0] == "AND", "Not an AND instruction"
+
+      # Start by replacing ADD with nothing, and then
+      # trimming
+      args = s.replace("AND", "").strip()
+
+      # Now, split on commas
+      csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+      # Go return our new ADD instruction
+      return cls(*csv)
+
+class ANDI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ANDI
+    dIdx = aIdx ^ bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal & immVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "ANDI", "Not an ANDI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("ANDI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+
 if __name__ == "__main__":
   # Testing out ADD
   add = ADD.parseFromString("ADD x0, x1, x2")
