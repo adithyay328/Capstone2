@@ -34,6 +34,7 @@ export default function CodeEditor({
 
     //CONTAINER FOR THE WHOLE EDITOR
     return (
+    <div className="pt-12 pb-5">
     <div className="w-full h-auto
                     md:w-[700px] lg:w-[800px] xl:w-[1000px]
                     border-2 border-gray-900 rounded-lg bg-white"
@@ -73,6 +74,7 @@ export default function CodeEditor({
             />
         </div>
                 <RunCode onClick={onRun} />
+    </div>
     </div>
   );
 }
