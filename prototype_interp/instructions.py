@@ -13,7 +13,12 @@ from machine import Register, MemoryAddress, MachineState
 from pydantic import BaseModel
 
 class Instruction(ABC):
-  KNOWN_INSTRUCTIONS = []
+  KNOWN_INSTRUCTIONS = set()
+
+  def __init_subclass__(cls):
+    # All it needs to do
+    # is add itself to KNOWN_INSTRUCTIONS
+    Instruction.KNOWN_INSTRUCTIONS.add(cls)
 
   """
   The base type for an instruction.
