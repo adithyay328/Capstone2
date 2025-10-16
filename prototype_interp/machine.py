@@ -68,3 +68,32 @@ class MachineState:
   def __init__(self, numRegs : int = 32, memoryBytes : int = 1024):
     self.regs = [Register(0, i) for i in range(numRegs)]
     self.memory = [MemoryAddress(0, i) for i in range(memoryBytes)]
+    self.isJumping = False
+    self.jumpOffset = 0
+
+class Runtime:
+  def __init__(self, program):
+    self.state = MachineState()
+    self.program = program
+    self.pc = 0
+    
+  def forward(self):
+    # Check if the program counter is valid
+    if self.pc >= len(self.program):
+      print("Runtime at end.")
+      return
+    elif self.pc < 0:
+      print("ERROR: Program counter below 0.")
+      return
+    
+    # Run the next instruction
+    instruction = self.program[self.pc]
+    new_state = instruction.forward(self.state)
+    
+    # Check new state for specific cases (i.e. going backwards)
+    if not new_state.isJumping:
+      self.state = new_state
+      self.pc += 1
+    else:
+      self.state = new_state
+      self.pc += new_state.jumpOffset

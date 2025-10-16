@@ -352,3 +352,46 @@ class ANDI(Instruction):
 
     # Go return our new ADD instruction
     return cls(*asInts)
+
+class BEQ(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BEQ
+    TODO here
+    """    
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+    
+    # If a and b are equal, branch
+    if a == b:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+  @classmethod
+  # TODO implement this
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just BEQ x0, x1, imm as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "BEQ", "Not an BEQ instruction"
+
+    # Start by replacing BEQ with nothing, and then
+    # trimming
+    args = s.replace("BEQ", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new BEQ instruction
+    return cls(*asInts)
