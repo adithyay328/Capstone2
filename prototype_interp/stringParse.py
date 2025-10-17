@@ -78,7 +78,11 @@ def lineToOperands( line : str ) -> List[str]:
   if final_op is not None and final_op != "":
     operands.append(final_op.strip())
   
-  return [instr] + operands
+  result = [instr] + operands
+  for i in range(len(result)):
+    result[i] = result[i].strip().lower()
+
+  return result
 
 def fullStringToInstructionTokens( s : str ) -> List[List[str]]:
   """
@@ -114,11 +118,74 @@ def parseSource( s : str ) -> List[List[str]]:
   tokenizedLines = [lineToOperands(line) for line in instrLines]
   return tokenizedLines
 
+def sourceToInstructions( s : str ) -> List[Instruction]:
+  """
+  Given a full source code string, parses it into a list of
+  executable Instruction objects.
+  
+  This function:
+  1. Builds a mapping of instruction names to instruction classes
+  2. Tokenizes the source code
+  3. For each line of tokens, dispatches to the appropriate instruction class
+  4. Returns a list of constructed instruction instances
+  
+  Args:
+    s: The source code string containing assembly instructions
+  
+  Returns:
+    A list of Instruction objects ready to be executed
+  
+  Raises:
+    ValueError: If an unknown instruction is encountered or if parsing fails
+  """
+  # Build a mapping of instruction name -> instruction class
+  # by iterating over all known instruction classes and calling getName()
+  instruction_map = {}
+  for instr_class in Instruction.KNOWN_INSTRUCTIONS:
+    name = instr_class.getName().lower().strip()
+    instruction_map[name] = instr_class
+  
+  # Parse the source into token lists
+  token_lists = parseSource(s)
+  
+  # Build instruction instances
+  instructions = []
+  for tokens in token_lists:
+    if len(tokens) == 0:
+      continue  # Skip empty token lists
+    
+    # First token is the instruction name
+    instr_name = tokens[0].lower()
+    
+    # Look up the instruction class
+    if instr_name not in instruction_map:
+      raise ValueError(f"Unknown instruction: '{instr_name}'. Known instructions: {sorted(instruction_map.keys())}")
+    
+    instr_class = instruction_map[instr_name]
+    
+    # Parse the tokens into an instruction instance
+    try:
+      instruction = instr_class.parseFromSourceTokens(tokens)
+      instructions.append(instruction)
+    except ValueError as e:
+      raise ValueError(f"Failed to parse instruction '{instr_name}': {e}")
+  
+  return instructions
+
 if __name__ == "__main__":
   testStr = """
   # This is a comment
   ADD x0, x1, x2  # This is an add instruction
 
-  ADD x3, x4,  x5
+  ADD x3, x4, x5
+  ADDI x10, x11, 100
   """
-  print (parseSource(testStr))
+  
+  print("Token parsing test:")
+  print(parseSource(testStr))
+  print()
+  
+  print("Instruction parsing test:")
+  instructions = sourceToInstructions(testStr)
+  for instr in instructions:
+    print(f"  {instr.__class__.__name__}: {instr.__dict__}")

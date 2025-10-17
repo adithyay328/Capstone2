@@ -5,16 +5,50 @@ One way to implement an instruction, that is STUPID
 simple, is to think about an instruction as simply an
 operation that takes in a machine state, and returns a new
 machine state. That's how we'll design it, for now.
-
-Also note; each instruction should have a way to parse
-itself from a string, which matches the format that
-is specified here:
 """
 from abc import ABC, abstractmethod
+from typing import List
 
 from machine import Register, MemoryAddress, MachineState
 
 from pydantic import BaseModel
+
+def checkRegister(token: str) -> int:
+  """
+  Validates that a token is a valid register format (e.g., 'x0', 'x15')
+  and returns the register index as an integer.
+  
+  Raises ValueError if the token is not a valid register.
+  """
+  if not token.startswith('x'):
+    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  
+  try:
+    reg_idx = int(token[1:])
+  except ValueError:
+    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  
+  # RISC-V has 32 registers (x0-x31)
+  if reg_idx < 0 or reg_idx > 31:
+    raise ValueError(f"Register index out of range: '{token}'. Valid range: x0-x31")
+  
+  return reg_idx
+
+def checkImmediate(token: str) -> int:
+  """
+  Validates that a token is a valid immediate value and returns it as an integer.
+  
+  Supports decimal (e.g., '10', '-5') and hexadecimal (e.g., '0x10') formats.
+  Raises ValueError if the token is not a valid immediate value.
+  """
+  try:
+    # Handle both decimal and hex formats
+    if token.startswith('0x') or token.startswith('0X'):
+      return int(token, 16)
+    else:
+      return int(token)
+  except ValueError:
+    raise ValueError(f"Invalid immediate value: '{token}'. Expected a decimal or hexadecimal number")
 
 class Instruction(ABC):
   KNOWN_INSTRUCTIONS = set()
@@ -26,12 +60,36 @@ class Instruction(ABC):
 
   """
   The base type for an instruction.
-
-  For now, it'll only support parsing in strings, but later we can add support for forcing it to go via hex
   """
-  @classmethod
+  @staticmethod
   @abstractmethod
-  def parseFromString(cls, s):
+  def getName() -> str:
+    """
+    Returns the lowercase name of the instruction as it appears in source code.
+    This should match the instruction mnemonic used in assembly.
+    
+    Returns:
+      The lowercase instruction name (e.g., 'add', 'addi', 'xor')
+    """
+    pass
+
+  @staticmethod
+  @abstractmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'Instruction':
+    """
+    Parse an instruction from a list of source tokens.
+    
+    Args:
+      tokens: A list of tokens where the first token is the instruction
+              mnemonic and the remaining tokens are operands.
+              Example: ['ADD', 'x0', 'x1', 'x2']
+    
+    Returns:
+      An instance of the instruction class
+    
+    Raises:
+      ValueError: If the tokens are invalid or don't match the instruction format
+    """
     pass
 
   @abstractmethod
@@ -44,6 +102,28 @@ class ADD(Instruction):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'add'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ADD':
+    """
+    Parse ADD instruction from tokens.
+    Expected format: ['add', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ADD instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'add':
+      raise ValueError(f"Expected 'add' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return ADD(dIdx, aIdx, bIdx)
 
   def forward(self, state : MachineState) -> MachineState:
     """
@@ -61,30 +141,34 @@ class ADD(Instruction):
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ADD", "Not an ADD instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ADD", "").strip()
-
-    # Now, split on commas
-    csv = [int(x.strip()[1:]) for x in args.split(",")]
-
-    # Go return our new ADD instruction
-    return cls(*csv)
-
 # For now, let's just implement the add and addiinstructions, to show 2 ops
 class ADDI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'addi'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ADDI':
+    """
+    Parse ADDI instruction from tokens.
+    Expected format: ['addi', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ADDI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'addi':
+      raise ValueError(f"Expected 'addi' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ADDI(dIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
@@ -102,31 +186,33 @@ class ADDI(Instruction):
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ADDI", "Not an ADD instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ADDI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class XOR(Instruction):
     def __init__(self, dIdx, aIdx, bIdx):
       self.dIdx = dIdx
       self.aIdx = aIdx
       self.bIdx = bIdx
+
+    @staticmethod
+    def getName() -> str:
+      return 'xor'
+
+    @staticmethod
+    def parseFromSourceTokens(tokens: List[str]) -> 'XOR':
+      """
+      Parse XOR instruction from tokens.
+      Expected format: ['xor', 'x0', 'x1', 'x2']
+      """
+      if len(tokens) != 4:
+        raise ValueError(f"XOR instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+      
+      if tokens[0].lower() != 'xor':
+        raise ValueError(f"Expected 'xor' instruction, got '{tokens[0]}'")
+      
+      dIdx = checkRegister(tokens[1])
+      aIdx = checkRegister(tokens[2])
+      bIdx = checkRegister(tokens[3])
+      
+      return XOR(dIdx, aIdx, bIdx)
 
     def forward(self, state : MachineState) -> MachineState:
       """
@@ -142,30 +228,34 @@ class XOR(Instruction):
       state.regs[self.dIdx].value = (aVal ^ bVal)
 
       return state
-    
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just XOR x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "XOR", "Not an XOR instruction"
-
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("XOR", "").strip()
-
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
-
-      # Go return our new ADD instruction
-      return cls(*csv)
 
 class XORI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'xori'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'XORI':
+    """
+    Parse XORI instruction from tokens.
+    Expected format: ['xori', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"XORI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'xori':
+      raise ValueError(f"Expected 'xori' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return XORI(dIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
@@ -182,31 +272,33 @@ class XORI(Instruction):
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "XORI", "Not an XORI instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("XORI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class OR(Instruction):
     def __init__(self, dIdx, aIdx, bIdx):
       self.dIdx = dIdx
       self.aIdx = aIdx
       self.bIdx = bIdx
+
+    @staticmethod
+    def getName() -> str:
+      return 'or'
+
+    @staticmethod
+    def parseFromSourceTokens(tokens: List[str]) -> 'OR':
+      """
+      Parse OR instruction from tokens.
+      Expected format: ['or', 'x0', 'x1', 'x2']
+      """
+      if len(tokens) != 4:
+        raise ValueError(f"OR instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+      
+      if tokens[0].lower() != 'or':
+        raise ValueError(f"Expected 'or' instruction, got '{tokens[0]}'")
+      
+      dIdx = checkRegister(tokens[1])
+      aIdx = checkRegister(tokens[2])
+      bIdx = checkRegister(tokens[3])
+      
+      return OR(dIdx, aIdx, bIdx)
 
     def forward(self, state : MachineState) -> MachineState:
       """
@@ -222,30 +314,34 @@ class OR(Instruction):
       state.regs[self.dIdx].value = (aVal | bVal)
 
       return state
-    
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just OR x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "OR", "Not an OR instruction"
-
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("OR", "").strip()
-
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
-
-      # Go return our new ADD instruction
-      return cls(*csv)
 
 class ORI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'ori'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ORI':
+    """
+    Parse ORI instruction from tokens.
+    Expected format: ['ori', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ORI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'ori':
+      raise ValueError(f"Expected 'ori' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ORI(dIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
@@ -262,31 +358,33 @@ class ORI(Instruction):
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ORI", "Not an ORI instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ORI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class AND(Instruction):
     def __init__(self, dIdx, aIdx, bIdx):
       self.dIdx = dIdx
       self.aIdx = aIdx
       self.bIdx = bIdx
+
+    @staticmethod
+    def getName() -> str:
+      return 'and'
+
+    @staticmethod
+    def parseFromSourceTokens(tokens: List[str]) -> 'AND':
+      """
+      Parse AND instruction from tokens.
+      Expected format: ['and', 'x0', 'x1', 'x2']
+      """
+      if len(tokens) != 4:
+        raise ValueError(f"AND instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+      
+      if tokens[0].lower() != 'and':
+        raise ValueError(f"Expected 'and' instruction, got '{tokens[0]}'")
+      
+      dIdx = checkRegister(tokens[1])
+      aIdx = checkRegister(tokens[2])
+      bIdx = checkRegister(tokens[3])
+      
+      return AND(dIdx, aIdx, bIdx)
 
     def forward(self, state : MachineState) -> MachineState:
       """
@@ -302,30 +400,34 @@ class AND(Instruction):
       state.regs[self.dIdx].value = (aVal & bVal)
 
       return state
-    
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just AND x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "AND", "Not an AND instruction"
-
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("AND", "").strip()
-
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
-
-      # Go return our new ADD instruction
-      return cls(*csv)
 
 class ANDI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'andi'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ANDI':
+    """
+    Parse ANDI instruction from tokens.
+    Expected format: ['andi', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ANDI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'andi':
+      raise ValueError(f"Expected 'andi' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ANDI(dIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
@@ -341,23 +443,3 @@ class ANDI(Instruction):
     state.regs[self.dIdx].value = (aVal & immVal)
 
     return state
-
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ANDI", "Not an ANDI instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ANDI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
