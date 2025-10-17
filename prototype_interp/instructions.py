@@ -4,7 +4,11 @@ Our core set of instructions.
 One way to implement an instruction, that is STUPID
 simple, is to think about an instruction as simply an
 operation that takes in a machine state, and returns a new
-machine state. That's how we'll design it, for now
+machine state. That's how we'll design it, for now.
+
+Also note; each instruction should have a way to parse
+itself from a string, which matches the format that
+is specified here:
 """
 from abc import ABC, abstractmethod
 
