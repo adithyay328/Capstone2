@@ -352,3 +352,286 @@ class ANDI(Instruction):
 
     # Go return our new ADD instruction
     return cls(*asInts)
+
+class SLT(Instruction):
+    def __init__(self, dIdx, aIdx, bIdx):
+      self.dIdx = dIdx
+      self.aIdx = aIdx
+      self.bIdx = bIdx
+
+    def forward(self, state : MachineState) -> MachineState:
+      """
+      Implements the forward pass of SLT
+      dIdx = aIdx | bIdx
+      """
+      # Get the values of a and b
+      aVal = state.regs[self.aIdx].value
+      bVal = state.regs[self.bIdx].value
+
+      # Add them together, and store in d, with
+      # overflow handling
+      state.regs[self.dIdx].value = 1 if aVal < bVal else 0
+
+      return state
+    
+    @classmethod
+    def parseFromString(cls, s):
+      """
+      The format for this is literally just SLT x0, x1, x2 as a concept
+      """
+      spacedBraked = s.split(" ")
+      assert spacedBraked[0] == "SLT", "Not an SLT instruction"
+
+      # Start by replacing ADD with nothing, and then
+      # trimming
+      args = s.replace("SLT", "").strip()
+
+      # Now, split on commas
+      csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+      # Go return our new ADD instruction
+      return cls(*csv)
+
+class SLTI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLTI
+    dIdx = aIdx ^ bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = 1 if aVal < immVal else 0
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "SLTI", "Not an SLTI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("SLTI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+
+class SUB(Instruction):
+    def __init__(self, dIdx, aIdx, bIdx):
+      self.dIdx = dIdx
+      self.aIdx = aIdx
+      self.bIdx = bIdx
+
+    def forward(self, state : MachineState) -> MachineState:
+      """
+      Implements the forward pass of SUB
+      dIdx = aIdx | bIdx
+      """
+      # Get the values of a and b
+      aVal = state.regs[self.aIdx].value
+      bVal = state.regs[self.bIdx].value
+
+      # Add them together, and store in d, with
+      # overflow handling
+      state.regs[self.dIdx].value = (aVal - bVal)
+
+      return state
+    
+    @classmethod
+    def parseFromString(cls, s):
+      """
+      The format for this is literally just AND x0, x1, x2 as a concept
+      """
+      spacedBraked = s.split(" ")
+      assert spacedBraked[0] == "SUB", "Not an SUB instruction"
+
+      # Start by replacing ADD with nothing, and then
+      # trimming
+      args = s.replace("SUB", "").strip()
+
+      # Now, split on commas
+      csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+      # Go return our new ADD instruction
+      return cls(*csv)
+class SLL(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ADD
+
+    dIdx = aIdx + bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal << bVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "SLL", "Not an SLL instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("SLL", "").strip()
+
+    # Now, split on commas
+    csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+    # Go return our new ADD instruction
+    return cls(*csv)
+
+# For now, let's just implement the add and addiinstructions, to show 2 ops
+class SLLI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ADD
+
+    dIdx = aIdx + bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal << immVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "SLLI", "Not an SLLI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("SLLI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
+class SRL(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ADD
+
+    dIdx = aIdx + bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal >> bVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "SRL", "Not an SRL instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("SRL", "").strip()
+
+    # Now, split on commas
+    csv = [int(x.strip()[1:]) for x in args.split(",")]
+
+    # Go return our new ADD instruction
+    return cls(*csv)
+
+# For now, let's just implement the add and addiinstructions, to show 2 ops
+class SRLI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of ADD
+
+    dIdx = aIdx + bIdx
+    """
+    # Get the values of a and b
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Add them together, and store in d, with
+    # overflow handling
+    state.regs[self.dIdx].value = (aVal >> immVal)
+
+    return state
+
+  @classmethod
+  def parseFromString(cls, s):
+    """
+    The format for this is literally just ADD x0, x1, x2 as a concept
+    """
+    spacedBraked = s.split(" ")
+    assert spacedBraked[0] == "SRLI", "Not an SRLI instruction"
+
+    # Start by replacing ADD with nothing, and then
+    # trimming
+    args = s.replace("SRLI", "").strip()
+
+    # Now, split on commas
+    withoutSpaces = [x.strip() for x in args.split(",")]
+    withoutX = [x.replace("x", "") for x in withoutSpaces]
+    asInts = [int(x) for x in withoutX]
+
+    # Go return our new ADD instruction
+    return cls(*asInts)
