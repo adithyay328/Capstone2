@@ -65,6 +65,14 @@ class MachineState:
   A machine state encapsulates, for now, a combination
   of a bank of registers and bank of memory
   """
-  def __init__(self, numRegs : int = 32, memoryBytes : int = 1024):
+  def __init__(self, numRegs : int = 32, memoryBytes : int = 1024, pc : int = 0):
     self.regs = [Register(0, i) for i in range(numRegs)]
     self.memory = [MemoryAddress(0, i) for i in range(memoryBytes)]
+
+    # Also, our program counter
+    self.pc = pc
+
+    # Also, a bit indicating if a jump
+    # / branch was taken
+    self.branchTaken = False
+    self.branchOffset = 0

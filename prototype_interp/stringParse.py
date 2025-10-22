@@ -14,6 +14,7 @@ import regex
 from typing import List
 
 from instructions import Instruction
+from miniRuntime import Runtime
 
 def lineToOperands( line : str ) -> List[str]:
   """
@@ -173,19 +174,44 @@ def sourceToInstructions( s : str ) -> List[Instruction]:
   return instructions
 
 if __name__ == "__main__":
-  testStr = """
-  # This is a comment
-  ADD x0, x1, x2  # This is an add instruction
-
-  ADD x3, x4, x5
-  ADDI x10, x11, 100
+  from machine import MachineState
+  
+  # Create a test program that does some additions
+  testProgram = """
+  # Test program: demonstrate ADD and ADDI instructions
+  # Initialize some registers with values
+  ADDI x1, x0, 5      # x1 = 0 + 5 = 5
+  ADDI x2, x0, 10     # x2 = 0 + 10 = 10
+  ADDI x3, x0, 7      # x3 = 0 + 7 = 7
+  
+  # Do some additions
+  ADD x4, x1, x2      # x4 = x1 + x2 = 5 + 10 = 15
+  ADD x5, x4, x3      # x5 = x4 + x3 = 15 + 7 = 22
+  ADDI x6, x5, 100    # x6 = x5 + 100 = 22 + 100 = 122
   """
   
-  print("Token parsing test:")
-  print(parseSource(testStr))
+  print("="*60)
+  print("FULL END-TO-END TEST: Source String -> Machine State")
+  print("="*60)
   print()
   
-  print("Instruction parsing test:")
-  instructions = sourceToInstructions(testStr)
-  for instr in instructions:
-    print(f"  {instr.__class__.__name__}: {instr.__dict__}")
+  print("1. Source code:")
+  print(testProgram)
+  print()
+  
+  print("2. Parsing to instructions...")
+  instructions = sourceToInstructions(testProgram)
+  print(f"   Parsed {len(instructions)} instructions:")
+  for i, instr in enumerate(instructions):
+    print(f"     {i}: {instr.__class__.__name__} {instr.__dict__}")
+  print()
+
+  runtime = Runtime(instructions)
+  runtime.run()
+  finalState = runtime.machineStates[-1]
+
+  print("3. Final machine state:")
+  for reg in finalState.regs:
+    print(f"   {reg.name}: {reg.value}")
+  print()
+  print("End-to-end test complete.")
