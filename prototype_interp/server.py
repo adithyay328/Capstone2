@@ -4,6 +4,9 @@ and sending it out.
 """
 
 from flask import Flask, request, jsonify
+from stringParse import sourceToInstructions
+from runtime import Runtime
+from machine import MachineState
 
 app = Flask(__name__)
 
@@ -51,55 +54,21 @@ def data():
            })
 
        else:
-           machineState = MachineState()
-
-           lines = [line.strip() for line in codeField.splitlines() if line.strip()]
-           for line in lines:
-               op = line.split()[0]
-               instruction = None
-
-               match op:
-                   case "ADD":
-                       instruction = ADD.parseFromString(line)
-
-                   case "ADDI":
-                       instruction = ADDI.parseFromString(line)
-
-                   case "XOR":
-                       instruction = XOR.parseFromString(line)
-
-                   case "XORI":
-                       instruction = XORI.parseFromString(line)
-
-                   case "OR":
-                       instruction = OR.parseFromString(line)
-
-                   case "ORI":
-                       instruction = ORI.parseFromString(line)
-
-                   case "AND":
-                       instruction = AND.parseFromString(line)
-
-                   case "ANDI":
-                       instruction = ANDI.parseFromString(line)
-
-                   case _:
-                       return jsonify({
-                           "hadError": True,
-                           "errorMessage": "Error: Operation " + op + " not supported",
-                           "registers": {},
-                           "memory": {}
-                       })
-
-               machineState = instruction.forward(machineState)
-
-               """
-               prepare output variables
-               registersJson will loop through all registers in the machineState and add the the hex value to dictionary
-               memoryJson will get the machinState memory pairs (addresses and values) and convert the values to hex
-               """
-               registersJson = {f"x{i}": hex(reg.value) for i, reg in enumerate(machineState.regs[:10])}
-               memoryJson = {hex(mem.addr): hex(mem.value) for mem in machineState.memory[:10]}
+           # Parse the source code into instruction objects using the modern regex-based parser
+           instructions = sourceToInstructions(codeField)
+           
+           # Execute all instructions using the Runtime
+           runtime = Runtime(instructions)
+           runtime.run()
+           
+           # Get the final machine state after execution
+           finalState = runtime.states[-1]
+           
+           # Prepare output variables
+           # registersJson will loop through all registers and convert to hex
+           # memoryJson will get the memory pairs (addresses and values) and convert to hex
+           registersJson = {f"x{i}": hex(reg.value) for i, reg in enumerate(finalState.regs)}
+           memoryJson = {hex(mem.addr): hex(mem.value) for mem in finalState.memory}
 
            return jsonify({
                "hadError": False,
