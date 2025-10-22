@@ -2,7 +2,7 @@
 import random
 
 from instructions import Instruction, ADD, ADDI, XOR, XORI, OR, ORI, AND, ANDI
-from machine import MachineState
+from machine import MachineState, Runtime
 
 def test_add():
   """
@@ -143,3 +143,17 @@ def test_andi():
   afterAndi = andi.forward(state)
 
   assert afterAndi.regs[3].value == c, f"Expected {c}, got {afterAndi.regs[3].value}"
+  
+def test_runtime():
+  """
+  Testing the runtime
+  """
+  program = [
+    ORI.parseFromString("ORI x1, x0, 5"),
+    ORI.parseFromString("ORI x2, x0, 3"),
+    ADD.parseFromString("ADD x3, x1, x2")
+  ]
+  
+  runtime = Runtime(program)
+  
+  runtime.forward()
