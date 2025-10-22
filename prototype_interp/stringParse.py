@@ -176,23 +176,68 @@ if __name__ == "__main__":
   from machine import MachineState
   from runtime import Runtime
   
-  # Create a test program that does some additions
+  # Create a comprehensive test program that uses ALL migrated instructions
   testProgram = """
-  # Test program: demonstrate ADD and ADDI instructions
-  # Initialize some registers with values
-  ADDI x1, x0, 5      # x1 = 0 + 5 = 5
-  ADDI x2, x0, 10     # x2 = 0 + 10 = 10
-  ADDI x3, x0, 7      # x3 = 0 + 7 = 7
+  # Comprehensive test program for all migrated instructions
+  # Testing: ADD, ADDI, SUB, XOR, XORI, OR, ORI, AND, ANDI, 
+  #          SLT, SLTI, SLL, SLLI, SRL, SRLI
   
-  # Do some additions
-  ADD x4, x1, x2      # x4 = x1 + x2 = 5 + 10 = 15
-  ADD x5, x4, x3      # x5 = x4 + x3 = 15 + 7 = 22
-  ADDI x6, x5, 100    # x6 = x5 + 100 = 22 + 100 = 122
+  # === Arithmetic Instructions ===
+  # Initialize some base values
+  ADDI x1, x0, 20     # x1 = 20
+  ADDI x2, x0, 15     # x2 = 15
+  ADDI x3, x0, 8      # x3 = 8
+  
+  # Test ADD and SUB
+  ADD x4, x1, x2      # x4 = 20 + 15 = 35
+  SUB x5, x1, x2      # x5 = 20 - 15 = 5
+  ADDI x6, x4, 10     # x6 = 35 + 10 = 45
+  
+  # === Logical Instructions ===
+  # Test XOR operations (useful for toggling bits)
+  ADDI x7, x0, 0xFF   # x7 = 255 (0b11111111)
+  ADDI x8, x0, 0x0F   # x8 = 15  (0b00001111)
+  XOR x9, x7, x8      # x9 = 255 ^ 15 = 240 (0b11110000)
+  XORI x10, x7, 0x55  # x10 = 255 ^ 85 = 170 (0b10101010)
+  
+  # Test OR operations (useful for setting bits)
+  ADDI x11, x0, 0xF0  # x11 = 240 (0b11110000)
+  ADDI x12, x0, 0x0F  # x12 = 15  (0b00001111)
+  OR x13, x11, x12    # x13 = 240 | 15 = 255 (0b11111111)
+  ORI x14, x11, 0x05  # x14 = 240 | 5 = 245 (0b11110101)
+  
+  # Test AND operations (useful for masking bits)
+  ADDI x15, x0, 0xFF  # x15 = 255 (0b11111111)
+  ADDI x16, x0, 0x3C  # x16 = 60  (0b00111100)
+  AND x17, x15, x16   # x17 = 255 & 60 = 60 (0b00111100)
+  ANDI x18, x15, 0x0F # x18 = 255 & 15 = 15 (0b00001111)
+  
+  # === Comparison Instructions ===
+  # Test SLT (Set Less Than)
+  ADDI x19, x0, 10    # x19 = 10
+  ADDI x20, x0, 20    # x20 = 20
+  SLT x21, x19, x20   # x21 = 1 (10 < 20 is true)
+  SLT x22, x20, x19   # x22 = 0 (20 < 10 is false)
+  SLTI x23, x19, 15   # x23 = 1 (10 < 15 is true)
+  SLTI x24, x20, 15   # x24 = 0 (20 < 15 is false)
+  
+  # === Shift Instructions ===
+  # Test left shifts (multiply by powers of 2)
+  ADDI x25, x0, 5     # x25 = 5
+  ADDI x26, x0, 2     # x26 = 2 (shift amount)
+  SLL x27, x25, x26   # x27 = 5 << 2 = 20
+  SLLI x28, x25, 3    # x28 = 5 << 3 = 40
+  
+  # Test right shifts (divide by powers of 2)
+  ADDI x29, x0, 80    # x29 = 80
+  ADDI x30, x0, 2     # x30 = 2 (shift amount)
+  SRL x31, x29, x30   # x31 = 80 >> 2 = 20
+  SRLI x1, x29, 3     # x1 = 80 >> 3 = 10 (reusing x1)
   """
   
-  print("="*60)
-  print("FULL END-TO-END TEST: Source String -> Machine State")
-  print("="*60)
+  print("="*80)
+  print("COMPREHENSIVE END-TO-END TEST: All Migrated Instructions")
+  print("="*80)
   print()
   
   print("1. Source code:")
@@ -206,12 +251,30 @@ if __name__ == "__main__":
     print(f"     {i}: {instr.__class__.__name__} {instr.__dict__}")
   print()
 
+  print("3. Executing instructions...")
   runtime = Runtime(instructions)
   runtime.run()
   finalState = runtime.states[-1]
 
-  print("3. Final machine state:")
-  for reg in finalState.regs:
-    print(f"   {reg.name}: {reg.value}")
   print()
-  print("End-to-end test complete.")
+  print("4. Final machine state (non-zero registers only):")
+  for reg in finalState.regs:
+    if reg.value != 0:
+      print(f"   {reg.name}: {reg.value} (0x{reg.value:X})")
+  
+  print()
+  print("5. Verification of key results:")
+  print(f"   x4 (ADD 20+15):        {finalState.regs[4].value} (expected: 35)")
+  print(f"   x5 (SUB 20-15):        {finalState.regs[5].value} (expected: 5)")
+  print(f"   x9 (XOR 255^15):       {finalState.regs[9].value} (expected: 240)")
+  print(f"   x13 (OR 240|15):       {finalState.regs[13].value} (expected: 255)")
+  print(f"   x17 (AND 255&60):      {finalState.regs[17].value} (expected: 60)")
+  print(f"   x21 (SLT 10<20):       {finalState.regs[21].value} (expected: 1)")
+  print(f"   x22 (SLT 20<10):       {finalState.regs[22].value} (expected: 0)")
+  print(f"   x27 (SLL 5<<2):        {finalState.regs[27].value} (expected: 20)")
+  print(f"   x31 (SRL 80>>2):       {finalState.regs[31].value} (expected: 20)")
+  
+  print()
+  print("="*80)
+  print("End-to-end test complete!")
+  print("="*80)
