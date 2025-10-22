@@ -14,7 +14,6 @@ import regex
 from typing import List
 
 from instructions import Instruction
-from miniRuntime import Runtime
 
 def lineToOperands( line : str ) -> List[str]:
   """
@@ -175,6 +174,7 @@ def sourceToInstructions( s : str ) -> List[Instruction]:
 
 if __name__ == "__main__":
   from machine import MachineState
+  from runtime import Runtime
   
   # Create a test program that does some additions
   testProgram = """
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 
   runtime = Runtime(instructions)
   runtime.run()
-  finalState = runtime.machineStates[-1]
+  finalState = runtime.states[-1]
 
   print("3. Final machine state:")
   for reg in finalState.regs:

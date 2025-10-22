@@ -8,6 +8,8 @@ From there, for now, just maintain an instruction
 pointer as an int. We can do what we want with it,
 and the program gives us a list of instructions we execute
 """
+from typing import List
+
 class Register:
   """
   A single regsiter. Contains a 32 bit value,
@@ -69,10 +71,6 @@ class MachineState:
     self.regs = [Register(0, i) for i in range(numRegs)]
     self.memory = [MemoryAddress(0, i) for i in range(memoryBytes)]
 
-    # Also, our program counter
     self.pc = pc
-
-    # Also, a bit indicating if a jump
-    # / branch was taken
-    self.branchTaken = False
-    self.branchOffset = 0
+    self.isJumping = False
+    self.jumpOffset = 0
