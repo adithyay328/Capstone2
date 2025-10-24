@@ -84,3 +84,7 @@ def data():
             "registers": {},
             "memory": {}
         })
+
+if __name__ == '__main__':
+  # Run on port 25565 for testing purposes
+  app.run(debug=True, port=25565)
