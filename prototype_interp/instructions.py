@@ -1105,3 +1105,53 @@ class BGEU(Instruction):
       state.jumpOffset = self.imm
 
     return state
+
+class SW(Instruction):
+  def __init__(self, sIdx, aIdx, imm):
+    self.sIdx = sIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'sw'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SW':
+    """
+    Parse SW instruction from tokens.
+    Expected format: ['sw', 'x2', 'x1', '10']
+    Stores word from x2 to memory[x1 + 10]
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sw':
+      raise ValueError(f"Expected 'sw' instruction, got '{tokens[0]}'")
+    
+    sIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SW(sIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SW (Store Word)
+    memory[aIdx + imm] = sIdx (4 bytes, little-endian)
+    """
+    sVal = state.regs[self.sIdx].value
+    aVal = state.regs[self.aIdx].value
+    addr = (aVal + self.imm) % (2 ** 32)
+
+    # Store 4 bytes to memory (little-endian)
+    if addr + 3 >= len(state.memory):
+      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
+    
+    # Break word into 4 bytes (little-endian)
+    state.memory[addr].value = sVal & 0xFF
+    state.memory[addr + 1].value = (sVal >> 8) & 0xFF
+    state.memory[addr + 2].value = (sVal >> 16) & 0xFF
+    state.memory[addr + 3].value = (sVal >> 24) & 0xFF
+
+    return state
