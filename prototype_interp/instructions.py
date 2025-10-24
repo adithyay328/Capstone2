@@ -4,153 +4,217 @@ Our core set of instructions.
 One way to implement an instruction, that is STUPID
 simple, is to think about an instruction as simply an
 operation that takes in a machine state, and returns a new
-machine state. That's how we'll design it, for now
+machine state. That's how we'll design it, for now.
 """
 from abc import ABC, abstractmethod
+from typing import List
 
 from machine import Register, MemoryAddress, MachineState
 
 from pydantic import BaseModel
 
+def checkRegister(token: str) -> int:
+  """
+  Validates that a token is a valid register format (e.g., 'x0', 'x15')
+  and returns the register index as an integer.
+  
+  Raises ValueError if the token is not a valid register.
+  """
+  if not token.startswith('x'):
+    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  
+  try:
+    reg_idx = int(token[1:])
+  except ValueError:
+    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  
+  # RISC-V has 32 registers (x0-x31)
+  if reg_idx < 0 or reg_idx > 31:
+    raise ValueError(f"Register index out of range: '{token}'. Valid range: x0-x31")
+  
+  return reg_idx
+
+def checkImmediate(token: str) -> int:
+  """
+  Validates that a token is a valid immediate value and returns it as an integer.
+  
+  Supports decimal (e.g., '10', '-5') and hexadecimal (e.g., '0x10') formats.
+  Raises ValueError if the token is not a valid immediate value.
+  """
+  try:
+    # Handle both decimal and hex formats
+    if token.startswith('0x') or token.startswith('0X'):
+      return int(token, 16)
+    else:
+      return int(token)
+  except ValueError:
+    raise ValueError(f"Invalid immediate value: '{token}'. Expected a decimal or hexadecimal number")
+
 class Instruction(ABC):
-  KNOWN_INSTRUCTIONS = []
+  KNOWN_INSTRUCTIONS = set()
+
+  def __init_subclass__(cls):
+    # All it needs to do
+    # is add itself to KNOWN_INSTRUCTIONS
+    Instruction.KNOWN_INSTRUCTIONS.add(cls)
 
   """
   The base type for an instruction.
-
-  For now, it'll only support parsing in strings, but later we can add support for forcing it to go via hex
   """
-  @classmethod
+  @staticmethod
   @abstractmethod
-  def parseFromString(cls, s):
+  def getName() -> str:
+    """
+    Returns the lowercase name of the instruction as it appears in source code.
+    This should match the instruction mnemonic used in assembly.
+    
+    Returns:
+      The lowercase instruction name (e.g., 'add', 'addi', 'xor')
+    """
+    pass
+
+  @staticmethod
+  @abstractmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'Instruction':
+    """
+    Parse an instruction from a list of source tokens.
+    
+    Args:
+      tokens: A list of tokens where the first token is the instruction
+              mnemonic and the remaining tokens are operands.
+              Example: ['ADD', 'x0', 'x1', 'x2']
+    
+    Returns:
+      An instance of the instruction class
+    
+    Raises:
+      ValueError: If the tokens are invalid or don't match the instruction format
+    """
     pass
 
   @abstractmethod
   def forward(self, state : MachineState) -> MachineState:
     pass
 
-# For now, let's just implement the add and addiinstructions, to show 2 ops
 class ADD(Instruction):
   def __init__(self, dIdx, aIdx, bIdx):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.bIdx = bIdx
 
+  @staticmethod
+  def getName() -> str:
+    return 'add'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ADD':
+    """
+    Parse ADD instruction from tokens.
+    Expected format: ['add', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ADD instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'add':
+      raise ValueError(f"Expected 'add' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return ADD(dIdx, aIdx, bIdx)
+
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of ADD
-
     dIdx = aIdx + bIdx
     """
-    # Get the values of a and b
     aVal = state.regs[self.aIdx].value
     bVal = state.regs[self.bIdx].value
 
-    # Add them together, and store in d, with
-    # overflow handling
     state.regs[self.dIdx].value = (aVal + bVal) % (2 ** 32)
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ADD", "Not an ADD instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ADD", "").strip()
-
-    # Now, split on commas
-    csv = [int(x.strip()[1:]) for x in args.split(",")]
-
-    # Go return our new ADD instruction
-    return cls(*csv)
-
-# For now, let's just implement the add and addiinstructions, to show 2 ops
 class ADDI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
     self.dIdx = dIdx
     self.aIdx = aIdx
     self.imm = imm
 
+  @staticmethod
+  def getName() -> str:
+    return 'addi'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ADDI':
+    """
+    Parse ADDI instruction from tokens.
+    Expected format: ['addi', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ADDI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'addi':
+      raise ValueError(f"Expected 'addi' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ADDI(dIdx, aIdx, imm)
+
   def forward(self, state : MachineState) -> MachineState:
     """
-    Implements the forward pass of ADD
-
-    dIdx = aIdx + bIdx
+    Implements the forward pass of ADDI
+    dIdx = aIdx + imm
     """
-    # Get the values of a and b
     aVal = state.regs[self.aIdx].value
     immVal = self.imm
 
-    # Add them together, and store in d, with
-    # overflow handling
     state.regs[self.dIdx].value = (aVal + immVal) % (2 ** 32)
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ADDI", "Not an ADD instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ADDI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class XOR(Instruction):
-    def __init__(self, dIdx, aIdx, bIdx):
-      self.dIdx = dIdx
-      self.aIdx = aIdx
-      self.bIdx = bIdx
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
 
-    def forward(self, state : MachineState) -> MachineState:
-      """
-      Implements the forward pass of XOR
-      dIdx = aIdx ^ bIdx
-      """
-      # Get the values of a and b
-      aVal = state.regs[self.aIdx].value
-      bVal = state.regs[self.bIdx].value
+  @staticmethod
+  def getName() -> str:
+    return 'xor'
 
-      # Add them together, and store in d, with
-      # overflow handling
-      state.regs[self.dIdx].value = (aVal ^ bVal)
-
-      return state
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'XOR':
+    """
+    Parse XOR instruction from tokens.
+    Expected format: ['xor', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"XOR instruction expects 4 tokens, got {len(tokens)}: {tokens}")
     
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just XOR x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "XOR", "Not an XOR instruction"
+    if tokens[0].lower() != 'xor':
+      raise ValueError(f"Expected 'xor' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return XOR(dIdx, aIdx, bIdx)
 
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("XOR", "").strip()
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of XOR
+    dIdx = aIdx ^ bIdx
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
 
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
+    state.regs[self.dIdx].value = (aVal ^ bVal)
 
-      # Go return our new ADD instruction
-      return cls(*csv)
+    return state
 
 class XORI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
@@ -158,79 +222,79 @@ class XORI(Instruction):
     self.aIdx = aIdx
     self.imm = imm
 
+  @staticmethod
+  def getName() -> str:
+    return 'xori'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'XORI':
+    """
+    Parse XORI instruction from tokens.
+    Expected format: ['xori', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"XORI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'xori':
+      raise ValueError(f"Expected 'xori' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return XORI(dIdx, aIdx, imm)
+
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of XORI
-    dIdx = aIdx ^ bIdx
+    dIdx = aIdx ^ imm
     """
-    # Get the values of a and b
     aVal = state.regs[self.aIdx].value
     immVal = self.imm
 
-    # Add them together, and store in d, with
-    # overflow handling
     state.regs[self.dIdx].value = (aVal ^ immVal)
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "XORI", "Not an XORI instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("XORI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class OR(Instruction):
-    def __init__(self, dIdx, aIdx, bIdx):
-      self.dIdx = dIdx
-      self.aIdx = aIdx
-      self.bIdx = bIdx
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
 
-    def forward(self, state : MachineState) -> MachineState:
-      """
-      Implements the forward pass of OR
-      dIdx = aIdx | bIdx
-      """
-      # Get the values of a and b
-      aVal = state.regs[self.aIdx].value
-      bVal = state.regs[self.bIdx].value
+  @staticmethod
+  def getName() -> str:
+    return 'or'
 
-      # Add them together, and store in d, with
-      # overflow handling
-      state.regs[self.dIdx].value = (aVal | bVal)
-
-      return state
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'OR':
+    """
+    Parse OR instruction from tokens.
+    Expected format: ['or', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"OR instruction expects 4 tokens, got {len(tokens)}: {tokens}")
     
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just OR x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "OR", "Not an OR instruction"
+    if tokens[0].lower() != 'or':
+      raise ValueError(f"Expected 'or' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return OR(dIdx, aIdx, bIdx)
 
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("OR", "").strip()
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of OR
+    dIdx = aIdx | bIdx
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
 
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
+    state.regs[self.dIdx].value = (aVal | bVal)
 
-      # Go return our new ADD instruction
-      return cls(*csv)
+    return state
 
 class ORI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
@@ -238,79 +302,79 @@ class ORI(Instruction):
     self.aIdx = aIdx
     self.imm = imm
 
+  @staticmethod
+  def getName() -> str:
+    return 'ori'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ORI':
+    """
+    Parse ORI instruction from tokens.
+    Expected format: ['ori', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ORI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'ori':
+      raise ValueError(f"Expected 'ori' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ORI(dIdx, aIdx, imm)
+
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of ORI
-    dIdx = aIdx ^ bIdx
+    dIdx = aIdx | imm
     """
-    # Get the values of a and b
     aVal = state.regs[self.aIdx].value
     immVal = self.imm
 
-    # Add them together, and store in d, with
-    # overflow handling
     state.regs[self.dIdx].value = (aVal | immVal)
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
-    """
-    The format for this is literally just ADD x0, x1, x2 as a concept
-    """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ORI", "Not an ORI instruction"
-
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ORI", "").strip()
-
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
-
-    # Go return our new ADD instruction
-    return cls(*asInts)
-
 class AND(Instruction):
-    def __init__(self, dIdx, aIdx, bIdx):
-      self.dIdx = dIdx
-      self.aIdx = aIdx
-      self.bIdx = bIdx
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
 
-    def forward(self, state : MachineState) -> MachineState:
-      """
-      Implements the forward pass of AND
-      dIdx = aIdx | bIdx
-      """
-      # Get the values of a and b
-      aVal = state.regs[self.aIdx].value
-      bVal = state.regs[self.bIdx].value
+  @staticmethod
+  def getName() -> str:
+    return 'and'
 
-      # Add them together, and store in d, with
-      # overflow handling
-      state.regs[self.dIdx].value = (aVal & bVal)
-
-      return state
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'AND':
+    """
+    Parse AND instruction from tokens.
+    Expected format: ['and', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"AND instruction expects 4 tokens, got {len(tokens)}: {tokens}")
     
-    @classmethod
-    def parseFromString(cls, s):
-      """
-      The format for this is literally just AND x0, x1, x2 as a concept
-      """
-      spacedBraked = s.split(" ")
-      assert spacedBraked[0] == "AND", "Not an AND instruction"
+    if tokens[0].lower() != 'and':
+      raise ValueError(f"Expected 'and' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return AND(dIdx, aIdx, bIdx)
 
-      # Start by replacing ADD with nothing, and then
-      # trimming
-      args = s.replace("AND", "").strip()
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of AND
+    dIdx = aIdx & bIdx
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
 
-      # Now, split on commas
-      csv = [int(x.strip()[1:]) for x in args.split(",")]
+    state.regs[self.dIdx].value = (aVal & bVal)
 
-      # Go return our new ADD instruction
-      return cls(*csv)
+    return state
 
 class ANDI(Instruction):
   def __init__(self, dIdx, aIdx, imm):
@@ -318,37 +382,776 @@ class ANDI(Instruction):
     self.aIdx = aIdx
     self.imm = imm
 
+  @staticmethod
+  def getName() -> str:
+    return 'andi'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ANDI':
+    """
+    Parse ANDI instruction from tokens.
+    Expected format: ['andi', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"ANDI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'andi':
+      raise ValueError(f"Expected 'andi' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return ANDI(dIdx, aIdx, imm)
+
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of ANDI
-    dIdx = aIdx ^ bIdx
+    dIdx = aIdx & imm
     """
-    # Get the values of a and b
     aVal = state.regs[self.aIdx].value
     immVal = self.imm
 
-    # Add them together, and store in d, with
-    # overflow handling
     state.regs[self.dIdx].value = (aVal & immVal)
 
     return state
 
-  @classmethod
-  def parseFromString(cls, s):
+class SLT(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'slt'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLT':
     """
-    The format for this is literally just ADD x0, x1, x2 as a concept
+    Parse SLT instruction from tokens.
+    Expected format: ['slt', 'x0', 'x1', 'x2']
     """
-    spacedBraked = s.split(" ")
-    assert spacedBraked[0] == "ANDI", "Not an ANDI instruction"
+    if len(tokens) != 4:
+      raise ValueError(f"SLT instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'slt':
+      raise ValueError(f"Expected 'slt' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SLT(dIdx, aIdx, bIdx)
 
-    # Start by replacing ADD with nothing, and then
-    # trimming
-    args = s.replace("ANDI", "").strip()
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLT (Set Less Than)
+    dIdx = 1 if aIdx < bIdx else 0 (signed comparison)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
 
-    # Now, split on commas
-    withoutSpaces = [x.strip() for x in args.split(",")]
-    withoutX = [x.replace("x", "") for x in withoutSpaces]
-    asInts = [int(x) for x in withoutX]
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
 
-    # Go return our new ADD instruction
-    return cls(*asInts)
+    state.regs[self.dIdx].value = 1 if aValSigned < bValSigned else 0
+
+    return state
+
+class SLTI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'slti'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLTI':
+    """
+    Parse SLTI instruction from tokens.
+    Expected format: ['slti', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SLTI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'slti':
+      raise ValueError(f"Expected 'slti' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SLTI(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLTI (Set Less Than Immediate)
+    dIdx = 1 if aIdx < imm else 0 (signed comparison)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    immValSigned = immVal if immVal < 2**31 else immVal - 2**32
+
+    state.regs[self.dIdx].value = 1 if aValSigned < immValSigned else 0
+
+    return state
+
+class SUB(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'sub'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SUB':
+    """
+    Parse SUB instruction from tokens.
+    Expected format: ['sub', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SUB instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sub':
+      raise ValueError(f"Expected 'sub' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SUB(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SUB (Subtract)
+    dIdx = aIdx - bIdx
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    state.regs[self.dIdx].value = (aVal - bVal) % (2 ** 32)
+
+    return state
+
+class SLL(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'sll'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLL':
+    """
+    Parse SLL instruction from tokens.
+    Expected format: ['sll', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SLL instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sll':
+      raise ValueError(f"Expected 'sll' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SLL(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLL (Shift Left Logical)
+    dIdx = aIdx << bIdx (lower 5 bits of bIdx)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
+
+    state.regs[self.dIdx].value = (aVal << bVal) % (2 ** 32)
+
+    return state
+
+class SLLI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'slli'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLLI':
+    """
+    Parse SLLI instruction from tokens.
+    Expected format: ['slli', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SLLI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'slli':
+      raise ValueError(f"Expected 'slli' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SLLI(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLLI (Shift Left Logical Immediate)
+    dIdx = aIdx << imm (lower 5 bits of imm)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
+
+    state.regs[self.dIdx].value = (aVal << immVal) % (2 ** 32)
+
+    return state
+
+class SRL(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'srl'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRL':
+    """
+    Parse SRL instruction from tokens.
+    Expected format: ['srl', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRL instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'srl':
+      raise ValueError(f"Expected 'srl' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SRL(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRL (Shift Right Logical)
+    dIdx = aIdx >> bIdx (lower 5 bits of bIdx)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
+
+    state.regs[self.dIdx].value = (aVal >> bVal)
+
+    return state
+
+class SRLI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'srli'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRLI':
+    """
+    Parse SRLI instruction from tokens.
+    Expected format: ['srli', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRLI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'srli':
+      raise ValueError(f"Expected 'srli' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SRLI(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRLI (Shift Right Logical Immediate)
+    dIdx = aIdx >> imm (lower 5 bits of imm)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
+
+    state.regs[self.dIdx].value = (aVal >> immVal)
+
+    return state
+
+class SRA(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'sra'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRA':
+    """
+    Parse SRA instruction from tokens.
+    Expected format: ['sra', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRA instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sra':
+      raise ValueError(f"Expected 'sra' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SRA(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRA (Shift Right Arithmetic)
+    dIdx = aIdx >> bIdx (arithmetic shift - sign bit preserved)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
+
+    # Convert to signed, shift, convert back to unsigned
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    resultSigned = aValSigned >> bVal
+    
+    state.regs[self.dIdx].value = resultSigned % (2 ** 32)
+
+    return state
+
+class SRAI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'srai'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRAI':
+    """
+    Parse SRAI instruction from tokens.
+    Expected format: ['srai', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRAI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'srai':
+      raise ValueError(f"Expected 'srai' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SRAI(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRAI (Shift Right Arithmetic Immediate)
+    dIdx = aIdx >> imm (arithmetic shift - sign bit preserved)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
+
+    # Convert to signed, shift, convert back to unsigned
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    resultSigned = aValSigned >> immVal
+    
+    state.regs[self.dIdx].value = resultSigned % (2 ** 32)
+
+    return state
+
+class BEQ(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'beq'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BEQ':
+    """
+    Parse BEQ instruction from tokens.
+    Expected format: ['beq', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BEQ instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'beq':
+      raise ValueError(f"Expected 'beq' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BEQ(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BEQ (Branch Equal)
+    If aIdx == bIdx, branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    if aVal == bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BNE(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bne'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BNE':
+    """
+    Parse BNE instruction from tokens.
+    Expected format: ['bne', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BNE instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bne':
+      raise ValueError(f"Expected 'bne' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BNE(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BNE (Branch Not Equal)
+    If aIdx != bIdx, branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    if aVal != bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BLT(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'blt'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BLT':
+    """
+    Parse BLT instruction from tokens.
+    Expected format: ['blt', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BLT instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'blt':
+      raise ValueError(f"Expected 'blt' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BLT(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BLT (Branch Less Than)
+    If aIdx < bIdx (signed), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    if aValSigned < bValSigned:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BGE(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bge'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BGE':
+    """
+    Parse BGE instruction from tokens.
+    Expected format: ['bge', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BGE instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bge':
+      raise ValueError(f"Expected 'bge' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BGE(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BGE (Branch Greater or Equal)
+    If aIdx >= bIdx (signed), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    if aValSigned >= bValSigned:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class LW(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'lw'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'LW':
+    """
+    Parse LW instruction from tokens.
+    Expected format: ['lw', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"LW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'lw':
+      raise ValueError(f"Expected 'lw' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return LW(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of LW (Load Word)
+    dIdx = memory[aIdx + imm] (4 bytes, little-endian)
+    """
+    aVal = state.regs[self.aIdx].value
+    addr = (aVal + self.imm) % (2 ** 32)
+
+    # Load 4 bytes from memory (little-endian)
+    if addr + 3 >= len(state.memory):
+      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
+    
+    byte0 = state.memory[addr].value
+    byte1 = state.memory[addr + 1].value
+    byte2 = state.memory[addr + 2].value
+    byte3 = state.memory[addr + 3].value
+
+    # Combine bytes in little-endian order
+    word = byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)
+
+    state.regs[self.dIdx].value = word
+
+    return state
+
+class BLTU(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bltu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BLTU':
+    """
+    Parse BLTU instruction from tokens.
+    Expected format: ['bltu', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BLTU instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bltu':
+      raise ValueError(f"Expected 'bltu' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BLTU(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BLTU (Branch Less Than Unsigned)
+    If aIdx < bIdx (unsigned), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Direct unsigned comparison - no conversion needed
+    if aVal < bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BGEU(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bgeu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BGEU':
+    """
+    Parse BGEU instruction from tokens.
+    Expected format: ['bgeu', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BGEU instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bgeu':
+      raise ValueError(f"Expected 'bgeu' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BGEU(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BGEU (Branch Greater or Equal Unsigned)
+    If aIdx >= bIdx (unsigned), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Direct unsigned comparison - no conversion needed
+    if aVal >= bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class SW(Instruction):
+  def __init__(self, sIdx, aIdx, imm):
+    self.sIdx = sIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'sw'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SW':
+    """
+    Parse SW instruction from tokens.
+    Expected format: ['sw', 'x2', 'x1', '10']
+    Stores word from x2 to memory[x1 + 10]
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sw':
+      raise ValueError(f"Expected 'sw' instruction, got '{tokens[0]}'")
+    
+    sIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SW(sIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SW (Store Word)
+    memory[aIdx + imm] = sIdx (4 bytes, little-endian)
+    """
+    sVal = state.regs[self.sIdx].value
+    aVal = state.regs[self.aIdx].value
+    addr = (aVal + self.imm) % (2 ** 32)
+
+    # Store 4 bytes to memory (little-endian)
+    if addr + 3 >= len(state.memory):
+      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
+    
+    # Break word into 4 bytes (little-endian)
+    state.memory[addr].value = sVal & 0xFF
+    state.memory[addr + 1].value = (sVal >> 8) & 0xFF
+    state.memory[addr + 2].value = (sVal >> 16) & 0xFF
+    state.memory[addr + 3].value = (sVal >> 24) & 0xFF
+
+    return state
