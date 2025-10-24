@@ -447,12 +447,16 @@ class SLT(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SLT (Set Less Than)
-    dIdx = 1 if aIdx < bIdx else 0
+    dIdx = 1 if aIdx < bIdx else 0 (signed comparison)
     """
     aVal = state.regs[self.aIdx].value
     bVal = state.regs[self.bIdx].value
 
-    state.regs[self.dIdx].value = 1 if aVal < bVal else 0
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    state.regs[self.dIdx].value = 1 if aValSigned < bValSigned else 0
 
     return state
 
@@ -487,12 +491,16 @@ class SLTI(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SLTI (Set Less Than Immediate)
-    dIdx = 1 if aIdx < imm else 0
+    dIdx = 1 if aIdx < imm else 0 (signed comparison)
     """
     aVal = state.regs[self.aIdx].value
     immVal = self.imm
 
-    state.regs[self.dIdx].value = 1 if aVal < immVal else 0
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    immValSigned = immVal if immVal < 2**31 else immVal - 2**32
+
+    state.regs[self.dIdx].value = 1 if aValSigned < immValSigned else 0
 
     return state
 
@@ -532,7 +540,7 @@ class SUB(Instruction):
     aVal = state.regs[self.aIdx].value
     bVal = state.regs[self.bIdx].value
 
-    state.regs[self.dIdx].value = (aVal - bVal)
+    state.regs[self.dIdx].value = (aVal - bVal) % (2 ** 32)
 
     return state
 
@@ -567,12 +575,12 @@ class SLL(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SLL (Shift Left Logical)
-    dIdx = aIdx << bIdx
+    dIdx = aIdx << bIdx (lower 5 bits of bIdx)
     """
     aVal = state.regs[self.aIdx].value
-    bVal = state.regs[self.bIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
 
-    state.regs[self.dIdx].value = (aVal << bVal)
+    state.regs[self.dIdx].value = (aVal << bVal) % (2 ** 32)
 
     return state
 
@@ -607,12 +615,12 @@ class SLLI(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SLLI (Shift Left Logical Immediate)
-    dIdx = aIdx << imm
+    dIdx = aIdx << imm (lower 5 bits of imm)
     """
     aVal = state.regs[self.aIdx].value
-    immVal = self.imm
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
 
-    state.regs[self.dIdx].value = (aVal << immVal)
+    state.regs[self.dIdx].value = (aVal << immVal) % (2 ** 32)
 
     return state
 
@@ -647,10 +655,10 @@ class SRL(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SRL (Shift Right Logical)
-    dIdx = aIdx >> bIdx
+    dIdx = aIdx >> bIdx (lower 5 bits of bIdx)
     """
     aVal = state.regs[self.aIdx].value
-    bVal = state.regs[self.bIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
 
     state.regs[self.dIdx].value = (aVal >> bVal)
 
@@ -687,11 +695,413 @@ class SRLI(Instruction):
   def forward(self, state : MachineState) -> MachineState:
     """
     Implements the forward pass of SRLI (Shift Right Logical Immediate)
-    dIdx = aIdx >> imm
+    dIdx = aIdx >> imm (lower 5 bits of imm)
     """
     aVal = state.regs[self.aIdx].value
-    immVal = self.imm
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
 
     state.regs[self.dIdx].value = (aVal >> immVal)
+
+    return state
+
+class SRA(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'sra'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRA':
+    """
+    Parse SRA instruction from tokens.
+    Expected format: ['sra', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRA instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sra':
+      raise ValueError(f"Expected 'sra' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SRA(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRA (Shift Right Arithmetic)
+    dIdx = aIdx >> bIdx (arithmetic shift - sign bit preserved)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value & 0x1F  # Mask to 5 bits (0-31)
+
+    # Convert to signed, shift, convert back to unsigned
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    resultSigned = aValSigned >> bVal
+    
+    state.regs[self.dIdx].value = resultSigned % (2 ** 32)
+
+    return state
+
+class SRAI(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'srai'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SRAI':
+    """
+    Parse SRAI instruction from tokens.
+    Expected format: ['srai', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SRAI instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'srai':
+      raise ValueError(f"Expected 'srai' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SRAI(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SRAI (Shift Right Arithmetic Immediate)
+    dIdx = aIdx >> imm (arithmetic shift - sign bit preserved)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm & 0x1F  # Mask to 5 bits (0-31)
+
+    # Convert to signed, shift, convert back to unsigned
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    resultSigned = aValSigned >> immVal
+    
+    state.regs[self.dIdx].value = resultSigned % (2 ** 32)
+
+    return state
+
+class BEQ(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'beq'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BEQ':
+    """
+    Parse BEQ instruction from tokens.
+    Expected format: ['beq', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BEQ instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'beq':
+      raise ValueError(f"Expected 'beq' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BEQ(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BEQ (Branch Equal)
+    If aIdx == bIdx, branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    if aVal == bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BNE(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bne'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BNE':
+    """
+    Parse BNE instruction from tokens.
+    Expected format: ['bne', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BNE instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bne':
+      raise ValueError(f"Expected 'bne' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BNE(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BNE (Branch Not Equal)
+    If aIdx != bIdx, branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    if aVal != bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BLT(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'blt'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BLT':
+    """
+    Parse BLT instruction from tokens.
+    Expected format: ['blt', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BLT instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'blt':
+      raise ValueError(f"Expected 'blt' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BLT(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BLT (Branch Less Than)
+    If aIdx < bIdx (signed), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    if aValSigned < bValSigned:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BGE(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bge'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BGE':
+    """
+    Parse BGE instruction from tokens.
+    Expected format: ['bge', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BGE instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bge':
+      raise ValueError(f"Expected 'bge' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BGE(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BGE (Branch Greater or Equal)
+    If aIdx >= bIdx (signed), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Convert to signed for comparison
+    aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    if aValSigned >= bValSigned:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class LW(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'lw'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'LW':
+    """
+    Parse LW instruction from tokens.
+    Expected format: ['lw', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"LW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'lw':
+      raise ValueError(f"Expected 'lw' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return LW(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of LW (Load Word)
+    dIdx = memory[aIdx + imm] (4 bytes, little-endian)
+    """
+    aVal = state.regs[self.aIdx].value
+    addr = (aVal + self.imm) % (2 ** 32)
+
+    # Load 4 bytes from memory (little-endian)
+    if addr + 3 >= len(state.memory):
+      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
+    
+    byte0 = state.memory[addr].value
+    byte1 = state.memory[addr + 1].value
+    byte2 = state.memory[addr + 2].value
+    byte3 = state.memory[addr + 3].value
+
+    # Combine bytes in little-endian order
+    word = byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)
+
+    state.regs[self.dIdx].value = word
+
+    return state
+
+class BLTU(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bltu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BLTU':
+    """
+    Parse BLTU instruction from tokens.
+    Expected format: ['bltu', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BLTU instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bltu':
+      raise ValueError(f"Expected 'bltu' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BLTU(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BLTU (Branch Less Than Unsigned)
+    If aIdx < bIdx (unsigned), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Direct unsigned comparison - no conversion needed
+    if aVal < bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
+
+    return state
+
+class BGEU(Instruction):
+  def __init__(self, aIdx, bIdx, imm):
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'bgeu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'BGEU':
+    """
+    Parse BGEU instruction from tokens.
+    Expected format: ['bgeu', 'x1', 'x2', 'imm']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"BGEU instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'bgeu':
+      raise ValueError(f"Expected 'bgeu' instruction, got '{tokens[0]}'")
+    
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return BGEU(aIdx, bIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of BGEU (Branch Greater or Equal Unsigned)
+    If aIdx >= bIdx (unsigned), branch to PC + imm
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # Direct unsigned comparison - no conversion needed
+    if aVal >= bVal:
+      state.isJumping = True
+      state.jumpOffset = self.imm
 
     return state
