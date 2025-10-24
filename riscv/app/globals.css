@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+.riscv-current-line {
+  background-color: rgba(255, 200, 0, 0.15);
+  border-left: 3px solid #ffb700;
+}
+
+.riscv-line-gutter {
+  border-left: 3px solid #ffb700 !important;
+}

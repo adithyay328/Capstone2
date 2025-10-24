@@ -20,7 +20,7 @@ export default function AssemblyInfo({
   const errorMessage = response?.errorMessage ?? "";
 
   return (
-    <div className="w-3/4 bg-gray-50 border-2 border-black rounded-2xl shadow-md p-4 space-y-3">
+    <div className="w-full md:w-[420px] md:flex-none bg-gray-50 border-2 border-black rounded-2xl shadow-md p-4 space-y-3">
       <p className="font-semibold text-sm text-black">
         ERROR MESSAGE : {hadError ? (errorMessage || "Unknown error") : "NO ERRORS"}
       </p>
