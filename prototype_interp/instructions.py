@@ -543,6 +543,94 @@ class SUB(Instruction):
     state.regs[self.dIdx].value = (aVal - bVal) % (2 ** 32)
 
     return state
+  
+class SLTU(Instruction):
+  def __init__(self, dIdx, aIdx, bIdx):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.bIdx = bIdx
+
+  @staticmethod
+  def getName() -> str:
+    return 'sltu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLT':
+    """
+    Parse SLTU instruction from tokens.
+    Expected format: ['sltu', 'x0', 'x1', 'x2']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SLTU instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sltu':
+      raise ValueError(f"Expected 'sltu' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    bIdx = checkRegister(tokens[3])
+    
+    return SLTU(dIdx, aIdx, bIdx)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLTU (Set Less Than Unsigned)
+    dIdx = 1 if aIdx < bIdx else 0 (signed comparison)
+    """
+    aVal = state.regs[self.aIdx].value
+    bVal = state.regs[self.bIdx].value
+
+    # # Convert to signed for comparison
+    # aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    # bValSigned = bVal if bVal < 2**31 else bVal - 2**32
+
+    state.regs[self.dIdx].value = 1 if aVal < bVal else 0
+
+    return state
+
+class SLTIU(Instruction):
+  def __init__(self, dIdx, aIdx, imm):
+    self.dIdx = dIdx
+    self.aIdx = aIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'sltiu'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'SLTI':
+    """
+    Parse SLTIU instruction from tokens.
+    Expected format: ['sltiu', 'x0', 'x1', '10']
+    """
+    if len(tokens) != 4:
+      raise ValueError(f"SLTIu instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'sltiu':
+      raise ValueError(f"Expected 'sltiu' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    aIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
+    
+    return SLTIU(dIdx, aIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of SLTI (Set Less Than Immediate)
+    dIdx = 1 if aIdx < imm else 0 (signed comparison)
+    """
+    aVal = state.regs[self.aIdx].value
+    immVal = self.imm
+
+    # # Convert to signed for comparison
+    # aValSigned = aVal if aVal < 2**31 else aVal - 2**32
+    # immValSigned = immVal if immVal < 2**31 else immVal - 2**32
+
+    state.regs[self.dIdx].value = 1 if aVal < immVal else 0
+
+    return state
 
 class SLL(Instruction):
   def __init__(self, dIdx, aIdx, bIdx):
