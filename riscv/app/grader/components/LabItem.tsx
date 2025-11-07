@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getLab } from "../api/get_lab/frontend";
 import { deleteLab } from "../api/delete_lab/frontend";
 
@@ -62,9 +63,11 @@ export function LabItem({ labId, onDelete }: LabItemProps) {
 
   return (
     <div>
-      <h1 style={{ display: "inline-block", marginRight: "10px" }}>
-        {labId} - {title}
-      </h1>
+      <Link href={`/grader/lab/${labId}`}>
+        <h1 style={{ display: "inline-block", marginRight: "10px", cursor: "pointer", color: "blue", textDecoration: "underline" }}>
+          {labId} - {title}
+        </h1>
+      </Link>
       <button onClick={handleDelete} disabled={deleting}>
         {deleting ? "Deleting..." : "Delete"}
       </button>
