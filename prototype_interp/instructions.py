@@ -544,6 +544,85 @@ class SUB(Instruction):
 
     return state
   
+class LUI(Instruction):
+  def __init__(self, dIdx, imm):
+    self.dIdx = dIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'lui'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ANDI':
+    """
+    Parse LUI instruction from tokens.
+    Expected format: ['lui', 'x0', '10']
+    """
+    if len(tokens) != 3:
+      raise ValueError(f"LUI instruction expects 3 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'lui':
+      raise ValueError(f"Expected 'lui' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    imm = checkImmediate(tokens[3])
+    
+    return LUI(dIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of LUI
+    dIdx = aIdx & imm
+    """
+    immVal = self.imm
+
+    result = (immVal << 12) & 0xFFFFFFFF
+
+    state.regs[self.dIdx].value = (result)
+
+    return state
+class AUIPC(Instruction):
+  def __init__(self, dIdx, imm):
+    self.dIdx = dIdx
+    self.imm = imm
+
+  @staticmethod
+  def getName() -> str:
+    return 'auipc'
+
+  @staticmethod
+  def parseFromSourceTokens(tokens: List[str]) -> 'ANDI':
+    """
+    Parse AUIPC instruction from tokens.
+    Expected format: ['auipc', 'x0', '10']
+    """
+    if len(tokens) != 3:
+      raise ValueError(f"AUIPC instruction expects 3 tokens, got {len(tokens)}: {tokens}")
+    
+    if tokens[0].lower() != 'auipc':
+      raise ValueError(f"Expected 'auipc' instruction, got '{tokens[0]}'")
+    
+    dIdx = checkRegister(tokens[1])
+    imm = checkImmediate(tokens[3])
+    
+    return AUIPC(dIdx, imm)
+
+  def forward(self, state : MachineState) -> MachineState:
+    """
+    Implements the forward pass of AUIPC
+    dIdx = aIdx & imm
+    """
+    immVal = self.imm
+    current_pc = state.pc
+
+    imm32 = (immVal << 12) & 0xFFFFFFFF
+    result = (current_pc + imm32) & 0xFFFFFFFF
+
+    state.regs[self.dIdx].value = (result)
+
+    return state
+  
 class SLTU(Instruction):
   def __init__(self, dIdx, aIdx, bIdx):
     self.dIdx = dIdx
