@@ -11,19 +11,23 @@ from machine import MachineState
 app = Flask(__name__)
 
 """
-Agreed upon JSON schema:
-
-“hadError” : True | False ← Boolean,
-
-“errorMessage” : “…” ← Can be empty if no error, or report a meaningful error message,
-
-“registers” : {
-“x0” : “0xa…” ← always hex values
-},
-
-“memory” : {
-“0x0” : “0xa” ← also always hex, key is the address, value is the value there
-}
+ NEW Agreed upon JSON schema:
+{
+    “hadError” : True | False ← Boolean,
+    
+    “errorMessage” : “…” ← Can be empty if no error, or report a meaningful error message,
+    
+    "states" : "[
+        {" ←  A list of states as an array of objects, each containing the machine state at that point
+            “registers” : {
+            “x0” : “0xa…” ← always hex values
+            },
+        
+            “memory” : {
+            “0x0” : “0xa” ← also always hex, key is the address, value is the value there
+            }
+        }
+    ]
 }
 """
 @app.route('/data', methods=['POST'])
@@ -35,8 +39,7 @@ def data():
         return jsonify({
             "hadError" : True,
             "errorMessage" : "Error: Request must be valid JSON",
-            "registers" : {},
-            "memory" : {}
+            "states" : [],
         })
     """
     Will check the front end request schema
@@ -49,8 +52,7 @@ def data():
            return jsonify({
                "hadError": True,
                "errorMessage": "Error: No code field specified",
-               "registers": {},
-               "memory": {}
+               "states" : [],
            })
 
        else:
@@ -62,27 +64,34 @@ def data():
            runtime.run()
            
            # Get the final machine state after execution
-           finalState = runtime.states[-1]
-           
-           # Prepare output variables
-           # registersJson will loop through all registers and convert to hex
-           # memoryJson will get the memory pairs (addresses and values) and convert to hex
-           registersJson = {f"x{i}": hex(reg.value) for i, reg in enumerate(finalState.regs)}
-           memoryJson = {hex(mem.addr): hex(mem.value) for mem in finalState.memory}
+           #finalState = runtime.states[-1]
+
+           #Now we need every machine state in execution
+           allStates = []
+
+           for state in runtime.states:
+
+               # Prepare output variables
+               # registersJson will loop through all registers and convert to hex
+               # memoryJson will get the memory pairs (addresses and values) and convert to hex
+               registersJson = {f"x{r}": hex(reg.value) for r, reg in enumerate(state.regs)}
+               memoryJson = {hex(mem.addr): hex(mem.value) for mem in state.memory}
+               allStates.append({
+                   "registers" : registersJson,
+                   "memory" : memoryJson
+               })
 
            return jsonify({
                "hadError": False,
                "errorMessage": "",
-               "registers": registersJson,
-               "memory": memoryJson
+               "states" : allStates,
            })
 
     except Exception as e:
         return jsonify({
             "hadError": True,
             "errorMessage": "Error: " + str(e),
-            "registers": {},
-            "memory": {}
+            "states" : [],
         })
 
 if __name__ == '__main__':
