@@ -43,6 +43,17 @@ class Runtime:
     self.states.append(new_state)
     return new_state
 
+  def step_back(self) -> MachineState:
+      """
+      Returns a prior machine state if it
+      exists and removes the current machine
+      state from the state history
+      """
+      assert len(self.states) > 1, "Not enough machine states"
+
+      self.states.pop()
+      return self.states[-1]
+
   def run(self) -> MachineState:
     """
     Runs the program to completion,
