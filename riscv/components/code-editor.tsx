@@ -1,27 +1,7 @@
 "use client";
-import React, { useRef, useCallback } from "react";
-import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
-import type * as monaco from "monaco-editor";
-
-const rangeAt = (pos: monaco.Position): monaco.IRange => ({
-  startLineNumber: pos.lineNumber,
-  endLineNumber: pos.lineNumber,
-  startColumn: pos.column,
-  endColumn: pos.column,
-});
-
-
-
-
-type CodeEditorProps = {
-  value: string;
-  onChange: (value: string) => void;
-  rows?: number;
-  fontSize?: number;
-  className?: string;
-  onRun?: () => void;
-  currentLine?: number;
-};
+import React from "react";
+import Editor, { OnMount, BeforeMount, Monaco } from "@monaco-editor/react";
+import type * as MonacoEditor from "monaco-editor";
 
 const abiToReg: Record<string, string> = {
   zero: "x0",
@@ -99,34 +79,30 @@ const abiRole: Record<string, string> = {
   t6: "temporary (caller-saved)",
 };
 
+type CodeEditorProps = {
+  code: string;
+  onChange: (value: string) => void;
+  currentLine?: number | null;
+  className?: string;
+  fontSize?: number;
+  onRun?: () => void; // optional (Ctrl+Enter)
+};
 
-export function normalizeRiscVCode(code: string): string {
-  // matches abi names to reg
-  return code.replace(
-    /\b(zero|ra|sp|gp|tp|t[0-6]|s([0-9]|1[01])|a[0-7]|fp)\b/g,
-    (match) => abiToReg[match] || match
-  );
-}
 
 export default function CodeEditor({
-  value,
+  code,
   onChange,
-  rows = 18,
-  fontSize = 14,
-  className = "",
-  onRun,
   currentLine,
-}: Readonly<CodeEditorProps>) {
-
-
-  const registeredRef = useRef(false);
-const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-const monacoRef = useRef<typeof monaco | null>(null);
-const decorationsRef = useRef<string[]>([]);
+  className,
+  fontSize = 14,
+  onRun,
+}: CodeEditorProps) {
+  const editorRef = React.useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = React.useRef<string[]>([]);
+  const monacoRef = React.useRef<Monaco | null>(null);
   const handleBeforeMount: BeforeMount = (m) => {
-    if (registeredRef.current) return;
-    registeredRef.current = true;
-
+    // register once
+    monacoRef.current=m;
     m.languages.register({ id: "riscv" });
 
     m.languages.setMonarchTokensProvider("riscv", {
@@ -158,50 +134,72 @@ const decorationsRef = useRef<string[]>([]);
       wordPattern: /[#@\-]?\w+(\.\w+)*/g,
     });
 
-m.languages.registerCompletionItemProvider("riscv", {
-  provideCompletionItems: (model, position) => {
-    const range = rangeAt(position);
+    // theme
+    m.editor.defineTheme("riscv-dark", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [
+        { token: "comment", foreground: "6A9955" },
+        { token: "keyword.operator", foreground: "C586C0" },
+        { token: "keyword", foreground: "569CD6" },
+        { token: "type.identifier", foreground: "DCDCAA" },
+        { token: "variable.predefined", foreground: "4FC1FF" },
+        { token: "number", foreground: "B5CEA8" },
+        { token: "number.hex", foreground: "B5CEA8" },
+      ],
+      colors: {},
+    });
 
-    const opcodeLabels = [
-      "sll","slli","srl","srli","sra","srai","add","sub","addi","lui",
-      "auipc","xor","or","and","xori","ori","andi","slt","slti","sltiu",
-      "sltu","beq","bne","blt","bge","bltu","bgeu","jal","jalr","fence",
-      "fence.i","ecall","ebreak","lw","lh","lhu","lb","lbu","sw","sh","sb",
-    ];
-    const abiLabels = Object.keys(abiToReg);
-    const xLabels = Array.from({ length: 32 }, (_, i) => `x${i}`);
+    // completions
+    m.languages.registerCompletionItemProvider("riscv", {
+      provideCompletionItems: (model, position): { suggestions: MonacoEditor.languages.CompletionItem[] } => {
+        const range = new m.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column
+        );
 
-    const suggestions: monaco.languages.CompletionItem[] = [
-      ...opcodeLabels.map((k) => ({
-        label: k,
-        kind: m.languages.CompletionItemKind.Keyword,
-        insertText: k,
-        range,
-      })),
-      ...abiLabels.map((abi) => ({
-        label: abi,
-        kind: m.languages.CompletionItemKind.Variable,
-        insertText: abi,
-        detail: `${abiToReg[abi]} • ${abiRole[abi] ?? ""}`,
-        documentation: `${abi} = ${abiToReg[abi]} (${abiRole[abi] ?? "ABI register"})`,
-        range,
-      })),
-      ...xLabels.map((x) => ({
-        label: x,
-        kind: m.languages.CompletionItemKind.Variable,
-        insertText: x,
-        detail: `${regToAbi[x] ?? ""}${regToAbi[x] ? " • " : ""}${abiRole[regToAbi[x] ?? ""] ?? ""}`,
-        documentation: `${x}${regToAbi[x] ? ` = ${regToAbi[x]} (${abiRole[regToAbi[x]] ?? "register"})` : ""}`,
-        range,
-      })),
-    ];
+        const opcodeLabels = [
+          "sll","slli","srl","srli","sra","srai","add","sub","addi","lui",
+          "auipc","xor","or","and","xori","ori","andi","slt","slti","sltiu",
+          "sltu","beq","bne","blt","bge","bltu","bgeu","jal","jalr","fence",
+          "fence.i","ecall","ebreak","lw","lh","lhu","lb","lbu","sw","sh","sb",
+        ];
+        const abiLabels = Object.keys(abiToReg);
+        const xLabels = Array.from({ length: 32 }, (_, i) => `x${i}`);
 
-    return { suggestions };
-  },
-  triggerCharacters: [".", "x", "a", "s", "t", "r", "g", "z", "f"],
-});
+        const suggestions: MonacoEditor.languages.CompletionItem[] = [
+          ...opcodeLabels.map((k) => ({
+            label: k,
+            kind: m.languages.CompletionItemKind.Keyword,
+            insertText: k,
+            range,
+          })),
+          ...abiLabels.map((abi) => ({
+            label: abi,
+            kind: m.languages.CompletionItemKind.Variable,
+            insertText: abi,
+            detail: `${abiToReg[abi]} • ${abiRole[abi] ?? ""}`,
+            documentation: `${abi} = ${abiToReg[abi]} (${abiRole[abi] ?? "ABI register"})`,
+            range,
+          })),
+          ...xLabels.map((x) => ({
+            label: x,
+            kind: m.languages.CompletionItemKind.Variable,
+            insertText: x,
+            detail: `${regToAbi[x] ?? ""}${regToAbi[x] ? " • " : ""}${abiRole[regToAbi[x] ?? ""] ?? ""}`,
+            documentation: `${x}${regToAbi[x] ? ` = ${regToAbi[x]} (${abiRole[regToAbi[x]] ?? "register"})` : ""}`,
+            range,
+          })),
+        ];
 
+        return { suggestions };
+      },
+      triggerCharacters: [".", "x", "a", "s", "t", "r", "g", "z", "f"],
+    });
 
+    // hover
     m.languages.registerHoverProvider("riscv", {
       provideHover(model, position) {
         const word = model.getWordAtPosition(position);
@@ -220,85 +218,69 @@ m.languages.registerCompletionItemProvider("riscv", {
         return { contents: [] };
       },
     });
+  }
 
-    m.editor.defineTheme("riscv-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [
-        { token: "comment", foreground: "6A9955" },
-        { token: "keyword.operator", foreground: "C586C0" },
-        { token: "keyword", foreground: "569CD6" },
-        { token: "type.identifier", foreground: "DCDCAA" },
-        { token: "variable.predefined", foreground: "4FC1FF" },
-        { token: "number", foreground: "B5CEA8" },
-        { token: "number.hex", foreground: "B5CEA8" },
-      ],
-      colors: {},
-    });
+  const handleOnMount: OnMount = (editor, m) => {
+    editorRef.current = editor;
+    monacoRef.current = m;
+    if (!m) return;
+    // Ctrl/Cmd + Enter → run
+    if (onRun) {
+      editor.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, () => onRun());
+    }
   };
 
-const handleOnMount: OnMount = (editor, m) => {
-  editorRef.current = editor;
-  monacoRef.current = m;
-  editor.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, () => onRun?.());
-};
+  // when currentLine changes → update decorations
+  React.useEffect(() => {
+    const ed = editorRef.current;
+    const m = monacoRef.current;
+    if (!m) return;
+    if (!ed) return;
 
+    // clear old
+    decorationsRef.current = ed.deltaDecorations(decorationsRef.current, []);
 
-  const handleChange = useCallback((v?: string) => onChange(v ?? ""), [onChange]);
+    if (currentLine && currentLine > 0) {
+      decorationsRef.current = ed.deltaDecorations(decorationsRef.current, [
+        {
+          range: new m.Range(currentLine, 1, currentLine, 1),
+          options: {
+            isWholeLine: true,
+            className: "current-line-highlight",
+          },
+        },
+      ]);
+    }
+  }, [currentLine]);
 
-  const lineHeight = 22;
-  const height = `${Math.max(8, rows) * lineHeight + 40}px`;
-
-React.useEffect(() => {
-  const ed = editorRef.current;
-  const m = monacoRef.current;
-  if (!ed || !m || !currentLine) return;
-
-  const newDecos: monaco.editor.IModelDeltaDecoration[] = [
-    {
-      range: new m.Range(currentLine, 1, currentLine, 1),
-      options: {
-        isWholeLine: true,
-        className: "riscv-current-line",
-        linesDecorationsClassName: "riscv-line-gutter",
-      },
-    },
-  ];
-
-  decorationsRef.current = ed.deltaDecorations(decorationsRef.current, newDecos);
-  ed.revealLineInCenterIfOutsideViewport(currentLine, 0);
-}, [currentLine]);
-
-return (
-  <div className={`relative w-full pr-20 ${className}`}>
-        <Editor
-          width="100%"
-          height={height}
-          language="riscv"
-          theme="riscv-dark"
-          value={value}
-          onChange={handleChange}
-          beforeMount={handleBeforeMount}
-          onMount={handleOnMount}
-          options={{
-            fontSize,
-            fontLigatures: true,
-            minimap: { enabled: false },
-            automaticLayout: true,
-            tabSize: 4,
-            insertSpaces: true,
-            wordWrap: "off",
-            scrollBeyondLastLine: true,
-            renderWhitespace: "none",
-            smoothScrolling: true,
-            glyphMargin: false,
-            lineNumbersMinChars: 3,
-            lineDecorationsWidth: 0,
-            scrollbar: { horizontal: "visible" }, // force a visible bar
-          }}
-          className="rounded-xl overflow-y-hidden border-orange-300 border-2"
-        />
-  </div>
-);
-
+  return (
+    <div className="" style={{ width: "100%", height: "100%" }}>
+      <Editor
+        height="500px"
+        language="riscv"
+        theme="riscv-dark"
+        value={code}
+        onChange={(val) => onChange(val ?? "")}
+        beforeMount={handleBeforeMount}
+        onMount={handleOnMount}
+        options={{
+          fontSize,
+          fontLigatures: true,
+          minimap: { enabled: false },
+          automaticLayout: true,
+          tabSize: 4,
+          insertSpaces: true,
+          wordWrap: "off",
+          scrollBeyondLastLine: true,
+          renderWhitespace: "none",
+          smoothScrolling: true,
+          glyphMargin: false,
+          lineNumbersMinChars: 3,
+          lineDecorationsWidth: 0,
+          scrollbar: { horizontal: "visible" },
+        }}
+        className="rounded-xl overflow-hidden border-orange-300 border-2"
+      />
+    </div>
+  );
 }
