@@ -6,6 +6,8 @@ import ProjectsGrid from "./projects-grid";
 import EditorPanel from "./editor-panel";
 import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
+import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
+
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import type {
@@ -447,18 +449,23 @@ return (
         {fatalError && (
           <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
             {fatalError}
-          </div>
-        )}
-      </div>
+          </div> )}
 
       {/* RIGHT PANEL (like Version 2, but with your prop name) */}
       <div className="w-full md:basis-[420px] md:flex-none mt-10 md:mt-0">
         <AssemblyInfo response={resp} />
+
+          {/* Seven-segment + LEDs */}
+          <div className="mt-6">
+            <RegisterVisualPanel
+              registers={resp?.registers ?? null}
+              track="x12"
+              digits={4}
+            />
       </div>
     </div>
-  </div>     
-)}
-</main>
-</div>
+  </div>
 );
 }
+
+};

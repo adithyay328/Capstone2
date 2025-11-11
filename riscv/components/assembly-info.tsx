@@ -13,6 +13,7 @@ type RunResponse = {
   memory: Record<string, string>;
 };
 
+
 export default function AssemblyInfo({
   response,
 }: {

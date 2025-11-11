@@ -5,8 +5,9 @@ import AssemblyInfo from "@/components/assembly-info";
 import Root from "@/components/root";
 import Sidebar from "@/components/sidebar";
 
+
 export default function Home() {
-  const [code, setCode] = useState("");
+  //put redirect thing here
 
   return (
     <div className="flex flex-col justify-center items-center w-screen space-y-4">
@@ -19,3 +20,5 @@ export default function Home() {
     </div>
   );
 }
+
+
