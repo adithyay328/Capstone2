@@ -9,7 +9,6 @@ any pure whitespace etc.
 2. For each line, break it into a sequence of tokens,
 and eliminate all trailing strings.
 """
-
 import regex
 from typing import List
 

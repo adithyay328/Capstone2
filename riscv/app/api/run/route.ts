@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 
-type RunRequest = { code: string };
+type RunRequest = { 
+  code: string;
+  registers?: Record<string, string>;
+  memory?: Record<string, string>; 
+};
 type RunResponse = {
   hadError: boolean;
   errorMessage: string;                 // "" if none
-  registers: Record<string, string>;    // { "x0": "0x0000000a", ... }
-  memory: Record<string, string>;       // { "0x0000": "0x0000000b", ... }
+  states: Array<{
+    registers: Record<string, string>; // register -> value
+    memory: Record<string, string>;    // addr -> value
+    labelName: string;
+  }>;
 };
 
 const BACKEND_URL = "http://localhost:25565/data";
@@ -16,43 +23,46 @@ export async function POST(req: Request) {
     body = await req.json();
   } catch {
     return NextResponse.json(
-      { hadError: true, errorMessage: "Invalid JSON", registers: {}, memory: {} } satisfies RunResponse,
+      { hadError: true, errorMessage: "Invalid JSON", states: []} satisfies RunResponse,
       { status: 400 }
     );
   }
 
   const code = (body.code ?? "").trim();
-
   if (!code) {
     return NextResponse.json(
-      { hadError: true, errorMessage: "No code provided.", registers: {}, memory: {} } satisfies RunResponse,
+      { hadError: true, errorMessage: "No code provided.", states: [] } satisfies RunResponse,
       { status: 200 }
     );
   }
 
-  // Forward request to Python Flask backend
+  // send to back end
   try {
     const response = await fetch(BACKEND_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ 
+        code,
+        registers: body.registers ?? {},
+        memory: body.memory ?? {},
+       }),
     });
-
     if (!response.ok) {
       return NextResponse.json(
         { 
           hadError: true, 
           errorMessage: `Backend server error: ${response.status} ${response.statusText}`, 
-          registers: {}, 
-          memory: {} 
+          states: []
         } satisfies RunResponse,
         { status: 200 }
       );
     }
 
     const data: RunResponse = await response.json();
+      console.log("Backend run successful");
+       console.log(NextResponse.json(data, { status: 200 }));
     return NextResponse.json(data, { status: 200 });
 
   } catch (error) {
@@ -60,8 +70,7 @@ export async function POST(req: Request) {
       { 
         hadError: true, 
         errorMessage: `Failed to connect to backend server: ${error instanceof Error ? error.message : String(error)}`, 
-        registers: {}, 
-        memory: {} 
+        states: []
       } satisfies RunResponse,
       { status: 200 }
     );
@@ -69,6 +78,6 @@ export async function POST(req: Request) {
 }
 
 // optional quick health check for GET /api/run
-export async function GET() {
-  return NextResponse.json({ ok: true, message: "/api/run connected to Python backend" });
-}
+//export async function GET() {
+ // return NextResponse.json({ ok: true, message: "/api/run connected to Python backend" });
+//}

@@ -42,3 +42,7 @@ next-env.d.ts
 
 #mac-annoying
 **/.DS_Store
+
+#cache annoying
+__pychache__/
+*.pyc
