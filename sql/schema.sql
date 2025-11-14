@@ -45,7 +45,8 @@ That's it for now. Later we can add auth, storing lab grading results, etc.
 -- Labs table
 CREATE TABLE labs (
     id TEXT PRIMARY KEY, -- UUID in format: YYYY-MM-DD-HH-MM-SS-uuidv4
-    title TEXT NOT NULL
+    title TEXT NOT NULL,
+    sections_list JSONB NOT NULL -- JSON array of lab section IDs in order
 );
 
 -- Test cases table
@@ -57,5 +58,13 @@ CREATE TABLE test_cases (
     config JSONB NOT NULL -- JSON schema containing register_settings, memory_settings, targetLabel, registers, memory
 );
 
+-- Lab sections table
+CREATE TABLE lab_sections (
+    id TEXT PRIMARY KEY, -- UUID in format: YYYY-MM-DD-HH-MM-SS-uuidv4
+    lab_id TEXT NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
+    content JSONB NOT NULL
+);
+
 -- Indexes for better performance
 CREATE INDEX idx_test_cases_lab_id ON test_cases(lab_id);
+CREATE INDEX idx_lab_sections_lab_id ON lab_sections(lab_id);
