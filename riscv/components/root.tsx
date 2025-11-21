@@ -12,7 +12,7 @@ type VersionEntry = {
   code: string;
   createdAt: string;
 };
-
+/*
 type SavedVersion = {
   uid: string;
   currentVersionId: string | null;
@@ -22,6 +22,40 @@ type SavedVersion = {
   stepIndex: number;
   allStates: SubmitResponse["states"];
 };
+*/
+
+
+/**
+ * Per-project saved state (what used to be your SavedVersion minus uid)
+ */
+type ProjectState = {
+  currentVersionId: string | null;
+  versions: VersionEntry[];
+  resp: AssemblyInfoData | null;
+  simState: SimState | null;
+  stepIndex: number;
+  allStates: SubmitResponse["states"];
+};
+
+/**
+ * A single project (like one Google Doc)
+ */
+type Project = {
+  id: string;         // "p-..." unique per project
+  name: string;       // "Untitled project 1", etc.
+  createdAt: string;  // ISO timestamp
+  state: ProjectState;
+};
+
+/**
+ * Workspace = everything saved for a user in localStorage
+ */
+type Workspace = {
+  uid: string;
+  currentProjectId: string | null;
+  projects: Project[];
+};
+
 
 //BACKEND MUST MATCH THIS
 type SubmitRequest = { 
@@ -29,6 +63,7 @@ type SubmitRequest = {
   registers: Record<string, string>;
   memory: Record<string, string>;
 };
+
 
 
 //BACKEND MUST MATCH THIS
@@ -59,13 +94,27 @@ type SimState = {
   errorMessage?: string | null;
 };
 
+const defaultProjectState: ProjectState = {
+  currentVersionId: null,
+  versions: [],
+  resp: null,
+  simState: null,
+  stepIndex: 0,
+  allStates: [],
+};
+
 function makeUid() {
   return "uid-" + Math.random().toString(36).slice(2);
+}
+
+function makeProjectId() {
+  return "p-" + Math.random().toString(36).slice(2);
 }
 
 function makeVersionId() {
   return "v-" + Date.now();
 }
+
 export default function Root() {
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
@@ -78,6 +127,9 @@ export default function Root() {
   const [stepIndex, setStepIndex] = React.useState(0);
   const [versions, setVersions] = React.useState<VersionEntry[]>([]);
   const [currentVersionId, setCurrentVersionId] = React.useState<string | null>(null);
+  const [projects, setProjects] = React.useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = React.useState<string | null>(null);
+
 
 const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: string }>({
   hadError: false,
@@ -85,6 +137,88 @@ const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: 
 });
 
 
+function handleNewProject() {
+  if (!uid) {
+    // very unlikely, but guard
+    const freshUid = makeUid();
+    setUid(freshUid);
+  }
+
+  const newProject: Project = {
+    id: makeProjectId(),
+    name: `Untitled project ${projects.length + 1}`,
+    createdAt: new Date().toISOString(),
+    state: { ...defaultProjectState },
+  };
+
+  const updatedProjects = [...projects, newProject];
+  setProjects(updatedProjects);
+  setCurrentProjectId(newProject.id);
+
+  // Clear editor / state for the new project
+  setVersions([]);
+  setCurrentVersionId(null);
+  setCode("");
+  setResp(null);
+  setSimState(null);
+  setAllStates([]);
+  setStepIndex(0);
+  setStepsEngaged(false);
+  setFatalError(null);
+
+  if (typeof window !== "undefined" && uid) {
+    const workspace: Workspace = {
+      uid,
+      currentProjectId: newProject.id,
+      projects: updatedProjects,
+    };
+    window.localStorage.setItem(LS_KEY, JSON.stringify(workspace));
+  }
+}
+
+function handleSelectProject(projectId: string) {
+  if (projectId === currentProjectId) return;
+  const project = projects.find((p) => p.id === projectId);
+  if (!project) return;
+
+  setCurrentProjectId(projectId);
+
+  // Load that project's state into the editor/side panel
+  const state = project.state ?? defaultProjectState;
+  const vs = Array.isArray(state.versions) ? state.versions : [];
+
+  let nextVersionId = state.currentVersionId;
+  if (!nextVersionId || !vs.some((v) => v.id === nextVersionId)) {
+    nextVersionId = vs[0]?.id ?? null;
+  }
+
+  setVersions(vs);
+  setCurrentVersionId(nextVersionId);
+
+  const activeVersion =
+    vs.find((v) => v.id === nextVersionId) ?? vs[0] ?? null;
+
+  setCode(activeVersion?.code ?? "");
+  setResp(state.resp ?? null);
+  setSimState(state.simState ?? null);
+  setAllStates(Array.isArray(state.allStates) ? state.allStates : []);
+  setStepIndex(typeof state.stepIndex === "number" ? state.stepIndex : 0);
+  setStepsEngaged(false);
+  setFatalError(null);
+
+  if (typeof window !== "undefined" && uid) {
+    const workspace: Workspace = {
+      uid,
+      currentProjectId: projectId,
+      projects,
+    };
+    window.localStorage.setItem(LS_KEY, JSON.stringify(workspace));
+  }
+}
+
+
+
+/*
   //LOADS LOCAL STORAGE
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -145,14 +279,148 @@ const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: 
       setCurrentVersionId(null);
     }
   }, []);
+*/
+
+React.useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const raw = window.localStorage.getItem(LS_KEY);
+
+    const loadProjectIntoState = (project: Project | null) => {
+      if (!project) {
+        // blank editor
+        setVersions([]);
+        setCurrentVersionId(null);
+        setCode("");
+        setResp(null);
+        setSimState(null);
+        setAllStates([]);
+        setStepIndex(0);
+        setStepsEngaged(false);
+        setFatalError(null);
+        return;
+      }
+
+      const state = project.state ?? defaultProjectState;
+      const vs = Array.isArray(state.versions) ? state.versions : [];
+
+      let nextVersionId = state.currentVersionId;
+      if (!nextVersionId || !vs.some((v) => v.id === nextVersionId)) {
+        nextVersionId = vs[0]?.id ?? null;
+      }
+
+      setVersions(vs);
+      setCurrentVersionId(nextVersionId);
+
+      const activeVersion =
+        vs.find((v) => v.id === nextVersionId) ?? vs[0] ?? null;
+
+      setCode(activeVersion?.code ?? "");
+      setResp(state.resp ?? null);
+      setSimState(state.simState ?? null);
+      setAllStates(Array.isArray(state.allStates) ? state.allStates : []);
+      setStepIndex(typeof state.stepIndex === "number" ? state.stepIndex : 0);
+      setStepsEngaged(false);
+      setFatalError(null);
+    };
+
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as Partial<Workspace>;
+
+        const workspaceUid = parsed.uid ?? makeUid();
+        setUid(workspaceUid);
+
+        let existingProjects: Project[] = Array.isArray(parsed.projects)
+          ? (parsed.projects as Project[])
+          : [];
+
+        // If somehow there are no projects, create one.
+        if (existingProjects.length === 0) {
+          const firstProject: Project = {
+            id: makeProjectId(),
+            name: "Untitled project 1",
+            createdAt: new Date().toISOString(),
+            state: { ...defaultProjectState },
+          };
+          existingProjects = [firstProject];
+
+          const newWorkspace: Workspace = {
+            uid: workspaceUid,
+            currentProjectId: firstProject.id,
+            projects: existingProjects,
+          };
+          window.localStorage.setItem(LS_KEY, JSON.stringify(newWorkspace));
+        }
+
+        setProjects(existingProjects);
+
+        let projId = parsed.currentProjectId;
+        if (!projId || !existingProjects.some((p) => p.id === projId)) {
+          projId = existingProjects[0].id;
+        }
+        setCurrentProjectId(projId);
+
+        const currentProject =
+          existingProjects.find((p) => p.id === projId) ?? existingProjects[0];
+
+        loadProjectIntoState(currentProject);
+        return;
+      } catch (e) {
+        console.warn("bad workspace, resetting", e);
+        // fall through to fresh workspace
+      }
+    }
+
+    // FIRST TIME EVER (no workspace or parse failure)
+    const freshUid = makeUid();
+    const firstProject: Project = {
+      id: makeProjectId(),
+      name: "Untitled project 1",
+      createdAt: new Date().toISOString(),
+      state: { ...defaultProjectState },
+    };
+
+    setUid(freshUid);
+    setProjects([firstProject]);
+    setCurrentProjectId(firstProject.id);
+
+    // Editor state for the empty project
+    setVersions([]);
+    setCurrentVersionId(null);
+    setCode("");
+    setResp(null);
+    setSimState(null);
+    setAllStates([]);
+    setStepIndex(0);
+    setStepsEngaged(false);
+    setFatalError(null);
+
+    const workspace: Workspace = {
+      uid: freshUid,
+      currentProjectId: firstProject.id,
+      projects: [firstProject],
+    };
+    window.localStorage.setItem(LS_KEY, JSON.stringify(workspace));
+  }, []);
 
   //HELPER to write everything to local storage
-  const persist = React.useCallback(
-    (next: Partial<SavedVersion> = {}) => {
-      if (typeof window === "undefined") return;
+const persist = React.useCallback(
+  (next?: Partial<ProjectState>) => {
+    if (typeof window === "undefined") return;
+    if (!uid || !currentProjectId) return;
 
-      const payload: SavedVersion = {
-        uid,
+    setProjects((prev) => {
+      if (prev.length === 0) return prev;
+
+      const idx = prev.findIndex((p) => p.id === currentProjectId);
+      if (idx === -1) return prev;
+
+      const project = prev[idx];
+
+      const mergedState: ProjectState = {
+        ...defaultProjectState,
+        ...(project.state ?? {}),
         currentVersionId,
         versions,
         resp,
@@ -162,10 +430,27 @@ const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: 
         ...next,
       };
 
-      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
-    },
-    [uid, currentVersionId, versions, resp, simState, stepIndex, allStates]
-  );
+      const updatedProject: Project = {
+        ...project,
+        state: mergedState,
+      };
+
+      const updatedProjects = [...prev];
+      updatedProjects[idx] = updatedProject;
+
+      const workspace: Workspace = {
+        uid,
+        currentProjectId,
+        projects: updatedProjects,
+      };
+
+      window.localStorage.setItem(LS_KEY, JSON.stringify(workspace));
+      return updatedProjects;
+    });
+  },
+  [uid, currentProjectId, currentVersionId, versions, resp, simState, stepIndex, allStates]
+);
+
   
 
   //changes site based on any changes to the paramters in []
@@ -476,25 +761,57 @@ return (
           </button>
 
           {/* versions dropdown (kept from Version 1) */}
-          <select
-            value={currentVersionId ?? ""}
-            onChange={(e) => handleSelectVersion(e.target.value)}
-            className="rounded border px-2 py-1 text-sm"
-          >
-            <option value="" disabled>
-              {versions.length === 0 ? "No versions yet" : "Select version…"}
-            </option>
-            {versions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.id} — {new Date(v.createdAt).toLocaleString()}
-              </option>
-            ))}
-          </select>
+          {/* PROJECT + VERSION CONTROLS */}
+          <div className="flex flex-wrap gap-3 items-center ml-auto">
 
-          {/* uid (kept from Version 1) */}
-          <span className="ml-auto text-xs text-zinc-500">
-            {uid}
-          </span>
+            {/* Project selector */}
+            <select
+              value={currentProjectId ?? ""}
+              onChange={(e) => handleSelectProject(e.target.value)}
+              className="rounded border px-2 py-1 text-sm"
+            >
+              <option value="" disabled>
+                {projects.length === 0 ? "No projects yet" : "Select project…"}
+              </option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {new Date(p.createdAt).toLocaleString()}
+                </option>
+              ))}
+            </select>
+
+            {/* New project */}
+            <button
+              type="button"
+              onClick={handleNewProject}
+              className="rounded border px-3 py-1 text-xs hover:bg-zinc-100"
+            >
+              + New project
+            </button>
+
+            {/* Versions within the current project */}
+            <select
+              value={currentVersionId ?? ""}
+              onChange={(e) => handleSelectVersion(e.target.value)}
+              className="rounded border px-2 py-1 text-sm"
+              disabled={versions.length === 0}
+            >
+              <option value="" disabled>
+                {versions.length === 0 ? "No versions yet" : "Select version…"}
+              </option>
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.id} — {new Date(v.createdAt).toLocaleString()}
+                </option>
+              ))}
+            </select>
+
+            {/* uid (still useful for debugging) */}
+            <span className="text-xs text-zinc-500">
+              {uid}
+            </span>
+          </div>
+
         </div>
 
         {/* fatal error box (optional, like Version 2) */}
