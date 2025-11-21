@@ -2,8 +2,8 @@
 import React from "react";
 import CodeEditor from "./code-editor";
 import AssemblyInfo from "./assembly-info";
+import RegisterVisualPanel from "./RegisterVisualPanel";
 
-import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
 
 //key for the app
 const LS_KEY = "riscv-session";
@@ -503,31 +503,7 @@ return (
           <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
             {fatalError}
           </div>
-<<<<<<< Updated upstream
         )}
-=======
-
-          {fatalError && (
-            <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-              {fatalError}
-            </div>
-          )}
-        </div>
-
-        {/* Right panel */}
-        <div className="w-full md:basis-[420px] md:flex-none">
-          <AssemblyInfo response={resp} />
-
-          {/* Seven-segment + LEDs */}
-          <div className="mt-6">
-            <RegisterVisualPanel
-              registers={resp?.registers ?? null}
-              track="x12"
-              digits={4}
-            />
-          </div>
-        </div>
->>>>>>> Stashed changes
       </div>
 
       {/* RIGHT PANEL (like Version 2, but with your prop name) */}
@@ -535,13 +511,15 @@ return (
         <AssemblyInfo response={resp} />
       </div>
 
+      {/* Display & LED panel */}
+        <div className="w-full md:basis-[420px] md:flex-none mt-10 md:mt-0">
+          <RegisterVisualPanel
+            registers={resp?.registers ?? {}}
+            track="x12"
+            digits={4} />
+        </div>
     </div>
-<<<<<<< Updated upstream
   </div>
 );
 
 };
-=======
-  );
-}
->>>>>>> Stashed changes

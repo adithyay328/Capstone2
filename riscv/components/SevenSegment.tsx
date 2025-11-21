@@ -21,13 +21,13 @@ export default function SevenSegment({ hex, digits = 4 }: Props) {
         const on = new Set(segMap[ch] || []);
         return (
           <div key={i} className="relative w-14 h-24">
-            <div className={`absolute left-2 right-2 top-0 h-2 rounded ${on.has("a")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute right-0 top-2 bottom-1/2 w-2 rounded ${on.has("b")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute right-0 top-1/2 bottom-2 w-2 rounded ${on.has("c")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute left-2 right-2 bottom-0 h-2 rounded ${on.has("d")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute left-0 top-1/2 bottom-2 w-2 rounded ${on.has("e")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute left-0 top-2 bottom-1/2 w-2 rounded ${on.has("f")?"bg-sky-400":"bg-neutral-800"}`} />
-            <div className={`absolute left-2 right-2 top-1/2 -translate-y-1 h-2 rounded ${on.has("g")?"bg-sky-400":"bg-neutral-800"}`} />
+            <div className={`absolute left-2 right-2 top-0 h-2 rounded ${on.has("a")?"bg-amber-400":"bg-neutral-800"}`} />
+            <div className={`absolute right-0 top-2 bottom-1/2 w-2 rounded ${on.has("b") ? "bg-amber-400" : "bg-neutral-800"}`} />
+            <div className={`absolute right-0 top-1/2 bottom-2 w-2 rounded ${on.has("c")?"bg-amber-400":"bg-neutral-800"}`} />
+            <div className={`absolute left-2 right-2 bottom-0 h-2 rounded ${on.has("d")?"bg-amber-400":"bg-neutral-800"}`} />
+            <div className={`absolute left-0 top-1/2 bottom-2 w-2 rounded ${on.has("e")?"bg-amber-400":"bg-neutral-800"}`} />
+            <div className={`absolute left-0 top-2 bottom-1/2 w-2 rounded ${on.has("f")?"bg-amber-400":"bg-neutral-800"}`} />
+            <div className={`absolute left-2 right-2 top-1/2 -translate-y-1 h-2 rounded ${on.has("g")?"bg-amber-400":"bg-neutral-800"}`} />
           </div>
         );
       })}
