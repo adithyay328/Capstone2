@@ -7,6 +7,8 @@ import { DBConnection } from "@/app/sql/sql";
 import * as crypto from "crypto";
 
 export async function POST(req: Request) {
+  let db: DBConnection | null = null;
+  
   try {
     // Parse and validate request body
     const body = await req.json();
@@ -15,7 +17,7 @@ export async function POST(req: Request) {
     const { username, password, instructor } = validatedBody;
 
     // Get database connection
-    const db = new DBConnection();
+    db = new DBConnection();
     const client = db.client;
 
     // Get HMAC secret from database
@@ -28,7 +30,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message: "HMAC secret not found in database",
-        } satisfies CreateUserResponseSchema,
+        },
         { status: 500 }
       );
     }
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
       {
         success: true,
         message: "User created successfully",
-      } satisfies CreateUserResponseSchema,
+      },
       { status: 201 }
     );
 
@@ -65,7 +67,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message: "Invalid request format: " + error.errors.map((e: any) => e.message).join(", "),
-        } satisfies CreateUserResponseSchema,
+        },
         { status: 400 }
       );
     }
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message: "Username already exists",
-        } satisfies CreateUserResponseSchema,
+        },
         { status: 409 }
       );
     }
@@ -87,8 +89,17 @@ export async function POST(req: Request) {
       {
         success: false,
         message: "Failed to create user: " + (error.message || "Unknown error"),
-      } satisfies CreateUserResponseSchema,
+      },
       { status: 500 }
       );
+  } finally {
+    // Explicitly close database connection
+    if (db) {
+      try {
+        await db.client.end();
+      } catch (closeError) {
+        console.error('Error closing database connection:', closeError);
+      }
+    }
   }
 }
