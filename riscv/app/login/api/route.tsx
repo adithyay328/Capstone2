@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { LoginRequestSchema, LoginResponseSchema, ErrorResponseSchema } from './types';
 import { DBConnection } from '@/app/sql/sql';
-import * as crypto from 'crypto';
+import { verifyPassword } from '@/app/passwords';
 
 export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
@@ -30,26 +30,6 @@ export async function POST(req: NextRequest) {
     db = new DBConnection();
     const client = db.client;
 
-    // Get HMAC secret from database
-    const secretResult = await client.query(
-      "SELECT value FROM secrets WHERE name = 'hmac'"
-    );
-    
-    if (secretResult.rows.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'Unknown error in backend',
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const hmacSecret = secretResult.rows[0].value;
-
     // Get user from database
     const userResult = await client.query(
       "SELECT username, salt, password_hash, instructor FROM users WHERE username = $1",
@@ -70,18 +50,10 @@ export async function POST(req: NextRequest) {
     }
 
     const user = userResult.rows[0];
-    const { salt, password_hash: storedHash } = user;
+    const { password_hash: storedHash } = user;
 
-    // Create HMAC hash of provided password + salt
-    const hmac = crypto.createHmac('sha256', hmacSecret);
-    hmac.update(password + salt);
-    const providedHash = hmac.digest('hex');
-
-    // Compare hashes using timing-safe comparison
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(providedHash, 'hex'),
-      Buffer.from(storedHash, 'hex')
-    );
+    // Verify password using Argon2id
+    const isValid = await verifyPassword(password, storedHash);
 
     if (isValid) {
       // Login successful
