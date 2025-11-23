@@ -28,7 +28,11 @@ export class DBConnection {
     // a callback to close this connection
     // if not already closed
     setTimeout(async () => {
-      await this.client.end();
-    }, 60000);
+      try {
+        await this.client.end();
+      } catch (error) {
+        // Silently ignore errors if connection is already closed
+      }
+    }, 15 * 1000);
   }
 }
