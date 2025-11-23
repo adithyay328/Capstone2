@@ -1,0 +1,38 @@
+import { CreateUserRequest, CreateUserResponse, CreateUserRequestSchema, CreateUserResponseSchema } from './types';
+
+export async function createUser(username: string, password: string, instructor: boolean): Promise<CreateUserResponse> {
+  try {
+    // Build the request object
+    const requestBody: CreateUserRequest = {
+      username,
+      password,
+      instructor,
+    };
+
+    // Validate request
+    const validatedRequest = CreateUserRequestSchema.parse(requestBody);
+
+    // Send the fetch request
+    const response = await fetch('/instructor/create_user/api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(validatedRequest),
+    });
+
+    // Parse the response
+    const responseData = await response.json();
+    
+    // Validate response
+    const validatedResponse = CreateUserResponseSchema.parse(responseData);
+    
+    return validatedResponse;
+  } catch (error) {
+    // Return error response
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'An unknown error occurred',
+    };
+  }
+}
