@@ -2,12 +2,18 @@
 
 -- Create our user, with login privileges,
 -- but no superuser privileges.
-CREATE ROLE capstone WITH
-    LOGIN
-    NOSUPERUSER
-    NOCREATEDB
-    NOCREATEROLE
-    NOREPLICATION;
+DO $$
+BEGIN
+    CREATE ROLE capstone WITH
+        LOGIN
+        NOSUPERUSER
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION;
+EXCEPTION
+    WHEN duplicate_object THEN
+        NULL;
+END $$;
 
 -- Set password for our user.
 ALTER ROLE capstone WITH PASSWORD 'capstone';
@@ -33,3 +39,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users OWNER TO capstone;
+
+-- For labs, we store a unique ID, title, and markdown content
+CREATE TABLE IF NOT EXISTS labs (
+    uid TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    md TEXT NOT NULL
+);
+
+ALTER TABLE labs OWNER TO capstone;
