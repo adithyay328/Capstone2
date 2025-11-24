@@ -18,10 +18,16 @@ export default function LoginPage() {
       const result = await login(username, password);
       
       if (result.success) {
-        alert('Login successful');
-        // Reset form on success
-        setUsername('');
-        setPassword('');
+        // Redirect based on user role
+        if (result.student !== undefined) {
+          const redirectPath = result.student ? '/student' : '/instructor';
+          window.location.href = redirectPath;
+        } else {
+          // Fallback if student field is not present
+          alert('Login successful');
+          setUsername('');
+          setPassword('');
+        }
       } else {
         setError(result.message || 'Login failed');
       }

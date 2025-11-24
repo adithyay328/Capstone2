@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { LoginRequestSchema, LoginResponseSchema, ErrorResponseSchema } from './types';
 import { DBConnection } from '@/app/sql/sql';
 import { verifyPassword } from '@/app/passwords';
+import { modifyCookieData } from '@/app/verify/modify';
 
 export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
@@ -56,17 +57,46 @@ export async function POST(req: NextRequest) {
     const isValid = await verifyPassword(password, storedHash);
 
     if (isValid) {
-      // Login successful
-      return new Response(
-        JSON.stringify({
+      // Login successful - create authenticated cookie
+      try {
+        const userData = {
           username: user.username,
-          success: true,
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+          student: !user.instructor, // student is the inverse of instructor
+        };
+
+        // Create a new cookie with the user data
+        const newCookie = await modifyCookieData('', userData);
+
+        // Return success response with cookie and student info
+        return new Response(
+          JSON.stringify({
+            username: user.username,
+            success: true,
+            student: userData.student,
+          }),
+          {
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Set-Cookie': newCookie,
+            },
+          }
+        );
+      } catch (cookieError) {
+        console.error('Error creating auth cookie:', cookieError);
+        // Fall back to basic success response if cookie creation fails
+        return new Response(
+          JSON.stringify({
+            username: user.username,
+            success: true,
+            student: !user.instructor,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
     } else {
       // Invalid password
       return new Response(
@@ -102,21 +132,4 @@ export async function POST(req: NextRequest) {
       }
     }
   }
-}
-
-// Disable unsupported methods
-export async function GET() {
-  return new Response('Method Not Allowed', { status: 405 });
-}
-
-export async function PUT() {
-  return new Response('Method Not Allowed', { status: 405 });
-}
-
-export async function DELETE() {
-  return new Response('Method Not Allowed', { status: 405 });
-}
-
-export async function PATCH() {
-  return new Response('Method Not Allowed', { status: 405 });
 }
