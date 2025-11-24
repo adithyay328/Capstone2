@@ -16,8 +16,6 @@ export const config = {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  console.log(`Middleware triggered for path: ${pathname}`);
-
   // Run verification for all routes, figure out
   // if the user is actually verified
   // or not.
@@ -40,7 +38,6 @@ export async function middleware(request: NextRequest) {
   // /student route
   const isStudentRoute = pathname.indexOf('student') !== -1;
   const isUserStudent = verifyResponse.data.student;
-  console.log(`User student status: ${isUserStudent}, Route is student route: ${isStudentRoute}`);
   if ( isUserStudent && !isStudentRoute ) {
     const studentUrl = new URL('/student', request.url);
     return NextResponse.redirect(studentUrl);
