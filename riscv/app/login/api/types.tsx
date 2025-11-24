@@ -12,6 +12,7 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export const LoginResponseSchema = z.object({
   username: z.string(),
   success: z.boolean(),
+  student: z.boolean().optional(),
   message: z.string().optional(),
 });
 
