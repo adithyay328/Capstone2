@@ -24,7 +24,9 @@ export async function verifyCookie(cookie: string): Promise<VerifyResponse> {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Verification failed:', error);
-    throw error;
+    // Always return some kind of response,
+    // so in our case return the same cookies
+    // and null data.
+    return { data: null, cookie: cookie } satisfies VerifyResponse;
   }
 }

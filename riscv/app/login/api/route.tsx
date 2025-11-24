@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
     const parsedBody = LoginRequestSchema.safeParse(body);
     
     if (!parsedBody.success) {
+      // Invalid request format. Use modifyCookieData with empty object to clear cookie
+      const modifiedCookie = await modifyCookieData({});
+
       return new Response(
         JSON.stringify({
           success: false,
@@ -20,7 +23,10 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Set-Cookie': modifiedCookie,
+          },
         }
       );
     }
@@ -38,6 +44,9 @@ export async function POST(req: NextRequest) {
     );
 
     if (userResult.rows.length === 0) {
+      // Username not found. Use modifyCookieData with empty object to clear cookie
+      const modifiedCookie = await modifyCookieData({});
+
       return new Response(
         JSON.stringify({
           success: false,
@@ -45,7 +54,10 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Set-Cookie': modifiedCookie,
+          },
         }
       );
     }
@@ -65,7 +77,8 @@ export async function POST(req: NextRequest) {
         };
 
         // Create a new cookie with the user data
-        const newCookie = await modifyCookieData('', userData);
+        const newCookie = await modifyCookieData(userData);
+        console.log('Created new cookie for user:', newCookie);
 
         // Return success response with cookie and student info
         return new Response(
@@ -85,6 +98,9 @@ export async function POST(req: NextRequest) {
       } catch (cookieError) {
         console.error('Error creating auth cookie:', cookieError);
         // Fall back to basic success response if cookie creation fails
+        // Use modifyCookieData with empty object to clear cookie as fallback
+        const modifiedCookie = await modifyCookieData({});
+
         return new Response(
           JSON.stringify({
             username: user.username,
@@ -93,12 +109,18 @@ export async function POST(req: NextRequest) {
           }),
           {
             status: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Set-Cookie': modifiedCookie,
+            },
           }
         );
       }
     } else {
-      // Invalid password
+      // Invalid password. Use modify
+      // cookie with an empty object to clear
+      const modifiedCookie = await modifyCookieData({});
+
       return new Response(
         JSON.stringify({
           success: false,
@@ -106,12 +128,19 @@ export async function POST(req: NextRequest) {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Set-Cookie': modifiedCookie,
+          },
         }
       );
     }
   } catch (error: any) {
     console.error('Login error:', error);
+
+    // Make an empty cookie to clear any existing cookies
+    const modifiedCookie = await modifyCookieData({});
+
     return new Response(
       JSON.stringify({
         success: false,
@@ -119,7 +148,10 @@ export async function POST(req: NextRequest) {
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Set-Cookie': modifiedCookie,
+        },
       }
     );
   } finally {

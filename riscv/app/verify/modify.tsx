@@ -2,12 +2,11 @@ import { DBConnection } from '@/app/sql/sql';
 import crypto from 'crypto';
 
 /**
- * Internal utility function to modify cookie data and recompute HMAC
- * @param currentCookie - Current cookie string
+ * Internal utility function to create a sens cookie with HMAC
  * @param newData - New JSON object data to store
- * @returns Promise resolving to new cookie string with updated sens object
+ * @returns Promise resolving to sens cookie string (just the sens=... part)
  */
-export async function modifyCookieData(currentCookie: string, newData: Record<string, unknown>): Promise<string> {
+export async function modifyCookieData(newData: Record<string, unknown>): Promise<string> {
   let db: DBConnection | null = null;
   
   try {
@@ -37,24 +36,10 @@ export async function modifyCookieData(currentCookie: string, newData: Record<st
       data: newData
     };
 
-    // Convert to cookie format
+    // Convert to cookie format and return just the sens cookie
+    // Path=/ ensures the cookie is set for the entire site, not just the current path
     const sensString = encodeURIComponent(JSON.stringify(newSens));
-    const newSensCookiePart = `sens=${sensString}`;
-
-    // Remove existing sens from cookie if present
-    let updatedCookie = currentCookie.replace(/sens=[^;]*;?\s*/, '');
-    
-    // Clean up any trailing semicolons or whitespace
-    updatedCookie = updatedCookie.replace(/;\s*$/, '').trim();
-    
-    // Add new sens to cookie
-    if (updatedCookie.length > 0) {
-      updatedCookie = `${updatedCookie}; ${newSensCookiePart}`;
-    } else {
-      updatedCookie = newSensCookiePart;
-    }
-
-    return updatedCookie;
+    return `sens=${sensString}; Path=/`;
   } catch (error) {
     console.error('Error modifying cookie data:', error);
     throw error;

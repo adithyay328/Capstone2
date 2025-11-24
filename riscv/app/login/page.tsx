@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { login } from './api/frontend';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,20 +20,21 @@ export default function LoginPage() {
       const result = await login(username, password);
       
       if (result.success) {
+        // Clear form fields
+        setUsername('');
+        setPassword('');
+        
         // Redirect based on user role
         if (result.student !== undefined) {
           const redirectPath = result.student ? '/student' : '/instructor';
-          window.location.href = redirectPath;
-        } else {
-          // Fallback if student field is not present
-          alert('Login successful');
-          setUsername('');
-          setPassword('');
+          router.push(redirectPath);
         }
       } else {
+        // Server handles cookie clearing via Set-Cookie header
         setError(result.message || 'Login failed');
       }
     } catch (err) {
+      // Server handles cookie clearing via Set-Cookie header
       setError('An error occurred during login');
       console.error('Login error:', err);
     } finally {
