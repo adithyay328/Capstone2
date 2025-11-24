@@ -1,0 +1,134 @@
+import { NextRequest } from 'next/server';
+import { verifyCookieInternal } from '@/app/verify/internal';
+import { DBConnection } from '@/app/sql/sql';
+import { LabSchema } from '@/app/api/list_labs/types';
+import { modifyCookieData } from '@/app/verify/modify';
+
+export async function POST(req: NextRequest) {
+  // Verify the cookie to ensure user is authenticated
+  const cookieHeader = req.headers.get('cookie') || '';
+  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  
+  // Check that username is set and student boolean exists
+  if (!verifyResponse.data || 
+      !verifyResponse.data.username || 
+      typeof verifyResponse.data.student === 'undefined') {
+    // Unauthorized - clear cookies using modifyCookieData with empty object
+    const modifiedCookie = await modifyCookieData({});
+    
+    return new Response(
+      JSON.stringify({
+        error: 'Unauthorized',
+        message: 'Invalid or missing authentication',
+      }),
+      {
+        status: 401,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Set-Cookie': modifiedCookie,
+        },
+      }
+    );
+  }
+
+  // Check that user is an instructor (student must be false)
+  if (verifyResponse.data.student !== false) {
+    return new Response(
+      JSON.stringify({
+        error: 'Forbidden',
+        message: 'Only instructors can update labs',
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  let db: DBConnection | null = null;
+  
+  try {
+    // Parse the request body
+    const body = await req.json();
+    
+    // Validate the lab data using existing LabSchema
+    const labData = LabSchema.parse(body);
+    
+    // Create database connection
+    db = new DBConnection();
+    const client = db.client;
+
+    // Update the lab record
+    const updateResult = await client.query(
+      'UPDATE labs SET title = $1, md = $2 WHERE uid = $3 RETURNING uid',
+      [labData.title, labData.md, labData.uid]
+    );
+
+    // Check if lab was found and updated
+    if (updateResult.rows.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Not Found',
+          message: 'Lab not found',
+        }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Return successful response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Lab updated successfully',
+        lab: labData
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error: any) {
+    console.error('Update lab error:', error);
+    
+    // Handle Zod validation errors
+    if (error.name === 'ZodError') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Validation Error',
+          message: 'Invalid lab data format',
+          details: error.errors,
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'An unexpected error occurred while updating lab: ' + (error.message || 'Unknown error'),
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  } finally {
+    // Explicitly close database connection
+    if (db) {
+      try {
+        await db.client.end();
+      } catch (closeError) {
+        console.error('Error closing database connection:', closeError);
+      }
+    }
+  }
+}
