@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { Lab } from '@/app/api/list_labs/types';
+import Link from 'next/link';
 
 export default function InstructorPage() {
     const [labs, setLabs] = useState<Lab[]>([]);
@@ -72,13 +73,20 @@ export default function InstructorPage() {
                         <ul className="divide-y divide-gray-200">
                             {labs.map((lab) => (
                                 <li key={lab.uid}>
-                                    <div className="px-4 py-4 sm:px-6">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-lg font-medium text-indigo-600 truncate">
-                                                {lab.title}
-                                            </p>
+                                    <Link href={`/instructor/edit_lab/${lab.uid}`} className="block hover:bg-gray-50">
+                                        <div className="px-4 py-4 sm:px-6">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-lg font-medium text-indigo-600 truncate">
+                                                    {lab.title}
+                                                </p>
+                                                <div className="ml-2 flex-shrink-0 flex">
+                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                                        Edit
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 </li>
                             ))}
                         </ul>
