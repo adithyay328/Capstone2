@@ -10,16 +10,20 @@ import { ImStack } from "react-icons/im";
 
 type SidebarProps = {
   initialOpen?: boolean;
+  onNewProject?: () => void;
+  onOpenProjects?: () => void;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     initialOpen = false,
+    onNewProject,
+    onOpenProjects,
 }) => {
   const [isOpen, setIsOpen] = useState(initialOpen);
 
   const primaryItems = [
-    { id: "new-project", label: "New Project", icon: LuGrid2X2Plus },
-    { id: "projects", label: "My Projects", icon: IoLibrary },
+    { id: "new-project", label: "New Project", icon: LuGrid2X2Plus, onClick: onNewProject },
+    { id: "projects", label: "My Projects", icon: IoLibrary, onClick: onOpenProjects },
     { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone },
   ];
 
@@ -77,6 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 icon={item.icon}
                 showTooltipOnCollapse
                 isOpen={isOpen}
+                onClick={item.onClick}
               />
             ))}
           </div>
@@ -119,15 +124,17 @@ type SidebarButtonProps = {
   isOpen: boolean;
   icon: React.ComponentType<any>;
   showTooltipOnCollapse?: boolean; //for the buttons that are always shown when collapsed
+  onClick?: () => void;
 };
 
-const SidebarButton: React.FC<SidebarButtonProps> = ({ label, isOpen, icon: Icon, showTooltipOnCollapse }) => {
+const SidebarButton: React.FC<SidebarButtonProps> = ({ label, isOpen, icon: Icon, showTooltipOnCollapse, onClick }) => {
   console.log({ label, isOpen, showTooltipOnCollapse });
 
     return (
     <div className="relative group">
         <button
         type="button"
+        onClick={onClick}
         className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-slate-100 hover:bg-[rgb(59,56,59)] transition-colors ${
             isOpen ? "justify-start" : "justify-center"
         }`}
