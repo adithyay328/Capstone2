@@ -464,7 +464,10 @@ return (
             />
       </div>
     </div>
-  </div>
+  </div>     
+)}
+</main>
+</div>
 );
 }
 
