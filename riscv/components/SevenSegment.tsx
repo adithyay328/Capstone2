@@ -1,3 +1,4 @@
+//7-seg
 "use client";
 import * as React from "react";
 
