@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { listLabs } from '@/app/api/list_labs/frontend';
+import { createLab } from '@/app/api/create_lab/frontend';
 import { Lab } from '@/app/api/list_labs/types';
 import Link from 'next/link';
 
@@ -9,28 +10,60 @@ export default function InstructorPage() {
     const [labs, setLabs] = useState<Lab[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [newLabName, setNewLabName] = useState('');
+    const [creating, setCreating] = useState(false);
 
-    useEffect(() => {
-        const fetchLabs = async () => {
-            try {
-                setLoading(true);
-                const response = await listLabs();
-                
-                if (response.success && response.labs) {
-                    setLabs(response.labs);
-                } else {
-                    setError(response.message || 'Failed to fetch labs');
-                }
-            } catch (err) {
-                setError('An error occurred while fetching labs');
-                console.error('Error fetching labs:', err);
-            } finally {
-                setLoading(false);
+    // Dedicated load function that fetches labs from backend
+    const loadLabs = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await listLabs();
+            
+            if (response.success && response.labs) {
+                setLabs(response.labs);
+            } else {
+                setError(response.message || 'Failed to fetch labs');
             }
-        };
+        } catch (err) {
+            setError('An error occurred while fetching labs');
+            console.error('Error fetching labs:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        fetchLabs();
+    // Load labs on component mount
+    useEffect(() => {
+        loadLabs();
     }, []);
+
+    const handleCreateLab = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!newLabName.trim()) {
+            alert('Please enter a lab name');
+            return;
+        }
+
+        try {
+            setCreating(true);
+            const response = await createLab(newLabName.trim());
+            
+            if (response.success && response.lab) {
+                // Reload labs from backend to ensure proper sorting and fresh data
+                await loadLabs();
+                setNewLabName(''); // Clear the input field
+            } else {
+                alert(response.message || 'Failed to create lab');
+            }
+        } catch (err) {
+            console.error('Error creating lab:', err);
+            alert('An error occurred while creating the lab');
+        } finally {
+            setCreating(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -64,12 +97,14 @@ export default function InstructorPage() {
         <div className="min-h-screen p-8">
             <div className="max-w-4xl mx-auto">
                 <h1 className="text-3xl font-bold mb-6">Lab List</h1>
+                
+                {/* Existing labs list */}
                 {labs.length === 0 ? (
                     <div className="text-center py-8">
                         <p className="text-gray-500">No labs available.</p>
                     </div>
                 ) : (
-                    <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
                         <ul className="divide-y divide-gray-200">
                             {labs.map((lab) => (
                                 <li key={lab.uid}>
@@ -92,6 +127,40 @@ export default function InstructorPage() {
                         </ul>
                     </div>
                 )}
+
+                {/* Create new lab form */}
+                <div className="bg-white shadow sm:rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Create New Lab</h2>
+                    <form onSubmit={handleCreateLab} className="flex gap-4">
+                        <div className="flex-grow">
+                            <label htmlFor="labName" className="block text-sm font-medium text-gray-700 mb-1">
+                                Lab Name
+                            </label>
+                            <input
+                                type="text"
+                                id="labName"
+                                value={newLabName}
+                                onChange={(e) => setNewLabName(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-indigo-600 font-medium"
+                                placeholder="Enter lab name"
+                                disabled={creating}
+                            />
+                        </div>
+                        <div className="flex items-end">
+                            <button
+                                type="submit"
+                                disabled={creating || !newLabName.trim()}
+                                className={`px-6 py-2 rounded-md text-white font-medium ${
+                                    creating || !newLabName.trim()
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                                }`}
+                            >
+                                {creating ? 'Creating...' : 'Create Lab'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );
