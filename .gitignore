@@ -4,6 +4,7 @@
 
 # dependencies
 riscv/node_modules/**
+prototype_interp/venv/
 /node_modules
 node_modules/
 /.pnp
