@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { createLab } from '@/app/api/create_lab/frontend';
+import { deleteLab } from '@/app/api/delete_lab/frontend';
 import { Lab } from '@/app/api/list_labs/types';
 import Link from 'next/link';
 
@@ -65,6 +66,26 @@ export default function InstructorPage() {
         }
     };
 
+    const handleDeleteLab = async (uid: string, title: string) => {
+        if (!confirm(`Are you sure you want to delete the lab "${title}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await deleteLab(uid);
+            
+            if (response.success) {
+                // Reload labs from backend to ensure proper sorting and fresh data
+                await loadLabs();
+            } else {
+                alert(response.message || 'Failed to delete lab');
+            }
+        } catch (err) {
+            console.error('Error deleting lab:', err);
+            alert('An error occurred while deleting the lab');
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen p-8">
@@ -107,8 +128,8 @@ export default function InstructorPage() {
                     <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
                         <ul className="divide-y divide-gray-200">
                             {labs.map((lab) => (
-                                <li key={lab.uid}>
-                                    <Link href={`/instructor/edit_lab/${lab.uid}`} className="block hover:bg-gray-50">
+                                <li key={lab.uid} className="flex items-center justify-between">
+                                    <Link href={`/instructor/edit_lab/${lab.uid}`} className="flex-grow hover:bg-gray-50">
                                         <div className="px-4 py-4 sm:px-6">
                                             <div className="flex items-center justify-between">
                                                 <p className="text-lg font-medium text-indigo-600 truncate">
@@ -122,6 +143,15 @@ export default function InstructorPage() {
                                             </div>
                                         </div>
                                     </Link>
+                                    <div className="px-4">
+                                        <button
+                                            onClick={() => handleDeleteLab(lab.uid, lab.title)}
+                                            className="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                            aria-label={`Delete ${lab.title}`}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
