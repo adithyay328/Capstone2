@@ -1,14 +1,17 @@
-from typing import List
+from typing import List, Optional
 from copy import deepcopy
 
 from instructions import Instruction
 from machine import MachineState
 
 class Runtime:
-  def __init__(self, program : List[Instruction]):
+  def __init__(self, program : List[Instruction], initialState : Optional[MachineState] = None):
     # Initialize the machine state
-    # with a default
-    self.states = [MachineState()]
+    # with a default or provided initial state
+    if initialState is not None:
+      self.states = [initialState]
+    else:
+      self.states = [MachineState()]
 
     self.program = program
     

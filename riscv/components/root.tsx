@@ -3,8 +3,14 @@ import React from "react";
 import CodeEditor from "./code-editor";
 import AssemblyInfo from "./assembly-info";
 import SevenSegment from "./SevenSegment";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
+import { listLabs } from "@/app/api/list_labs/frontend";
+import { Lab } from "@/app/api/list_labs/types";
+import { listTestCases } from "@/app/api/list_test_cases/frontend";
+import { scoreTestCase } from "@/app/api/score/frontend";
 
 //key for the app
 const LS_KEY = "riscv-session";
@@ -80,6 +86,10 @@ export default function Root() {
   const [stepIndex, setStepIndex] = React.useState(0);
   const [versions, setVersions] = React.useState<VersionEntry[]>([]);
   const [currentVersionId, setCurrentVersionId] = React.useState<string | null>(null);
+
+  // Labs for grading
+  const [labs, setLabs] = React.useState<Lab[]>([]);
+  const [selectedLabUid, setSelectedLabUid] = React.useState<string>("");
 
 const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: string }>({
   hadError: false,
@@ -175,6 +185,17 @@ const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: 
     if (!uid) return;
     persist();
   }, [uid, currentVersionId, versions, resp, simState, persist]);
+
+  // Fetch labs on mount for grading dropdown
+  React.useEffect(() => {
+    async function fetchLabs() {
+      const response = await listLabs();
+      if (response.success && response.labs) {
+        setLabs(response.labs);
+      }
+    }
+    fetchLabs();
+  }, []);
 
   //when code changes in editor we update current version (or create one)
   const handleCodeChange = (nextCode: string) => {
@@ -421,9 +442,64 @@ const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: 
     persist({ resp: newResp, stepIndex: 0 });
   }
 
+  // Grade the current code against all test cases for the selected lab
+  async function handleGrade() {
+    if (!code.trim()) {
+      toast.error("No code to grade!");
+      return;
+    }
+
+    if (!selectedLabUid) {
+      toast.error("Please select a lab to grade!");
+      return;
+    }
+
+    // Find the selected lab
+    const lab = labs.find(l => l.uid === selectedLabUid);
+    if (!lab) {
+      toast.error("Selected lab not found");
+      return;
+    }
+
+    try {
+      const testCasesResponse = await listTestCases(lab.uid);
+      if (!testCasesResponse.success || !testCasesResponse.testCases) {
+        toast.error(`Failed to fetch test cases for ${lab.title}`);
+        return;
+      }
+
+      // If no test cases, show info
+      if (testCasesResponse.testCases.length === 0) {
+        toast.info(`Lab ${lab.title}: No test cases`);
+        return;
+      }
+
+      // Score each test case
+      let allPassed = true;
+      for (const testCase of testCasesResponse.testCases) {
+        const scoreResponse = await scoreTestCase(code, testCase.uid);
+        if (!scoreResponse.pass) {
+          allPassed = false;
+          break;
+        }
+      }
+
+      // Show toast for this lab
+      if (allPassed) {
+        toast.success(`Lab ${lab.title}: PASSED!`);
+      } else {
+        toast.error(`Lab ${lab.title}: FAILED!`);
+      }
+    } catch (error) {
+      console.error("Grade error:", error);
+      toast.error("An error occurred while grading");
+    }
+  }
+
 
 return (
   <div className="relative">
+    <ToastContainer position="top-right" autoClose={5000} />
     <div className="flex flex-col md:flex-row md:flex-wrap gap-30 px-4 mt-4">
       {/* Editor + controls column */}
       <div className="w-full md:w-[65vw] lg:w-[70vw] xl:w-[75vw] mt-5 mb-[-10]">
@@ -475,6 +551,30 @@ return (
             //disabled={stepsEngaged}
           >
             Reset
+          </button>
+
+          {/* Lab selection dropdown for grading */}
+          <select
+            value={selectedLabUid}
+            onChange={(e) => setSelectedLabUid(e.target.value)}
+            className="rounded border px-2 py-1 text-sm"
+          >
+            <option value="" disabled>
+              {labs.length === 0 ? "Loading labs..." : "Select lab to grade…"}
+            </option>
+            {labs.map((lab) => (
+              <option key={lab.uid} value={lab.uid}>
+                {lab.title}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => handleGrade()}
+            className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+            disabled={!selectedLabUid}
+          >
+            Grade
           </button>
 
           {/* versions dropdown (kept from Version 1) */}

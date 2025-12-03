@@ -151,7 +151,7 @@ export default function StudentLabDetailPage() {
             {typeof window !== 'undefined' && (
               <MdPreview
                 modelValue={lab.md}
-                style={{ height: '700px' }}
+                style={{ minHeight: '200px' }}
               />
             )}
           </div>
