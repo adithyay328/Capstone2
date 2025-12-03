@@ -48,3 +48,18 @@ CREATE TABLE IF NOT EXISTS labs (
 );
 
 ALTER TABLE labs OWNER TO capstone;
+
+-- Test cases for labs. Each lab can have many test cases.
+-- seed_* columns define initial state, result_* columns define expected final state.
+-- All JSON stored as TEXT for simplicity.
+CREATE TABLE IF NOT EXISTS test_cases (
+    uid TEXT PRIMARY KEY,
+    lab_uid TEXT NOT NULL REFERENCES labs(uid) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    seed_registers TEXT NOT NULL DEFAULT '{}',
+    seed_memory TEXT NOT NULL DEFAULT '{}',
+    result_registers TEXT NOT NULL DEFAULT '{}',
+    result_memory TEXT NOT NULL DEFAULT '{}'
+);
+
+ALTER TABLE test_cases OWNER TO capstone;
