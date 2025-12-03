@@ -18,7 +18,10 @@ const isValidHexAddress = (key: string): boolean => {
 };
 
 const isValidHexValue = (value: string): boolean => {
-  return /^0x[0-9a-fA-F]+$/.test(value);
+  if (!/^0x[0-9a-fA-F]+$/.test(value)) return false;
+  // Check that value fits in 4 bytes (32 bits)
+  const num = parseInt(value, 16);
+  return num >= 0 && num <= 0xFFFFFFFF;
 };
 
 export type KeyValueEntry = {
