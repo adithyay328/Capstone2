@@ -23,10 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="bg-neutral-600 text-gray-100">
+      <div className="bg-neutral-600 text-gray-100">
         {children}
-      </body>
-    </html>
+      </div>
   );
 }

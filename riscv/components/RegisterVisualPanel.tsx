@@ -6,6 +6,7 @@ import SevenSegment from "./SevenSegment";
 import Led from "./Led";                     
 
 type Registers = Record<string, string | number>;
+type Memory = Record<string, string | number>;
 
 function hexify(v: string | number | undefined) {
   if (v === undefined || v === null) return "0x0";
@@ -21,15 +22,32 @@ function toNum(v: string | number | undefined) {
 
 export default function RegisterVisualPanel({
   registers,
+  memory,
   track = "x12",
+  trackType = "register",
   digits = 4,
 }: {
   registers: Registers | null;
+  memory?: Memory | null;
   track?: string;
+  trackType?: "register" | "memory";
   digits?: number;
 }) {
-  const valueHex = React.useMemo(() => hexify(registers?.[track]), [registers, track]);
-  const valueNum = React.useMemo(() => toNum(registers?.[track]), [registers, track]);
+  const valueHex = React.useMemo(() => {
+    if (trackType === "memory") {
+      return hexify(memory?.[track]);
+    }
+    return hexify(registers?.[track]);
+  }, [registers, memory, track, trackType]);
+  
+  const valueNum = React.useMemo(() => {
+    if (trackType === "memory") {
+      return toNum(memory?.[track]);
+    }
+    return toNum(registers?.[track]);
+  }, [registers, memory, track, trackType]);
+
+  const trackingLabel = trackType === "memory" ? `Memory[${track}]` : `Register ${track}`;
 
   return (
     <div className="rounded-2xl p-4 bg-neutral-900 border border-neutral-800">
@@ -37,7 +55,7 @@ export default function RegisterVisualPanel({
         <div>
           <h3 className="text-lg font-semibold text-neutral-100">Display & LEDs</h3>
           <p className="text-neutral-400 text-sm">
-            Tracking <span className="font-mono">{track}</span> = <span className="font-mono">{valueHex.toUpperCase()}</span>
+            Tracking <span className="font-mono">{trackingLabel}</span> = <span className="font-mono">{valueHex.toUpperCase()}</span>
           </p>
         </div>
       </div>
@@ -47,7 +65,7 @@ export default function RegisterVisualPanel({
       </div>
 
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Led on={valueNum > 0} label={`${track}>0`} />
+        <Led on={valueNum > 0} label={`${trackType === "memory" ? "mem" : "reg"}>0`} />
         <Led on={(valueNum & 0x1) !== 0} label="bit0" />
         <Led on={(valueNum & 0x2) !== 0} label="bit1" />
         <Led on={(valueNum & 0x4) !== 0} label="bit2" />
@@ -56,4 +74,3 @@ export default function RegisterVisualPanel({
     </div>
   );
 }
-

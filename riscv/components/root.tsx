@@ -2,6 +2,7 @@
 import React from "react";
 import CodeEditor from "./code-editor";
 import AssemblyInfo from "./assembly-info";
+import SevenSegment from "./SevenSegment";
 
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
 
@@ -508,7 +509,24 @@ return (
 
       {/* RIGHT PANEL (like Version 2, but with your prop name) */}
       <div className="w-full md:basis-[420px] md:flex-none mt-10 md:mt-0">
-        <AssemblyInfo response={resp} />
+        <div className="flex flex-row gap-4">
+          <AssemblyInfo response={resp} />
+          <div className="flex-shrink-0">
+            <div className="rounded-2xl p-4 bg-neutral-900 border border-neutral-800">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-neutral-100">Memory[0x0]</h3>
+                  <p className="text-neutral-400 text-sm">
+                    = <span className="font-mono">{resp?.memory?.["0x0"] || "0x0"}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <SevenSegment hex={resp?.memory?.["0x0"] || "0x0"} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
