@@ -100,6 +100,7 @@ export default function CodeEditor({
   const editorRef = React.useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const decorationsRef = React.useRef<string[]>([]);
   const monacoRef = React.useRef<Monaco | null>(null);
+  const [isReady, setIsReady] = React.useState(false);
   const handleBeforeMount: BeforeMount = (m) => {
     // register once
     monacoRef.current=m;
@@ -228,6 +229,7 @@ export default function CodeEditor({
     if (onRun) {
       editor.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, () => onRun());
     }
+    setIsReady(true);
   };
 
   // when currentLine changes → update decorations
@@ -253,8 +255,30 @@ export default function CodeEditor({
     }
   }, [currentLine]);
 
+  React.useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const model = ed.getModel();
+    if (!model) return;
+    if (model.getValue() !== code) {
+      ed.setValue(code);
+    }
+  }, [code]);
+
   return (
-    <div className="" style={{ width: "100%", height: "100%" }}>
+    <div className="relative" style={{ width: "100%", height: "500px" }}>
+      {!isReady && (
+        <div className="absolute inset-0 z-10 animate-pulse rounded-xl border-2 border-orange-300 bg-zinc-900/60">
+          <div className="p-4">
+            <div className="h-3 w-1/3 rounded bg-zinc-700/60" />
+            <div className="mt-2 space-y-2">
+              <div className="h-2 w-5/6 rounded bg-zinc-800/80" />
+              <div className="h-2 w-4/6 rounded bg-zinc-800/80" />
+              <div className="h-2 w-3/6 rounded bg-zinc-800/80" />
+            </div>
+          </div>
+        </div>
+      )}
       <Editor
         height="500px"
         language="riscv"
