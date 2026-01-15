@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { FiAlignJustify } from "react-icons/fi";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { LuGrid2X2Plus } from "react-icons/lu";
@@ -20,27 +21,63 @@ const Sidebar: React.FC<SidebarProps> = ({
     onOpenProjects,
 }) => {
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const asideRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target || !asideRef.current) return;
+      if (!asideRef.current.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
 
   const primaryItems = [
-    { id: "new-project", label: "New Project", icon: LuGrid2X2Plus, onClick: onNewProject },
-    { id: "projects", label: "My Projects", icon: IoLibrary, onClick: onOpenProjects },
-    { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone },
+    {
+      id: "new-project",
+      label: "New Project",
+      icon: LuGrid2X2Plus,
+      onClick: onNewProject,
+      href: "/new-project",
+    },
+    {
+      id: "projects",
+      label: "My Projects",
+      icon: IoLibrary,
+      onClick: onOpenProjects,
+      href: "/projects",
+    },
+    { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone, href: "/labs" },
   ];
 
   const secondaryItems = [
-    { id: "profile", label: "Profile", icon: IoPersonCircle },
-    { id: "settings", label: "Settings", icon: MdOutlineSettings },
-    { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline },
-    { id: "riscv-docs", label: "RISC-V Documentation", icon:ImStack },
+    { id: "profile", label: "Profile", icon: IoPersonCircle, href: "/profile" },
+    { id: "settings", label: "Settings", icon: MdOutlineSettings, href: "/settings" },
+    { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/help" },
+    { id: "riscv-docs", label: "RISC-V Documentation", icon: ImStack, href: "/docs" },
   ];
 
 
   return (
     <aside
+      ref={asideRef}
       className={`fixed inset-y-0 h-full left-0 z-40 flex flex-col border-r border-orange-300 bg-[rgb(34,33,34)] text-slate-100 transition-[width] duration-300 ease-out ${
         isOpen ? "w-64" : "w-16"
       }`}
       aria-label="Sidebar"
+      onClick={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest("button, a")) return;
+        setIsOpen((prev) => !prev);
+      }}
     >
       {/* menu toggle button*/}
       <button
@@ -81,7 +118,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 icon={item.icon}
                 showTooltipOnCollapse
                 isOpen={isOpen}
-                onClick={item.onClick}
+                href={item.href}
+                onClick={() => {
+                  if (!item.href) {
+                    item.onClick?.();
+                  }
+                  setIsOpen(false);
+                }}
               />
             ))}
           </div>
@@ -100,6 +143,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                   label={item.label}
                   icon={item.icon}
                   isOpen={isOpen}
+                  href={item.href}
+                  onClick={() => {
+                    if (!item.href) {
+                      item.onClick?.();
+                    }
+                    setIsOpen(false);
+                  }}
                 />
               ))}
             </div>
@@ -125,29 +175,51 @@ type SidebarButtonProps = {
   icon: React.ComponentType<any>;
   showTooltipOnCollapse?: boolean; //for the buttons that are always shown when collapsed
   onClick?: () => void;
+  href?: string;
 };
 
-const SidebarButton: React.FC<SidebarButtonProps> = ({ label, isOpen, icon: Icon, showTooltipOnCollapse, onClick }) => {
+const SidebarButton: React.FC<SidebarButtonProps> = ({
+  label,
+  isOpen,
+  icon: Icon,
+  showTooltipOnCollapse,
+  onClick,
+  href,
+}) => {
   console.log({ label, isOpen, showTooltipOnCollapse });
 
-    return (
-    <div className="relative group">
-        <button
-        type="button"
-        onClick={onClick}
-        className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-slate-100 hover:bg-[rgb(59,56,59)] transition-colors ${
-            isOpen ? "justify-start" : "justify-center"
-        }`}
-        >
-        {/* Icon-ish pill based on initials */}
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-orange-300 text-[11px] font-semibold tracking-wide text-slate-200">
-            <Icon className="h-4 w-4 text-white"/>
-        </span>
+  const content = (
+    <>
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-orange-300 text-[11px] font-semibold tracking-wide text-slate-200">
+        <Icon className="h-4 w-4 text-white" />
+      </span>
+      {isOpen && <span className="truncate">{label}</span>}
+    </>
+  );
 
-        {/* Only show text when open */}
-        {isOpen && <span className="truncate">{label}</span>}
-        
+  return (
+    <div className="relative group">
+      {href ? (
+        <Link
+          href={href}
+          onClick={onClick}
+          className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-slate-100 hover:bg-[rgb(59,56,59)] transition-colors ${
+            isOpen ? "justify-start" : "justify-center"
+          }`}
+        >
+          {content}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onClick}
+          className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-slate-100 hover:bg-[rgb(59,56,59)] transition-colors ${
+            isOpen ? "justify-start" : "justify-center"
+          }`}
+        >
+          {content}
         </button>
+      )}
 
         {!isOpen && showTooltipOnCollapse && (
         <div

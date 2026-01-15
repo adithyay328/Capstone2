@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -21,7 +22,6 @@
 /build
 
 # misc
-.DS_Store
 *.pem
 
 # debug
@@ -42,7 +42,9 @@ next-env.d.ts
 
 #mac-annoying
 **/.DS_Store
+.DS_Store
 
 #cache annoying
 __pychache__/
 *.pyc
+prototype_interp/__pycache__/*

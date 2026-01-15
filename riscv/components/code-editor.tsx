@@ -253,6 +253,16 @@ export default function CodeEditor({
     }
   }, [currentLine]);
 
+  React.useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const model = ed.getModel();
+    if (!model) return;
+    if (model.getValue() !== code) {
+      ed.setValue(code);
+    }
+  }, [code]);
+
   return (
     <div className="" style={{ width: "100%", height: "100%" }}>
       <Editor
