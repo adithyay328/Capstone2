@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "argon2": "^0.44.0",
+    "pg": "^8.17.1",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0"
+  }
+}
