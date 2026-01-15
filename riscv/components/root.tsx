@@ -6,10 +6,10 @@ import ProjectsGrid from "./projects-grid";
 import EditorPanel from "./editor-panel";
 import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
-import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
-
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
+import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
+
 import type {
   ProjectState,
   Project,
