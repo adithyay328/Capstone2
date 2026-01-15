@@ -24,7 +24,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
   allStatesLength,
 }) => {
   return (
-    <div className="flex flex-wrap gap-3 items-center">
+    <div className="flex flex-wrap gap-3 items-center mt-5">
       <button
         onClick={onRun}
         className="rounded bg-black px-4 py-2 text-white hover:bg-zinc-900 disabled:opacity-50"

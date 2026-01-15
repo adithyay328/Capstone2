@@ -1,10 +1,12 @@
 "use client";
+import React from "react";
 import Root from "../../../components/root";
 
 export default function ProjectPage({
   params,
 }: {
-  params: { projectId: string };
+  params: Promise<{ projectId: string }>;
 }) {
-  return <Root initialView="editor" initialProjectId={params.projectId} />;
+  const { projectId } = React.use(params);
+  return <Root initialView="editor" initialProjectId={projectId} />;
 }

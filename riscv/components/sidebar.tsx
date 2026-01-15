@@ -40,7 +40,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
   }, [isOpen]);
 
-  const primaryItems = [
+  type SidebarItem = {
+    id: string;
+    label: string;
+    icon: React.ComponentType<any>;
+    onClick?: () => void;
+    href?: string;
+  };
+
+  const primaryItems: SidebarItem[] = [
     {
       id: "new-project",
       label: "New Project",
@@ -58,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone, href: "/labs" },
   ];
 
-  const secondaryItems = [
+  const secondaryItems: SidebarItem[] = [
     { id: "profile", label: "Profile", icon: IoPersonCircle, href: "/profile" },
     { id: "settings", label: "Settings", icon: MdOutlineSettings, href: "/settings" },
     { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/help" },

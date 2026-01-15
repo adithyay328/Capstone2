@@ -21,7 +21,7 @@ function toNum(v: string | number | undefined) {
 
 export default function RegisterVisualPanel({
   registers,
-  track = "x12",
+  track = "x1",
   digits = 4,
 }: {
   registers: Registers | null;

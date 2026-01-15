@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 
 
 export default function Home() {
-  redirect('/login');  
+  //redirect('/login');  
 
   return (
     <div className="flex flex-col justify-center items-center w-screen space-y-4">
@@ -17,11 +17,6 @@ export default function Home() {
         <Root/>
       </main>
       
-    </div>
-  );
-  return (
-    <div className="flex flex-col justify-center items-center w-screen space-y-4">
-      <Root/>
     </div>
   );
 }

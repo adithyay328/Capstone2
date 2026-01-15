@@ -42,8 +42,8 @@ const useRunner = ({
     try {
       const reqBody: SubmitRequest = {
         code,
-        registers: {}, // TODO: fill from user input later
-        memory: {}, // TODO: fill from user input later
+        registers: {}, 
+        memory: {}, 
       };
 
       const res = await fetch("/api/run", {

@@ -8,7 +8,7 @@ import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
-import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
+import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 
 import type {
   ProjectState,
@@ -18,6 +18,112 @@ import type {
   AssemblyInfoData,
   SimState,
 } from "./types";
+
+type ProjectsViewProps = {
+  projects: Project[];
+  onOpenProject: (id: string) => void;
+  onDeleteProject: (id: string) => void;
+  onUpdateProject: (id: string, next: { name?: string; description?: string }) => void;
+};
+
+const ProjectsView: React.FC<ProjectsViewProps> = ({
+  projects,
+  onOpenProject,
+  onDeleteProject,
+  onUpdateProject,
+}) => (
+  <div className="px-4 mt-4 md:px-6">
+    <ProjectsGrid
+      projects={projects}
+      onOpenProject={onOpenProject}
+      onDeleteProject={onDeleteProject}
+      onUpdateProject={onUpdateProject}
+    />
+  </div>
+);
+
+type EditorViewProps = {
+  projectName: string;
+  projectDescription?: string;
+  code: string;
+  onCodeChange: (nextCode: string) => void;
+  onRun: () => void;
+  onStart: () => void;
+  onStepForward: () => void;
+  onStepBack: () => void;
+  onReset: () => void;
+  uid: string;
+  stepsEngaged: boolean;
+  stepIndex: number;
+  allStatesLength: number;
+  fatalError: string | null;
+  resp: AssemblyInfoData | null;
+};
+
+const EditorView: React.FC<EditorViewProps> = ({
+  projectName,
+  projectDescription,
+  code,
+  onCodeChange,
+  onRun,
+  onStart,
+  onStepForward,
+  onStepBack,
+  onReset,
+  uid,
+  stepsEngaged,
+  stepIndex,
+  allStatesLength,
+  fatalError,
+  resp,
+}) => (
+  <div className="relative">
+    <div className="flex flex-col md:flex-row md:flex-wrap gap-5 px-4">
+      {/* Editor + controls column */}
+      <div className="w-full md:w-[65vw] lg:w-[70vw] xl:w-[75vw] mt-5">
+        <EditorPanel
+          projectName={projectName}
+          projectDescription={projectDescription}
+          code={code}
+          onCodeChange={onCodeChange}
+        />
+
+        <EditorControls
+          onRun={onRun}
+          onStart={onStart}
+          onStepForward={onStepForward}
+          onStepBack={onStepBack}
+          onReset={onReset}
+          uid={uid}
+          stepsEngaged={stepsEngaged}
+          stepIndex={stepIndex}
+          allStatesLength={allStatesLength}
+        />
+
+        {/* fatal error box */}
+        {fatalError && (
+          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            {fatalError}
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT PANEL */}
+      <div className="flex gap-10 w-full md:basis-[420px] md:flex-none">
+        <AssemblyInfo response={resp} />
+
+        {/* Seven-segment + LEDs */}
+        <div>
+          <RegisterVisualPanel
+            registers={resp?.registers ?? null}
+            track="x1"
+            digits={4}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export default function Root({
   initialView,
@@ -395,44 +501,30 @@ function handleSelectProject(projectId: string) {
     persist({ code: nextCode });
   };
 
- 
+  return (
+    <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
+      {/* LEFT SIDEBAR */}
+      <Sidebar
+        initialOpen={false}
+        onNewProject={handleNewProject}
+        onOpenProjects={() => setView("projects")}
+      />
 
-return (
-  <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
-    {/* LEFT SIDEBAR */}
-    <Sidebar
-      initialOpen={false}
-      onNewProject={handleNewProject}
-      onOpenProjects={() => setView("projects")}
-    />
-
-    {/* MAIN AREA */}
-    <main className="flex-1 relative pl-16">
-      {view === "projects" ? (
-       
-        <div className="px-4 mt-4 md:px-6">
-          <ProjectsGrid
+      {/* MAIN AREA */}
+      <main className="flex-1 relative pl-16">
+        {view === "projects" ? (
+          <ProjectsView
             projects={projects}
             onOpenProject={handleSelectProject}
             onDeleteProject={deleteProjectById}
             onUpdateProject={updateProjectById}
           />
-        </div>
-      ) : (
-
-    <div className="relative">
-      <div className="flex flex-col md:flex-row md:flex-wrap gap-30 px-4 mt-4">
-
-        {/* Editor + controls column */}
-        <div className="w-full md:w-[65vw] lg:w-[70vw] xl:w-[75vw] mt-5 mb-[-10]">
-          <EditorPanel
+        ) : (
+          <EditorView
             projectName={currentProject?.name || "Untitled project"}
             projectDescription={currentProject?.description}
             code={code}
             onCodeChange={handleCodeChange}
-          />
-
-          <EditorControls
             onRun={handleRun}
             onStart={handleStart}
             onStepForward={handleStepForward}
@@ -442,33 +534,11 @@ return (
             stepsEngaged={stepsEngaged}
             stepIndex={stepIndex}
             allStatesLength={allStates.length}
+            fatalError={fatalError}
+            resp={resp}
           />
-
-
-        {/* fatal error box (optional, like Version 2) */}
-        {fatalError && (
-          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-            {fatalError}
-          </div> )}
-
-      {/* RIGHT PANEL (like Version 2, but with your prop name) */}
-      <div className="w-full md:basis-[420px] md:flex-none mt-10 md:mt-0">
-        <AssemblyInfo response={resp} />
-
-          {/* Seven-segment + LEDs */}
-          <div className="mt-6">
-            <RegisterVisualPanel
-              registers={resp?.registers ?? null}
-              track="x12"
-              digits={4}
-            />
-      </div>
+        )}
+      </main>
     </div>
-  </div>     
-)}
-</main>
-</div>
-);
+  );
 }
-
-};
