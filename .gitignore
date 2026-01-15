@@ -99,3 +99,5 @@ next-env.d.ts
 __pychache__/
 *.pyc
 prototype_interp/__pycache__/*
+riscv/node_modules/**
+prototype_interp/venv/
