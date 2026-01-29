@@ -3,12 +3,24 @@ Our flask router for running the backend
 and sending it out.
 """
 
+import json
+import psycopg2
 from flask import Flask, request, jsonify
 from stringParse import sourceToInstructions
 from runtime import Runtime
 from machine import MachineState
 
 app = Flask(__name__)
+
+# Database connection helper
+def get_db_connection():
+    return psycopg2.connect(
+        host="localhost",
+        database="capstone",
+        user="capstone",
+        password="capstone",
+        port=5432
+    )
 
 """
  NEW Agreed upon JSON schema:
@@ -93,6 +105,105 @@ def data():
             "errorMessage": "Error: " + str(e),
             "states" : [],
         })
+
+@app.route('/score', methods=['POST'])
+def score():
+    """
+    Scores student code against a test case.
+    
+    Input: { "code": str, "test_uid": str }
+    Output: { "pass": bool }
+    
+    Fetches the test case from DB, seeds the machine state,
+    runs the code, and compares final state against expected results.
+    """
+    if not request.is_json:
+        return jsonify({"pass": False, "error": "Request must be valid JSON"})
+    
+    try:
+        jsonData = request.get_json()
+        code = jsonData.get('code')
+        test_uid = jsonData.get('test_uid')
+        
+        if not code:
+            return jsonify({"pass": False, "error": "No code field specified"})
+        if not test_uid:
+            return jsonify({"pass": False, "error": "No test_uid field specified"})
+        
+        # Fetch test case from database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT seed_registers, seed_memory, result_registers, result_memory FROM test_cases WHERE uid = %s",
+            (test_uid,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            return jsonify({"pass": False, "error": "Test case not found"})
+        
+        seed_registers_json, seed_memory_json, result_registers_json, result_memory_json = row
+        
+        # Parse JSON strings
+        seed_registers = json.loads(seed_registers_json)
+        seed_memory = json.loads(seed_memory_json)
+        result_registers = json.loads(result_registers_json)
+        result_memory = json.loads(result_memory_json)
+        
+        # Create initial machine state and seed it
+        initialState = MachineState()
+        
+        # Seed registers (format: {"x1": "0x5", "x2": "0x10"})
+        for reg_key, val_str in seed_registers.items():
+            # Parse register number from "xN"
+            reg_num = int(reg_key.lower().replace('x', ''))
+            if 0 <= reg_num <= 31:
+                initialState.regs[reg_num].value = int(val_str, 16)
+        
+        # Seed memory (format: {"0x0": "0x42"})
+        for addr_str, val_str in seed_memory.items():
+            addr = int(addr_str, 16)
+            if 0 <= addr < len(initialState.memory):
+                initialState.memory[addr].value = int(val_str, 16)
+        
+        # Parse and run the code
+        instructions = sourceToInstructions(code)
+        runtime = Runtime(instructions, initialState)
+        runtime.run()
+        
+        # Get final state
+        finalState = runtime.states[-1]
+        
+        # Compare against expected results
+        passed = True
+        
+        # Check expected registers
+        for reg_key, expected_val_str in result_registers.items():
+            reg_num = int(reg_key.lower().replace('x', ''))
+            if 0 <= reg_num <= 31:
+                expected_val = int(expected_val_str, 16)
+                actual_val = finalState.regs[reg_num].value
+                if actual_val != expected_val:
+                    passed = False
+                    break
+        
+        # Check expected memory (only if registers passed)
+        if passed:
+            for addr_str, expected_val_str in result_memory.items():
+                addr = int(addr_str, 16)
+                if 0 <= addr < len(finalState.memory):
+                    expected_val = int(expected_val_str, 16)
+                    actual_val = finalState.memory[addr].value
+                    if actual_val != expected_val:
+                        passed = False
+                        break
+        
+        return jsonify({"pass": passed})
+        
+    except Exception as e:
+        return jsonify({"pass": False, "error": str(e)})
 
 if __name__ == '__main__':
   # Run on port 25565 for testing purposes
