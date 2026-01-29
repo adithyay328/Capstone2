@@ -45,7 +45,7 @@ const ProjectsGrid: React.FC<ProjectsGridProps> = ({
         <h1 className="text-xl font-semibold">My Projects</h1>
         <div className="flex items-center gap-2">
           <Link
-            href="/new-project"
+            href="/student/new-project"
             className="rounded bg-[rgb(248,196,119)] px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
           >
             + New Project
@@ -124,7 +124,7 @@ const ProjectsGrid: React.FC<ProjectsGridProps> = ({
                       Delete
                     </button>
                     <Link
-                      href={`/projects/${project.id}`}
+                      href={`/student/projects/${project.id}`}
                       onClick={() => onOpenProject(project.id)}
                       className="rounded bg-[rgb(248,196,119)] px-3 py-1 text-[11px] font-medium text-zinc-900 hover:bg-amber-400 disabled:opacity-40"
                     >

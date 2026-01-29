@@ -54,23 +54,23 @@ const Sidebar: React.FC<SidebarProps> = ({
       label: "New Project",
       icon: LuGrid2X2Plus,
       onClick: onNewProject,
-      href: "/new-project",
+      href: "/student/new-project",
     },
     {
       id: "projects",
       label: "My Projects",
       icon: IoLibrary,
       onClick: onOpenProjects,
-      href: "/projects",
+      href: "/student/projects",
     },
-    { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone, href: "/labs" },
+    { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone, href: "/student/labs" },
   ];
 
   const secondaryItems: SidebarItem[] = [
-    { id: "profile", label: "Profile", icon: IoPersonCircle, href: "/profile" },
-    { id: "settings", label: "Settings", icon: MdOutlineSettings, href: "/settings" },
-    { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/help" },
-    { id: "riscv-docs", label: "RISC-V Documentation", icon: ImStack, href: "/docs" },
+    { id: "profile", label: "Profile", icon: IoPersonCircle, href: "/student/profile" },
+    { id: "settings", label: "Settings", icon: MdOutlineSettings, href: "/student/settings" },
+    { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/student/help" },
+    { id: "riscv-docs", label: "RISC-V Documentation", icon: ImStack, href: "/student/docs" },
   ];
 
 
