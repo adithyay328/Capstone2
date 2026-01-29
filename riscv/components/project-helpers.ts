@@ -7,6 +7,7 @@ export const defaultProjectState: ProjectState = {
   simState: null,
   stepIndex: 0,
   allStates: [],
+  registerOverrides: {},
 };
 
 export function makeUid() {

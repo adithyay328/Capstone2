@@ -8,6 +8,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "@/components/sidebar"; //left sidebar
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
+import RegisterEditor from "@/components/register-editor";
 import { listLabs } from "@/app/api/list_labs/frontend";
 import { Lab } from "@/app/api/list_labs/types";
 import { listTestCases } from "@/app/api/list_test_cases/frontend";
@@ -30,6 +31,7 @@ type SavedVersion = {
   simState: SimState | null;
   stepIndex: number;
   allStates: SubmitResponse["states"];
+  registerOverrides: Record<string, string>;
 };
 
 //BACKEND MUST MATCH THIS
@@ -48,6 +50,23 @@ export default function LabRoot() {
   const [simState, setSimState] = React.useState<SimState | null>(null);
   const [allStates, setAllStates] = React.useState<SubmitResponse["states"]>([]);
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
+
+  const defaultRegisters = React.useMemo(
+    () =>
+      Object.fromEntries(
+        Array.from({ length: 32 }, (_, i) => [`x${i}`, "0x0"])
+      ),
+    []
+  );
+
+  const uiRegisters = React.useMemo(
+    () => ({
+      ...defaultRegisters,
+      ...registerOverrides,
+    }),
+    [defaultRegisters, registerOverrides]
+  );
 
   // Labs for grading
   const [labs, setLabs] = React.useState<Lab[]>([]);
@@ -87,18 +106,25 @@ export default function LabRoot() {
         if (parsed.simState) setSimState(parsed.simState);
         if (Array.isArray(parsed.allStates)) setAllStates(parsed.allStates);
         if (typeof parsed.stepIndex === "number") setStepIndex(parsed.stepIndex);
+        setRegisterOverrides(
+          parsed.registerOverrides && typeof parsed.registerOverrides === "object"
+            ? parsed.registerOverrides
+            : {}
+        );
 
       } catch (e) {
         console.warn("bad local session, resetting", e);
         const freshUid = makeUid();
         setUid(freshUid);
         setCode("");
+        setRegisterOverrides({});
       }
     } else {
       // first time
       const freshUid = makeUid();
       setUid(freshUid);
       setCode("");
+      setRegisterOverrides({});
     }
   }, []);
 
@@ -114,12 +140,13 @@ export default function LabRoot() {
         simState,
         stepIndex,
         allStates,
+        registerOverrides,
         ...next,
       };
 
       window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
     },
-    [uid, code, resp, simState, stepIndex, allStates]
+    [uid, code, resp, simState, stepIndex, allStates, registerOverrides]
   );
   
 
@@ -127,7 +154,7 @@ export default function LabRoot() {
   React.useEffect(() => {
     if (!uid) return;
     persist();
-  }, [uid, code, resp, simState, persist]);
+  }, [uid, code, resp, simState, registerOverrides, persist]);
 
   // Fetch labs on mount for grading dropdown
   React.useEffect(() => {
@@ -162,6 +189,7 @@ export default function LabRoot() {
 
   const {
     handleRun,
+    handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
@@ -170,6 +198,7 @@ export default function LabRoot() {
     code,
     allStates,
     runMeta,
+    registersForRun: uiRegisters,
     persist: persistRunner,
     setAllStates,
     setStepIndex,
@@ -178,6 +207,11 @@ export default function LabRoot() {
     setFatalError,
     setStepsEngaged,
   });
+
+  const handleReset = React.useCallback(() => {
+    setRegisterOverrides({});
+    resetSession({ registerOverrides: {} });
+  }, [resetSession]);
 
   const handleNewProject = React.useCallback(() => {
     router.push("/student/new-project");
@@ -272,18 +306,26 @@ return (
             Run
           </button>
 
-          <button
-            onClick={() => handleStart()}
-            className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
-            //disabled={stepsEngaged}
-          >
-            Start
-          </button>
+          {stepsEngaged ? (
+            <button
+              onClick={() => handleStop()}
+              className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={() => handleStart()}
+              className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              Start
+            </button>
+          )}
 
           <button
             onClick={() => handleStepForward()}
             className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
-            disabled={!stepsEngaged || allStates.length===0}
+            disabled={!stepsEngaged || allStates.length===0 || stepIndex >= allStates.length - 1}
           >
             Step
           </button>
@@ -297,7 +339,7 @@ return (
           </button>
 
           <button
-            onClick={() => resetSession()}
+            onClick={() => handleReset()}
             className="rounded border px-4 py-2 hover:bg-zinc-100 disabled:opacity-50"
             //disabled={stepsEngaged}
           >
@@ -340,6 +382,27 @@ return (
             {fatalError}
           </div>
         )}
+      </div>
+
+      <div className="ml-5 mt-5 border-t pt-4 max-w-md">
+        <h2 className="font-semibold mb-2 text-sm uppercase tracking-wide">
+          Register Presets
+        </h2>
+        <RegisterEditor
+          registers={uiRegisters}
+          disabled={stepsEngaged}
+          onChange={(key, value) =>
+            setRegisterOverrides((prev) => {
+              const next = { ...prev };
+              if (!value.trim()) {
+                delete next[key];
+              } else {
+                next[key] = value;
+              }
+              return next;
+            })
+          }
+        />
       </div>
 
       {/* RIGHT PANEL*/}

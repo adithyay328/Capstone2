@@ -71,8 +71,32 @@ def data():
            # Parse the source code into instruction objects using the modern regex-based parser
            instructions = sourceToInstructions(codeField)
            
+           # Build initial state and seed registers/memory overrides
+           initialState = MachineState()
+
+           registers = jsonData.get('registers') or {}
+           memory = jsonData.get('memory') or {}
+
+           # Seed registers (format: {"x1": "0x5", "x2": "0x10"})
+           for reg_key, val_str in registers.items():
+               try:
+                   reg_num = int(str(reg_key).lower().replace('x', ''))
+                   if 0 <= reg_num <= 31:
+                       initialState.regs[reg_num].value = int(str(val_str), 16)
+               except Exception:
+                   continue
+
+           # Seed memory (format: {"0x0": "0x42"})
+           for addr_str, val_str in memory.items():
+               try:
+                   addr = int(str(addr_str), 16)
+                   if 0 <= addr < len(initialState.memory):
+                       initialState.memory[addr].value = int(str(val_str), 16)
+               except Exception:
+                   continue
+
            # Execute all instructions using the Runtime
-           runtime = Runtime(instructions)
+           runtime = Runtime(instructions, initialState)
            runtime.run()
            
            # Get the final machine state after execution

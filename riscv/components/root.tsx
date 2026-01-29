@@ -9,6 +9,7 @@ import useRunner from "./use-runner";
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
+import RegisterEditor from "./register-editor";
 
 import type {
   ProjectState,
@@ -49,6 +50,7 @@ type EditorViewProps = {
   onCodeChange: (nextCode: string) => void;
   onRun: () => void;
   onStart: () => void;
+  onStop: () => void;
   onStepForward: () => void;
   onStepBack: () => void;
   onReset: () => void;
@@ -67,6 +69,7 @@ const EditorView: React.FC<EditorViewProps> = ({
   onCodeChange,
   onRun,
   onStart,
+  onStop,
   onStepForward,
   onStepBack,
   onReset,
@@ -91,6 +94,7 @@ const EditorView: React.FC<EditorViewProps> = ({
         <EditorControls
           onRun={onRun}
           onStart={onStart}
+          onStop={onStop}
           onStepForward={onStepForward}
           onStepBack={onStepBack}
           onReset={onReset}
@@ -132,6 +136,8 @@ export default function Root({
   initialView?: "editor" | "projects";
   initialProjectId?: string;
 }) {
+  //starts empty-- Later when a register is changed we will populate this
+  const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
   const [memory, setMemory] = React.useState("");
@@ -149,6 +155,29 @@ export default function Root({
   const [deleteMode, setDeleteMode] = React.useState(false);
   const [selectedForDelete, setSelectedForDelete] = React.useState<string[]>([]);
 
+  // we make an object to store defualt 0x0 values for all 32 registers
+  //this is what we load into uiRegisters when start up the app 
+  // and want to showcase 
+    // all registers at 0x0 
+  const defaultRegisters = React.useMemo(
+    () =>
+      Object.fromEntries(
+        Array.from({ length: 32 }, (_, i) => [`x${i}`, "0x0"])
+      ),
+    []
+  );
+
+  // this is what the UI actually shows--purely UI-- NOT WHAT WE SEND TO BACKEND
+  // we layer user overrides on top of defaultRegisters
+  // useMemo only re-renders (recreates this UI) if something changes
+  const uiRegisters = React.useMemo(
+    () => ({
+      ...defaultRegisters,      // base values
+      ...registerOverrides,     // any user overrides are shown instead
+    }),
+    [defaultRegisters, registerOverrides]
+  );
+  
   const currentProject = React.useMemo(
     () => projects.find((p) => p.id === currentProjectId) ?? null,
     [projects, currentProjectId]
@@ -179,6 +208,7 @@ const persist = React.useCallback(
         simState,
         stepIndex,
         allStates,
+        registerOverrides,
         ...next,
       };
 
@@ -200,11 +230,12 @@ const persist = React.useCallback(
       return updatedProjects;
     });
   },
-  [uid, currentProjectId, code, resp, simState, stepIndex, allStates]
+  [uid, currentProjectId, code, resp, simState, stepIndex, allStates, registerOverrides]
 );
 
   const {
     handleRun,
+    handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
@@ -213,6 +244,7 @@ const persist = React.useCallback(
     code,
     allStates,
     runMeta,
+    registersForRun: uiRegisters,
     persist,
     setAllStates,
     setStepIndex,
@@ -232,6 +264,7 @@ const persist = React.useCallback(
         setStepIndex(0);
         setStepsEngaged(false);
         setFatalError(null);
+        setRegisterOverrides({});
         return;
       }
 
@@ -243,6 +276,11 @@ const persist = React.useCallback(
       setStepIndex(typeof state.stepIndex === "number" ? state.stepIndex : 0);
       setStepsEngaged(false);
       setFatalError(null);
+      setRegisterOverrides(
+        state.registerOverrides && typeof state.registerOverrides === "object"
+          ? state.registerOverrides
+          : {}
+      );
     }, []);
 
   React.useEffect(() => {
@@ -415,6 +453,8 @@ React.useEffect(() => {
     setStepIndex(0);
     setStepsEngaged(false);
     setFatalError(null);
+    setRegisterOverrides({});
+    setRegisterOverrides({});
 
     const workspace: Workspace = {
       uid: freshUid,
@@ -501,6 +541,11 @@ function handleSelectProject(projectId: string) {
     persist({ code: nextCode });
   };
 
+  const handleReset = React.useCallback(() => {
+    setRegisterOverrides({});
+    resetSession({ registerOverrides: {} });
+  }, [resetSession]);
+
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
       {/* LEFT SIDEBAR */}
@@ -520,6 +565,7 @@ function handleSelectProject(projectId: string) {
             onUpdateProject={updateProjectById}
           />
         ) : (
+          <>
           <EditorView
             projectName={currentProject?.name || "Untitled project"}
             projectDescription={currentProject?.description}
@@ -527,9 +573,10 @@ function handleSelectProject(projectId: string) {
             onCodeChange={handleCodeChange}
             onRun={handleRun}
             onStart={handleStart}
+            onStop={handleStop}
             onStepForward={handleStepForward}
             onStepBack={handleStepBack}
-            onReset={resetSession}
+            onReset={handleReset}
             uid={uid}
             stepsEngaged={stepsEngaged}
             stepIndex={stepIndex}
@@ -537,6 +584,36 @@ function handleSelectProject(projectId: string) {
             fatalError={fatalError}
             resp={resp}
           />
+          <div className="ml-5 mt-5 border-t pt-4 max-w-md">
+            <h2 className="font-semibold mb-2 text-sm uppercase tracking-wide">
+              Register Presets
+            </h2>
+            <RegisterEditor
+            //sets registers to defaultRegisters
+            //OR set them to whatever user has overridden in uiRegisters
+              registers={uiRegisters}
+              disabled={stepsEngaged}
+              onChange={(key, value) => //equal to setRegisterOverrides
+                setRegisterOverrides((prev) => {
+                  //we copy previous registerOverrides into "next" and modify next, so we dont mess up original prev state
+                  const next = { ...prev };
+                  if (!value.trim()) {
+                    // if reg is empty or user clears out the value, we dont want to send empty register
+                    //we delete that key from registerOverrides
+                    delete next[key];
+                    console.log("Debugging, reached if");
+                  } 
+                  else  // add the new value to registerOverrides
+                  {
+                    console.log("Debugging else");
+                    next[key] = value;
+                  }
+                  return next; //return updated registerOverrides to setRegisterOverrides
+                })
+              }
+            />
+          </div>
+          </>
         )}
       </main>
     </div>

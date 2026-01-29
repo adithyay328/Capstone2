@@ -4,6 +4,7 @@ export type ProjectState = {
   simState: SimState | null;
   stepIndex: number;
   allStates: SubmitResponse["states"];
+  registerOverrides: Record<string, string>;
 };
 
 /**

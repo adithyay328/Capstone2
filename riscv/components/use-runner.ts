@@ -13,6 +13,7 @@ type UseRunnerParams = {
   code: string;
   allStates: SubmitResponse["states"];
   runMeta: RunMeta;
+  registersForRun: Record<string, string>;
   persist: (next?: Partial<ProjectState>) => void;
   setAllStates: React.Dispatch<React.SetStateAction<SubmitResponse["states"]>>;
   setStepIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -26,6 +27,7 @@ const useRunner = ({
   code,
   allStates,
   runMeta,
+  registersForRun,
   persist,
   setAllStates,
   setStepIndex,
@@ -42,7 +44,7 @@ const useRunner = ({
     try {
       const reqBody: SubmitRequest = {
         code,
-        registers: {}, 
+        registers: registersForRun,
         memory: {}, 
       };
 
@@ -110,6 +112,7 @@ const useRunner = ({
     }
   }, [
     code,
+    registersForRun,
     persist,
     setAllStates,
     setStepIndex,
@@ -143,16 +146,22 @@ const useRunner = ({
     });
   }, [persist, runBackend, setResp, setStepsEngaged]);
 
-  const resetSession = React.useCallback(() => {
+  const handleStop = React.useCallback(() => {
+    setStepsEngaged(false);
+  }, [setStepsEngaged]);
+
+  const resetSession = React.useCallback((next?: Partial<ProjectState>) => {
     setAllStates([]);
     setStepIndex(0);
     setResp(null);
+    setStepsEngaged(false);
     persist({
       allStates: [],
       stepIndex: 0,
       resp: null,
+      ...next,
     });
-  }, [persist, setAllStates, setResp, setStepIndex]);
+  }, [persist, setAllStates, setResp, setStepIndex, setStepsEngaged]);
 
   const handleStepForward = React.useCallback(() => {
     setStepIndex((idx) => {
@@ -193,21 +202,11 @@ const useRunner = ({
   }, [allStates, persist, runMeta, setResp, setStepIndex]);
 
   const handleStart = React.useCallback(async () => {
-    let statesToUse = allStates;
-    let hadError = runMeta.hadError;
-    let errorMessage = runMeta.errorMessage;
+    const result = await runBackend();
+    if (!result) return;
 
-    // If we don't have states yet, call backend now
-    if (statesToUse.length === 0) {
-      const result = await runBackend();
-      if (!result) return; // error or no states already handled inside runBackend
-
-      statesToUse = result.states;
-      hadError = result.hadError;
-      errorMessage = result.errorMessage;
-    }
-
-    if (statesToUse.length === 0) return; // extra guard
+    const { states: statesToUse, hadError, errorMessage } = result;
+    if (statesToUse.length === 0) return;
 
     const firstState = statesToUse[0];
 
@@ -224,10 +223,8 @@ const useRunner = ({
 
     persist({ resp: newResp, stepIndex: 0 });
   }, [
-    allStates,
     persist,
     runBackend,
-    runMeta,
     setResp,
     setStepIndex,
     setStepsEngaged,
@@ -235,6 +232,7 @@ const useRunner = ({
 
   return {
     handleRun,
+    handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
