@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { updateLab } from '@/app/api/update_lab/frontend';
 import { Lab } from '@/app/api/list_labs/types';
+import { listTestCases } from '@/app/api/list_test_cases/frontend';
+import { createTestCase } from '@/app/api/create_test_case/frontend';
+import { deleteTestCase } from '@/app/api/delete_test_case/frontend';
+import type { TestCase } from '@/app/api/create_test_case/types';
+import TestCaseEditor from '@/components/TestCaseEditor';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the markdown editor to avoid SSR issues
@@ -26,6 +31,11 @@ export default function EditLabPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [testCasesLoading, setTestCasesLoading] = useState(false);
+  const [testCasesError, setTestCasesError] = useState<string | null>(null);
+  const [newTestCaseName, setNewTestCaseName] = useState('');
+  const [creatingTestCase, setCreatingTestCase] = useState(false);
 
   useEffect(() => {
     const fetchLab = async () => {
@@ -60,6 +70,29 @@ export default function EditLabPage() {
     }
   }, [params.uid]);
 
+  useEffect(() => {
+    const fetchTestCases = async () => {
+      if (!params.uid) return;
+      try {
+        setTestCasesLoading(true);
+        setTestCasesError(null);
+        const response = await listTestCases(params.uid);
+        if (response.success && response.testCases) {
+          setTestCases(response.testCases);
+        } else {
+          setTestCasesError(response.message || 'Failed to fetch test cases');
+        }
+      } catch (err) {
+        console.error('Error fetching test cases:', err);
+        setTestCasesError('An error occurred while fetching test cases');
+      } finally {
+        setTestCasesLoading(false);
+      }
+    };
+
+    fetchTestCases();
+  }, [params.uid]);
+
   const handleSave = async () => {
     if (!lab) return;
 
@@ -88,6 +121,48 @@ export default function EditLabPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreateTestCase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!params.uid) return;
+    if (!newTestCaseName.trim()) return;
+
+    try {
+      setCreatingTestCase(true);
+      const response = await createTestCase(params.uid, newTestCaseName.trim());
+      if (response.success && response.testCase) {
+        setTestCases((prev) => [response.testCase!, ...prev]);
+        setNewTestCaseName('');
+      } else {
+        setTestCasesError(response.message || 'Failed to create test case');
+      }
+    } catch (err) {
+      console.error('Error creating test case:', err);
+      setTestCasesError('An error occurred while creating test case');
+    } finally {
+      setCreatingTestCase(false);
+    }
+  };
+
+  const handleDeleteTestCase = async (uid: string) => {
+    try {
+      const response = await deleteTestCase(uid);
+      if (response.success) {
+        setTestCases((prev) => prev.filter((tc) => tc.uid !== uid));
+      } else {
+        setTestCasesError(response.message || 'Failed to delete test case');
+      }
+    } catch (err) {
+      console.error('Error deleting test case:', err);
+      setTestCasesError('An error occurred while deleting test case');
+    }
+  };
+
+  const handleUpdateTestCase = (updated: TestCase) => {
+    setTestCases((prev) =>
+      prev.map((tc) => (tc.uid === updated.uid ? updated : tc))
+    );
   };
 
   if (loading) {
@@ -174,12 +249,14 @@ export default function EditLabPage() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Lab Content
           </label>
-          <div className="border border-gray-300 rounded-md overflow-hidden">
+          <div className="border border-gray-300 rounded-md overflow-auto">
             {typeof window !== 'undefined' && (
               <MdEditor
                 modelValue={content}
                 onChange={setContent}
                 toolbarsExclude={['htmlPreview', 'catalog']}
+                tableShape={[8, 15]} // columns, rows
+                language="en-US"
                 style={{ height: '700px' }}
               />
             )}
@@ -208,6 +285,66 @@ export default function EditLabPage() {
           {error && !loading && (
             <div className="text-red-600 font-medium">
               Error: {error}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-10">
+          <h2 className="text-2xl font-semibold mb-4">Test Cases</h2>
+
+          <div className="bg-white shadow sm:rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-3">Create Test Case</h3>
+            <form onSubmit={handleCreateTestCase} className="flex gap-4">
+              <div className="flex-grow">
+                <label htmlFor="testCaseName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Test Case Name
+                </label>
+                <input
+                  type="text"
+                  id="testCaseName"
+                  value={newTestCaseName}
+                  onChange={(e) => setNewTestCaseName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-indigo-600 font-medium"
+                  placeholder="Enter test case name"
+                  disabled={creatingTestCase}
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={creatingTestCase || !newTestCaseName.trim()}
+                  className={`px-6 py-2 rounded-md text-white font-medium ${
+                    creatingTestCase || !newTestCaseName.trim()
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                  }`}
+                >
+                  {creatingTestCase ? 'Creating...' : 'Create Test Case'}
+                </button>
+              </div>
+            </form>
+            {testCasesError && (
+              <p className="mt-2 text-sm text-red-600">{testCasesError}</p>
+            )}
+          </div>
+
+          {testCasesLoading ? (
+            <div className="text-center py-6">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+              <p className="mt-2 text-gray-500">Loading test cases...</p>
+            </div>
+          ) : testCases.length === 0 ? (
+            <p className="text-gray-500">No test cases yet.</p>
+          ) : (
+            <div>
+              {testCases.map((testCase) => (
+                <TestCaseEditor
+                  key={testCase.uid}
+                  testCase={testCase}
+                  onDelete={handleDeleteTestCase}
+                  onUpdate={handleUpdateTestCase}
+                />
+              ))}
             </div>
           )}
         </div>

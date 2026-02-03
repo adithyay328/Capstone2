@@ -3,7 +3,7 @@
 // access this but Adi.
 const USERNAME = "capstone";
 const PASSWORD = "capstone";
-const HOST = "pg.wg.adiy.io";
+const HOST = "localhost";
 const DB_NAME = "capstone";
 
 import { Client } from "pg";

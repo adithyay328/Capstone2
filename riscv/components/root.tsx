@@ -9,6 +9,7 @@ import useRunner from "./use-runner";
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
+import RegisterEditor from "./register-editor";
 
 import type {
   ProjectState,
@@ -49,6 +50,7 @@ type EditorViewProps = {
   onCodeChange: (nextCode: string) => void;
   onRun: () => void;
   onStart: () => void;
+  onStop: () => void;
   onStepForward: () => void;
   onStepBack: () => void;
   onReset: () => void;
@@ -58,6 +60,7 @@ type EditorViewProps = {
   allStatesLength: number;
   fatalError: string | null;
   resp: AssemblyInfoData | null;
+  registerPanel: React.ReactNode;
 };
 
 const EditorView: React.FC<EditorViewProps> = ({
@@ -67,6 +70,7 @@ const EditorView: React.FC<EditorViewProps> = ({
   onCodeChange,
   onRun,
   onStart,
+  onStop,
   onStepForward,
   onStepBack,
   onReset,
@@ -76,21 +80,33 @@ const EditorView: React.FC<EditorViewProps> = ({
   allStatesLength,
   fatalError,
   resp,
+  registerPanel,
 }) => (
   <div className="relative">
-    <div className="flex flex-col md:flex-row md:flex-wrap gap-5 px-4">
-      {/* Editor + controls column */}
-      <div className="w-full md:w-[65vw] lg:w-[70vw] xl:w-[75vw] mt-5">
-        <EditorPanel
-          projectName={projectName}
-          projectDescription={projectDescription}
-          code={code}
-          onCodeChange={onCodeChange}
-        />
+    <div className="pt-4 w-full max-w-[90rem] mx-auto">
+      <div className="mb-3 w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0">
+        <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
+        {projectDescription && (
+          <div className="text-[11px] text-zinc-400 truncate">
+            {projectDescription}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col xl:flex-row gap-6">
+        {/* Editor + controls column */}
+        <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
+          <EditorPanel
+            projectName={projectName}
+            projectDescription={projectDescription}
+            code={code}
+            onCodeChange={onCodeChange}
+            showHeader={false}
+          />
 
         <EditorControls
           onRun={onRun}
           onStart={onStart}
+          onStop={onStop}
           onStepForward={onStepForward}
           onStepBack={onStepBack}
           onReset={onReset}
@@ -106,19 +122,23 @@ const EditorView: React.FC<EditorViewProps> = ({
             {fatalError}
           </div>
         )}
+
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          <AssemblyInfo response={resp} />
+
+          {/* Seven-segment + LEDs */}
+          <div className="flex-shrink-0">
+            <RegisterVisualPanel
+              registers={resp?.registers ?? null}
+              track="x1"
+              digits={4}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* RIGHT PANEL */}
-      <div className="flex gap-10 w-full md:basis-[420px] md:flex-none">
-        <AssemblyInfo response={resp} />
-
-        {/* Seven-segment + LEDs */}
-        <div>
-          <RegisterVisualPanel
-            registers={resp?.registers ?? null}
-            track="x1"
-            digits={4}
-          />
+        <div className="w-full xl:w-[28rem] min-w-0 mt-5 xl:mt-0">
+          {registerPanel}
         </div>
       </div>
     </div>
@@ -132,6 +152,8 @@ export default function Root({
   initialView?: "editor" | "projects";
   initialProjectId?: string;
 }) {
+  //starts empty-- Later when a register is changed we will populate this
+  const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
   const [memory, setMemory] = React.useState("");
@@ -149,6 +171,29 @@ export default function Root({
   const [deleteMode, setDeleteMode] = React.useState(false);
   const [selectedForDelete, setSelectedForDelete] = React.useState<string[]>([]);
 
+  // we make an object to store defualt 0x0 values for all 32 registers
+  //this is what we load into uiRegisters when start up the app 
+  // and want to showcase 
+    // all registers at 0x0 
+  const defaultRegisters = React.useMemo(
+    () =>
+      Object.fromEntries(
+        Array.from({ length: 32 }, (_, i) => [`x${i}`, "0x0"])
+      ),
+    []
+  );
+
+  // this is what the UI actually shows--purely UI-- NOT WHAT WE SEND TO BACKEND
+  // we layer user overrides on top of defaultRegisters
+  // useMemo only re-renders (recreates this UI) if something changes
+  const uiRegisters = React.useMemo(
+    () => ({
+      ...defaultRegisters,      // base values
+      ...registerOverrides,     // any user overrides are shown instead
+    }),
+    [defaultRegisters, registerOverrides]
+  );
+  
   const currentProject = React.useMemo(
     () => projects.find((p) => p.id === currentProjectId) ?? null,
     [projects, currentProjectId]
@@ -179,6 +224,7 @@ const persist = React.useCallback(
         simState,
         stepIndex,
         allStates,
+        registerOverrides,
         ...next,
       };
 
@@ -200,11 +246,12 @@ const persist = React.useCallback(
       return updatedProjects;
     });
   },
-  [uid, currentProjectId, code, resp, simState, stepIndex, allStates]
+  [uid, currentProjectId, code, resp, simState, stepIndex, allStates, registerOverrides]
 );
 
   const {
     handleRun,
+    handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
@@ -213,6 +260,7 @@ const persist = React.useCallback(
     code,
     allStates,
     runMeta,
+    registersForRun: uiRegisters,
     persist,
     setAllStates,
     setStepIndex,
@@ -232,6 +280,7 @@ const persist = React.useCallback(
         setStepIndex(0);
         setStepsEngaged(false);
         setFatalError(null);
+        setRegisterOverrides({});
         return;
       }
 
@@ -243,6 +292,11 @@ const persist = React.useCallback(
       setStepIndex(typeof state.stepIndex === "number" ? state.stepIndex : 0);
       setStepsEngaged(false);
       setFatalError(null);
+      setRegisterOverrides(
+        state.registerOverrides && typeof state.registerOverrides === "object"
+          ? state.registerOverrides
+          : {}
+      );
     }, []);
 
   React.useEffect(() => {
@@ -415,6 +469,8 @@ React.useEffect(() => {
     setStepIndex(0);
     setStepsEngaged(false);
     setFatalError(null);
+    setRegisterOverrides({});
+    setRegisterOverrides({});
 
     const workspace: Workspace = {
       uid: freshUid,
@@ -501,6 +557,11 @@ function handleSelectProject(projectId: string) {
     persist({ code: nextCode });
   };
 
+  const handleReset = React.useCallback(() => {
+    setRegisterOverrides({});
+    resetSession({ registerOverrides: {} });
+  }, [resetSession]);
+
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
       {/* LEFT SIDEBAR */}
@@ -511,7 +572,7 @@ function handleSelectProject(projectId: string) {
       />
 
       {/* MAIN AREA */}
-      <main className="flex-1 relative pl-16">
+      <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
         {view === "projects" ? (
           <ProjectsView
             projects={projects}
@@ -520,6 +581,8 @@ function handleSelectProject(projectId: string) {
             onUpdateProject={updateProjectById}
           />
         ) : (
+          <>
+          <div className="ml-10">
           <EditorView
             projectName={currentProject?.name || "Untitled project"}
             projectDescription={currentProject?.description}
@@ -527,16 +590,45 @@ function handleSelectProject(projectId: string) {
             onCodeChange={handleCodeChange}
             onRun={handleRun}
             onStart={handleStart}
+            onStop={handleStop}
             onStepForward={handleStepForward}
             onStepBack={handleStepBack}
-            onReset={resetSession}
+            onReset={handleReset}
             uid={uid}
             stepsEngaged={stepsEngaged}
             stepIndex={stepIndex}
             allStatesLength={allStates.length}
             fatalError={fatalError}
             resp={resp}
+            registerPanel={
+              <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[46rem] p-4 flex flex-col">
+                <h2 className="font-semibold text-sm uppercase tracking-wide">
+                  Register Presets
+                </h2>
+                <div className="mt-2 flex-1 overflow-y-auto">
+                  <RegisterEditor
+                    registers={uiRegisters}
+                    disabled={stepsEngaged}
+                    onChange={(key, value) =>
+                      setRegisterOverrides((prev) => {
+                        const next = { ...prev };
+                        if (!value.trim()) {
+                          delete next[key];
+                          console.log("Debugging, reached if");
+                        } else {
+                          console.log("Debugging else");
+                          next[key] = value;
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            }
           />
+          </div>
+          </>
         )}
       </main>
     </div>

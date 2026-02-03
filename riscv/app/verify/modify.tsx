@@ -42,6 +42,11 @@ export async function modifyCookieData(newData: Record<string, unknown>): Promis
     return `sens=${sensString}; Path=/`;
   } catch (error) {
     console.error('Error modifying cookie data:', error);
+    const isClear = Object.keys(newData).length === 0;
+    if (isClear) {
+      // If DB is unavailable, still clear the cookie to avoid 500s on auth failures.
+      return 'sens=; Path=/; Max-Age=0';
+    }
     throw error;
   } finally {
     // Explicitly close database connection

@@ -3,6 +3,7 @@ import React from "react";
 type EditorControlsProps = {
   onRun: () => void;
   onStart: () => void;
+  onStop: () => void;
   onStepForward: () => void;
   onStepBack: () => void;
   onReset: () => void;
@@ -15,6 +16,7 @@ type EditorControlsProps = {
 const EditorControls: React.FC<EditorControlsProps> = ({
   onRun,
   onStart,
+  onStop,
   onStepForward,
   onStepBack,
   onReset,
@@ -32,17 +34,26 @@ const EditorControls: React.FC<EditorControlsProps> = ({
         Run
       </button>
 
-      <button
-        onClick={onStart}
-        className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
-      >
-        Start
-      </button>
+      {stepsEngaged ? (
+        <button
+          onClick={onStop}
+          className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          Stop
+        </button>
+      ) : (
+        <button
+          onClick={onStart}
+          className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
+        >
+          Start
+        </button>
+      )}
 
       <button
         onClick={onStepForward}
         className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
-        disabled={!stepsEngaged || allStatesLength === 0}
+        disabled={!stepsEngaged || allStatesLength === 0 || stepIndex >= allStatesLength - 1}
       >
         Step
       </button>

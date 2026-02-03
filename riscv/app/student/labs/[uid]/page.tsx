@@ -147,11 +147,11 @@ export default function StudentLabDetailPage() {
         <div className="bg-white shadow sm:rounded-lg p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{lab.title}</h1>
           
-          <div className="border border-gray-300 rounded-md overflow-hidden">
+          <div className="border border-gray-300 rounded-md max-h-[70vh] overflow-y-auto">
             {typeof window !== 'undefined' && (
               <MdPreview
                 modelValue={lab.md}
-                style={{ height: '700px' }}
+                style={{ minHeight: '70vh' }}
               />
             )}
           </div>
