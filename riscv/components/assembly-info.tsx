@@ -88,53 +88,65 @@ export default function AssemblyInfo({
     : [];
 
   return (
-    <div className="w-full md:w-[420px] md:flex-none bg-gray-50 border-2 border-black rounded-2xl shadow-md p-4 space-y-3">
-      {/* Show either a clear error message from backend or a "NO ERRORS" flag */}
-      <p className="font-semibold text-sm text-black">
-        ERROR MESSAGE: {hadError ? errorMessage || "Unknown error" : "NO ERRORS"}
-      </p>
+    <div className="w-full max-w-[23.125rem] min-w-[16rem] bg-zinc-900/60 border border-zinc-700 rounded-xl shadow-sm p-4 space-y-3">
+      <div className="flex items-center justify-between text-xs uppercase tracking-wide text-zinc-300">
+        <span>Assembly Info</span>
+        <span
+          className={`rounded px-2 py-0.5 font-semibold ${
+            hadError
+              ? "bg-red-900/40 text-red-200 border border-red-700/60"
+              : "bg-emerald-900/30 text-emerald-200 border border-emerald-700/40"
+          }`}
+        >
+          {hadError ? "Error" : "OK"}
+        </span>
+      </div>
 
-      <div className="flex justify-between text-sm gap-6">
+      <div
+        className={`rounded px-2.5 py-1.5 text-sm ${
+          hadError
+            ? "bg-red-900/30 text-red-100 border border-red-700/50"
+            : "bg-emerald-900/20 text-emerald-100 border border-emerald-700/30"
+        }`}
+      >
+        {hadError ? errorMessage || "Unknown error" : "No errors"}
+      </div>
+
+      <div className="space-y-3 text-sm">
         {/* ----------------- REGISTERS PANEL ----------------- */}
-        <div className="min-w-[200px]">
-          <p className="font-semibold mb-1 text-black">REGISTERS</p>
+        <div className="rounded-lg border border-zinc-700/60 bg-zinc-950/40 p-2">
+          <p className="font-semibold mb-1 text-xs uppercase tracking-wide text-zinc-400">
+            Registers
+          </p>
 
-          {/* 
-            We render the numerically sorted registers.
-            - If empty, show an em dash to indicate "no data".
-            - Each line is "xN: 0x..." 
-          */}
-          <div className="max-h-56 overflow-auto pr-2">
+          <div className="max-h-44 overflow-auto pr-1 text-sm font-mono text-zinc-100">
             {sortedRegisters.length > 0 ? (
               sortedRegisters.map(([name, hex]) => (
-                <p key={name} className="text-black">
+                <p key={name} className="leading-5">
                   {name}: {hex}
                 </p>
               ))
             ) : (
-              <p className="text-gray-500">—</p>
+              <p className="text-zinc-500">—</p>
             )}
           </div>
         </div>
 
         {/* ------------------- MEMORY PANEL ------------------- */}
-        <div className="min-w-[240px]">
-          <p className="font-semibold mb-1 text-black">MEMORY</p>
+        <div className="rounded-lg border border-zinc-700/60 bg-zinc-950/40 p-2">
+          <p className="font-semibold mb-1 text-xs uppercase tracking-wide text-zinc-400">
+            Memory
+          </p>
 
-          {/* 
-            We render the hex-address-sorted memory.
-            - Addresses are parsed as base-16 for correct ordering.
-            - If empty, show an em dash for clarity.
-          */}
-          <div className="max-h-56 overflow-auto pr-2">
+          <div className="max-h-44 overflow-auto pr-1 text-sm font-mono text-zinc-100">
             {sortedMemory.length > 0 ? (
               sortedMemory.map(([addr, hex]) => (
-                <p key={addr} className="text-black">
+                <p key={addr} className="leading-5">
                   {addr}: {hex}
                 </p>
               ))
             ) : (
-              <p className="text-gray-500">—</p>
+              <p className="text-zinc-500">—</p>
             )}
           </div>
         </div>

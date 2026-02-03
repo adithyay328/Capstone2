@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const ScoreRequestSchema = z.object({
   code: z.string(),
   test_uid: z.string(),
+  grade_session_id: z.string().optional(),
 });
 
 export type ScoreRequest = z.infer<typeof ScoreRequestSchema>;
@@ -12,6 +13,9 @@ export type ScoreRequest = z.infer<typeof ScoreRequestSchema>;
 export const ScoreResponseSchema = z.object({
   pass: z.boolean(),
   error: z.string().optional(),
+  attemptsUsed: z.number().optional(),
+  attemptsRemaining: z.number().optional(),
+  attemptsLimit: z.number().optional(),
 });
 
 export type ScoreResponse = z.infer<typeof ScoreResponseSchema>;

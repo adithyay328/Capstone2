@@ -12,6 +12,23 @@ from machine import MachineState
 
 app = Flask(__name__)
 
+# Grade attempt limits (server-side; in-memory for now)
+GRADE_LIMIT = 5
+# Keyed by (client_id, lab_uid)
+grade_attempts = {}
+# Tracks grade session IDs so multiple test cases in one "grade" only count once
+grade_sessions = set()
+
+def get_client_id():
+    # Basic client identifier (can be replaced with auth user id later)
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+def attempts_key(client_id: str, lab_uid: str) -> str:
+    return f"{client_id}:{lab_uid}"
+
 # Database connection helper
 def get_db_connection():
     return psycopg2.connect(
@@ -148,6 +165,7 @@ def score():
         jsonData = request.get_json()
         code = jsonData.get('code')
         test_uid = jsonData.get('test_uid')
+        grade_session_id = jsonData.get('grade_session_id')
         
         if not code:
             return jsonify({"pass": False, "error": "No code field specified"})
@@ -158,7 +176,7 @@ def score():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "SELECT seed_registers, seed_memory, result_registers, result_memory FROM test_cases WHERE uid = %s",
+            "SELECT lab_uid, seed_registers, seed_memory, result_registers, result_memory FROM test_cases WHERE uid = %s",
             (test_uid,)
         )
         row = cur.fetchone()
@@ -168,7 +186,38 @@ def score():
         if not row:
             return jsonify({"pass": False, "error": "Test case not found"})
         
-        seed_registers_json, seed_memory_json, result_registers_json, result_memory_json = row
+        lab_uid, seed_registers_json, seed_memory_json, result_registers_json, result_memory_json = row
+
+        # Enforce grade attempt limit per lab (server-side)
+        client_id = get_client_id()
+        key = attempts_key(client_id, lab_uid)
+        attempts_used = grade_attempts.get(key, 0)
+
+        if grade_session_id:
+            session_key = (client_id, lab_uid, grade_session_id)
+            if session_key not in grade_sessions:
+                if attempts_used >= GRADE_LIMIT:
+                    return jsonify({
+                        "pass": False,
+                        "error": "Grade limit reached",
+                        "attemptsUsed": attempts_used,
+                        "attemptsRemaining": 0,
+                        "attemptsLimit": GRADE_LIMIT,
+                    })
+                grade_attempts[key] = attempts_used + 1
+                grade_sessions.add(session_key)
+                attempts_used = grade_attempts[key]
+        else:
+            if attempts_used >= GRADE_LIMIT:
+                return jsonify({
+                    "pass": False,
+                    "error": "Grade limit reached",
+                    "attemptsUsed": attempts_used,
+                    "attemptsRemaining": 0,
+                    "attemptsLimit": GRADE_LIMIT,
+                })
+            grade_attempts[key] = attempts_used + 1
+            attempts_used = grade_attempts[key]
         
         # Parse JSON strings
         seed_registers = json.loads(seed_registers_json)
@@ -224,10 +273,40 @@ def score():
                         passed = False
                         break
         
-        return jsonify({"pass": passed})
+        return jsonify({
+            "pass": passed,
+            "attemptsUsed": attempts_used,
+            "attemptsRemaining": max(GRADE_LIMIT - attempts_used, 0),
+            "attemptsLimit": GRADE_LIMIT,
+        })
         
     except Exception as e:
         return jsonify({"pass": False, "error": str(e)})
+
+@app.route('/grade_status', methods=['POST'])
+def grade_status():
+    """
+    Returns remaining grade attempts for a lab (server-side).
+    Input: { "lab_uid": str }
+    Output: { "attemptsUsed": int, "attemptsRemaining": int, "attemptsLimit": int }
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be valid JSON"})
+
+    jsonData = request.get_json()
+    lab_uid = jsonData.get('lab_uid')
+    if not lab_uid:
+        return jsonify({"error": "No lab_uid field specified"})
+
+    client_id = get_client_id()
+    key = attempts_key(client_id, lab_uid)
+    attempts_used = grade_attempts.get(key, 0)
+
+    return jsonify({
+        "attemptsUsed": attempts_used,
+        "attemptsRemaining": max(GRADE_LIMIT - attempts_used, 0),
+        "attemptsLimit": GRADE_LIMIT,
+    })
 
 if __name__ == '__main__':
   # Run on port 25565 for testing purposes

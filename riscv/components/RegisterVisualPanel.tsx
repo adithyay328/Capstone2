@@ -19,6 +19,13 @@ function toNum(v: string | number | undefined) {
   return parseInt(v as string, 16) || 0;
 }
 
+function normalizeTrack(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  const match = /^x([1-9]|[12][0-9]|3[01])$/.exec(trimmed);
+  if (!match) return null;
+  return `x${Number(match[1])}`;
+}
+
 export default function RegisterVisualPanel({
   registers,
   track = "x1",
@@ -28,17 +35,82 @@ export default function RegisterVisualPanel({
   track?: string;
   digits?: number;
 }) {
-  const valueHex = React.useMemo(() => hexify(registers?.[track]), [registers, track]);
-  const valueNum = React.useMemo(() => toNum(registers?.[track]), [registers, track]);
+  const [selectedTrack, setSelectedTrack] = React.useState(track);
+  const [inputValue, setInputValue] = React.useState(track);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setSelectedTrack(track);
+    setInputValue(track);
+  }, [track]);
+
+  const valueHex = React.useMemo(
+    () => hexify(registers?.[selectedTrack]),
+    [registers, selectedTrack]
+  );
+  const valueNum = React.useMemo(
+    () => toNum(registers?.[selectedTrack]),
+    [registers, selectedTrack]
+  );
+
+  const commitInput = React.useCallback(() => {
+    const normalized = normalizeTrack(inputValue);
+    if (!normalized) {
+      setError("Register must be x1–x31.");
+      return;
+    }
+    setSelectedTrack(normalized);
+    setInputValue(normalized);
+    setIsEditing(false);
+    setError(null);
+  }, [inputValue]);
 
   return (
     <div className="rounded-2xl p-4 bg-neutral-900 border border-neutral-800">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-neutral-100">Display & LEDs</h3>
           <p className="text-neutral-400 text-sm">
-            Tracking <span className="font-mono">{track}</span> = <span className="font-mono">{valueHex.toUpperCase()}</span>
+            Tracking{" "}
+            <span className="font-mono">
+              {isEditing ? (
+                <input
+                  className="bg-neutral-800 text-neutral-100 border border-neutral-700 rounded px-2 py-0.5 text-sm w-16"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onBlur={commitInput}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitInput();
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setInputValue(selectedTrack);
+                      setIsEditing(false);
+                      setError(null);
+                    }
+                  }}
+                  autoFocus
+                  aria-label="Register to track"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-sm hover:border-neutral-500"
+                  onClick={() => {
+                    setInputValue(selectedTrack);
+                    setIsEditing(true);
+                  }}
+                >
+                  {selectedTrack}
+                </button>
+              )}
+            </span>{" "}
+            = <span className="font-mono">{valueHex.toUpperCase()}</span>
           </p>
+          {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
         </div>
       </div>
 
@@ -47,7 +119,7 @@ export default function RegisterVisualPanel({
       </div>
 
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Led on={valueNum > 0} label={`${track}>0`} />
+        <Led on={valueNum > 0} label={`${selectedTrack}>0`} />
         <Led on={(valueNum & 0x1) !== 0} label="bit0" />
         <Led on={(valueNum & 0x2) !== 0} label="bit1" />
         <Led on={(valueNum & 0x4) !== 0} label="bit2" />
@@ -56,4 +128,3 @@ export default function RegisterVisualPanel({
     </div>
   );
 }
-

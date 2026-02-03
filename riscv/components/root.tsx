@@ -60,6 +60,7 @@ type EditorViewProps = {
   allStatesLength: number;
   fatalError: string | null;
   resp: AssemblyInfoData | null;
+  registerPanel: React.ReactNode;
 };
 
 const EditorView: React.FC<EditorViewProps> = ({
@@ -79,17 +80,28 @@ const EditorView: React.FC<EditorViewProps> = ({
   allStatesLength,
   fatalError,
   resp,
+  registerPanel,
 }) => (
   <div className="relative">
-    <div className="flex flex-col md:flex-row md:flex-wrap gap-5 px-4">
-      {/* Editor + controls column */}
-      <div className="w-full md:w-[65vw] lg:w-[70vw] xl:w-[75vw] mt-5">
-        <EditorPanel
-          projectName={projectName}
-          projectDescription={projectDescription}
-          code={code}
-          onCodeChange={onCodeChange}
-        />
+    <div className="pt-4 w-full max-w-[90rem] mx-auto">
+      <div className="mb-3 w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0">
+        <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
+        {projectDescription && (
+          <div className="text-[11px] text-zinc-400 truncate">
+            {projectDescription}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col xl:flex-row gap-6">
+        {/* Editor + controls column */}
+        <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
+          <EditorPanel
+            projectName={projectName}
+            projectDescription={projectDescription}
+            code={code}
+            onCodeChange={onCodeChange}
+            showHeader={false}
+          />
 
         <EditorControls
           onRun={onRun}
@@ -110,19 +122,23 @@ const EditorView: React.FC<EditorViewProps> = ({
             {fatalError}
           </div>
         )}
+
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          <AssemblyInfo response={resp} />
+
+          {/* Seven-segment + LEDs */}
+          <div className="flex-shrink-0">
+            <RegisterVisualPanel
+              registers={resp?.registers ?? null}
+              track="x1"
+              digits={4}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* RIGHT PANEL */}
-      <div className="flex gap-10 w-full md:basis-[420px] md:flex-none">
-        <AssemblyInfo response={resp} />
-
-        {/* Seven-segment + LEDs */}
-        <div>
-          <RegisterVisualPanel
-            registers={resp?.registers ?? null}
-            track="x1"
-            digits={4}
-          />
+        <div className="w-full xl:w-[28rem] min-w-0 mt-5 xl:mt-0">
+          {registerPanel}
         </div>
       </div>
     </div>
@@ -556,7 +572,7 @@ function handleSelectProject(projectId: string) {
       />
 
       {/* MAIN AREA */}
-      <main className="flex-1 relative pl-16">
+      <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
         {view === "projects" ? (
           <ProjectsView
             projects={projects}
@@ -566,6 +582,7 @@ function handleSelectProject(projectId: string) {
           />
         ) : (
           <>
+          <div className="ml-10">
           <EditorView
             projectName={currentProject?.name || "Untitled project"}
             projectDescription={currentProject?.description}
@@ -583,35 +600,33 @@ function handleSelectProject(projectId: string) {
             allStatesLength={allStates.length}
             fatalError={fatalError}
             resp={resp}
+            registerPanel={
+              <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[46rem] p-4 flex flex-col">
+                <h2 className="font-semibold text-sm uppercase tracking-wide">
+                  Register Presets
+                </h2>
+                <div className="mt-2 flex-1 overflow-y-auto">
+                  <RegisterEditor
+                    registers={uiRegisters}
+                    disabled={stepsEngaged}
+                    onChange={(key, value) =>
+                      setRegisterOverrides((prev) => {
+                        const next = { ...prev };
+                        if (!value.trim()) {
+                          delete next[key];
+                          console.log("Debugging, reached if");
+                        } else {
+                          console.log("Debugging else");
+                          next[key] = value;
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            }
           />
-          <div className="ml-5 mt-5 border-t pt-4 max-w-md">
-            <h2 className="font-semibold mb-2 text-sm uppercase tracking-wide">
-              Register Presets
-            </h2>
-            <RegisterEditor
-            //sets registers to defaultRegisters
-            //OR set them to whatever user has overridden in uiRegisters
-              registers={uiRegisters}
-              disabled={stepsEngaged}
-              onChange={(key, value) => //equal to setRegisterOverrides
-                setRegisterOverrides((prev) => {
-                  //we copy previous registerOverrides into "next" and modify next, so we dont mess up original prev state
-                  const next = { ...prev };
-                  if (!value.trim()) {
-                    // if reg is empty or user clears out the value, we dont want to send empty register
-                    //we delete that key from registerOverrides
-                    delete next[key];
-                    console.log("Debugging, reached if");
-                  } 
-                  else  // add the new value to registerOverrides
-                  {
-                    console.log("Debugging else");
-                    next[key] = value;
-                  }
-                  return next; //return updated registerOverrides to setRegisterOverrides
-                })
-              }
-            />
           </div>
           </>
         )}

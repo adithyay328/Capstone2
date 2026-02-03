@@ -16,6 +16,7 @@ export async function POST(req: Request) {
 
   const code = (body.code ?? "").trim();
   const test_uid = (body.test_uid ?? "").trim();
+  const grade_session_id = (body.grade_session_id ?? "").trim();
 
   if (!code) {
     return NextResponse.json(
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ code, test_uid }),
+      body: JSON.stringify({ code, test_uid, grade_session_id: grade_session_id || undefined }),
     });
 
     if (!response.ok) {

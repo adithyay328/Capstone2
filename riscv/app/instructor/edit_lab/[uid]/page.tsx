@@ -249,12 +249,14 @@ export default function EditLabPage() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Lab Content
           </label>
-          <div className="border border-gray-300 rounded-md overflow-hidden">
+          <div className="border border-gray-300 rounded-md overflow-auto">
             {typeof window !== 'undefined' && (
               <MdEditor
                 modelValue={content}
                 onChange={setContent}
                 toolbarsExclude={['htmlPreview', 'catalog']}
+                tableShape={[8, 15]} // columns, rows
+                language="en-US"
                 style={{ height: '700px' }}
               />
             )}

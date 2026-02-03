@@ -7,6 +7,7 @@ type EditorPanelProps = {
   projectDescription?: string;
   code: string;
   onCodeChange: (nextCode: string) => void;
+  showHeader?: boolean;
 };
 
 const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -14,17 +15,20 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   projectDescription,
   code,
   onCodeChange,
+  showHeader = true,
 }) => {
   return (
     <>
-      <div className="mb-2">
-        <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
-        {projectDescription && (
-          <div className="text-[11px] text-zinc-400 truncate">
-            {projectDescription}
-          </div>
-        )}
-      </div>
+      {showHeader && (
+        <div className="mb-2">
+          <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
+          {projectDescription && (
+            <div className="text-[11px] text-zinc-400 truncate">
+              {projectDescription}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* EDITOR */}
       <CodeEditor code={code} onChange={onCodeChange} />

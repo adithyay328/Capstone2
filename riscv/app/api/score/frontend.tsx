@@ -9,14 +9,18 @@ import { ScoreResponse } from './types';
  * @param test_uid - The UID of the test case to score against
  * @returns ScoreResponse with pass status
  */
-export async function scoreTestCase(code: string, test_uid: string): Promise<ScoreResponse> {
+export async function scoreTestCase(
+  code: string,
+  test_uid: string,
+  grade_session_id?: string
+): Promise<ScoreResponse> {
   try {
     const response = await fetch('/api/score', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code, test_uid }),
+      body: JSON.stringify({ code, test_uid, grade_session_id }),
     });
 
     const data: ScoreResponse = await response.json();
