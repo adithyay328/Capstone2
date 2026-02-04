@@ -10,6 +10,7 @@ import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 import RegisterEditor from "./register-editor";
+import HelpModal from "@/components/help-modal";
 
 import type {
   ProjectState,
@@ -570,6 +571,10 @@ function handleSelectProject(projectId: string) {
         onNewProject={handleNewProject}
         onOpenProjects={() => setView("projects")}
       />
+      <HelpModal title="AI Helper Chatbot">
+        <p>Potential Chatgpt??</p>
+        <p>Like SensAI to help students find out whats going on?</p>
+      </HelpModal>
 
       {/* MAIN AREA */}
       <main className="flex-1 relative px-4 sm:px-6 md:pl-23">

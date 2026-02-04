@@ -11,6 +11,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "@/components/sidebar"; //left sidebar
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
 import RegisterEditor from "@/components/register-editor";
+import HelpModal from "@/components/help-modal";
 import { listLabs } from "@/app/api/list_labs/frontend";
 import { Lab } from "@/app/api/list_labs/types";
 import { listTestCases } from "@/app/api/list_test_cases/frontend";
@@ -405,6 +406,10 @@ return (
         onNewProject={handleNewProject}
         onOpenProjects={handleOpenProjects}
       />
+      <HelpModal title="AI Helper Chatbot">
+        <p>Potential Chatgpt??</p>
+        <p>Like SensAI to help students find out whats going on?</p>
+      </HelpModal>
     <div className="w-full max-w-[100rem] mx-auto pl-4 pr-4 sm:px-6 md:px-8 md:pl-20 md:pr-16 pt-4">
       <div className="mb-3 w-full max-w-[44rem] sm:min-w-[26.875rem] min-w-0">
         <Link
