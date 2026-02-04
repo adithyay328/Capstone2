@@ -151,6 +151,7 @@ export default function StudentLabDetailPage() {
             {typeof window !== 'undefined' && (
               <MdPreview
                 modelValue={lab.md}
+                language="en-US"
                 style={{ minHeight: '70vh' }}
               />
             )}

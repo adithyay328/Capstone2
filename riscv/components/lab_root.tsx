@@ -576,7 +576,7 @@ return (
                 <div className="flex-1 overflow-y-auto border border-gray-200 rounded-md ">
                   {selectedLab ? (
                     typeof window !== "undefined" && (
-                      <MdPreview modelValue={selectedLab.md}/>
+                      <MdPreview modelValue={selectedLab.md} language="en-US" />
                     )
                   ) : (
                     <p className="p-4 text-sm text-gray-500">
