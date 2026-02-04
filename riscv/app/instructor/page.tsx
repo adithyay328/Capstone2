@@ -117,7 +117,16 @@ export default function InstructorPage() {
     return (
         <div className="min-h-screen p-8">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold mb-6">Lab List</h1>
+                <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold">Lab List</h1>
+                <Link
+                    href="/instructor/create_user"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    >
+                    + Add New Teacher
+                </Link>
+</div>
+
                 
                 {/* Existing labs list */}
                 {labs.length === 0 ? (
