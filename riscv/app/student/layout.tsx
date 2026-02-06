@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 //set timeout at 30 mins (idle timeout)
-const TIMEOUT_MS = 30 * 60 * 1000;
+const TIMEOUT_MS = 10 * 1000; //30 * 60 * 1000;
 
 // quick testing options:
 // const TIMEOUT_MS = 10 * 1000;      // 10 seconds
