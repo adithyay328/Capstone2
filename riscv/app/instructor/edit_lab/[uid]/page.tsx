@@ -224,7 +224,7 @@ export default function EditLabPage() {
         <div className="mb-6">
           <button 
             onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-800 mb-4"
+            className="mb-4 inline-flex items-center gap-2 rounded-lg bg-blue-100 px-4 py-2 text-blue-700 font-medium hover:bg-blue-200 hover:text-blue-900 transition"
           >
             ← Back to Lab List
           </button>
@@ -232,7 +232,7 @@ export default function EditLabPage() {
         </div>
 
         <div className="mb-6">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="title" className="block text-sm font-medium text-white-700 mb-2">
             Lab Title
           </label>
           <input
@@ -246,7 +246,7 @@ export default function EditLabPage() {
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-white-700 mb-2">
             Lab Content
           </label>
           <div className="border border-gray-300 rounded-md overflow-auto">
@@ -334,7 +334,7 @@ export default function EditLabPage() {
               <p className="mt-2 text-gray-500">Loading test cases...</p>
             </div>
           ) : testCases.length === 0 ? (
-            <p className="text-gray-500">No test cases yet.</p>
+            <p className="text-white-500">No test cases yet.</p>
           ) : (
             <div>
               {testCases.map((testCase) => (
