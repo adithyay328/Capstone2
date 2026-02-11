@@ -1,8 +1,8 @@
 'use client';
 
-import type { SyncLabSessionRequest, SyncLabSessionResponse } from './types';
+import type { LabSession, SyncLabSessionRequest, SyncLabSessionResponse } from './types';
 
-export async function syncLabSession(session: SyncLabSessionRequest['session']): Promise<SyncLabSessionResponse> {
+export async function syncLabSession(session: LabSession): Promise<SyncLabSessionResponse> {
   try {
     const response = await fetch('/api/sync_lab_session', {
       method: 'POST',

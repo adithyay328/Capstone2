@@ -1,8 +1,9 @@
 'use client';
 
 import type { SyncWorkspaceRequest, SyncWorkspaceResponse } from './types';
+import type { Workspace } from '@/components/types';
 
-export async function syncWorkspace(workspace: SyncWorkspaceRequest['workspace']): Promise<SyncWorkspaceResponse> {
+export async function syncWorkspace(workspace: Workspace): Promise<SyncWorkspaceResponse> {
   try {
     const response = await fetch('/api/sync_workspace', {
       method: 'POST',

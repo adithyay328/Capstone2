@@ -57,6 +57,7 @@ type EditorViewProps = {
   onStepForward: () => void;
   onStepBack: () => void;
   onReset: () => void;
+  onSyncNow?: () => void;
   uid: string;
   stepsEngaged: boolean;
   stepIndex: number;
@@ -77,6 +78,7 @@ const EditorView: React.FC<EditorViewProps> = ({
   onStepForward,
   onStepBack,
   onReset,
+  onSyncNow,
   uid,
   stepsEngaged,
   stepIndex,
@@ -113,7 +115,7 @@ const EditorView: React.FC<EditorViewProps> = ({
           onStepForward={onStepForward}
           onStepBack={onStepBack}
           onReset={onReset}
-          onSyncNow={() => void syncWorkspaceNow(false, true)}
+          onSyncNow={onSyncNow}
           uid={uid}
           stepsEngaged={stepsEngaged}
           stepIndex={stepIndex}
@@ -343,7 +345,7 @@ const persist = React.useCallback(
       setRegisterOverrides(
         state.registerOverrides && typeof state.registerOverrides === "object"
           ? state.registerOverrides
-          : {}
+          : ({} as Record<string, string>)
       );
     }, []);
 
@@ -549,8 +551,9 @@ React.useEffect(() => {
     }
 
     if (remote.workspace) {
-      writeWorkspace(remote.workspace);
-      applyWorkspace(remote.workspace);
+      const workspaceFromRemote = remote.workspace as Workspace;
+      writeWorkspace(workspaceFromRemote);
+      applyWorkspace(workspaceFromRemote);
       setInitStatus("ready");
       return;
     }
@@ -746,6 +749,7 @@ function handleSelectProject(projectId: string) {
             onStepForward={handleStepForward}
             onStepBack={handleStepBack}
             onReset={handleReset}
+            onSyncNow={() => void syncWorkspaceNow(false, true)}
             uid={uid}
             stepsEngaged={stepsEngaged}
             stepIndex={stepIndex}

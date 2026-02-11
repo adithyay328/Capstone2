@@ -193,11 +193,11 @@ export default function LabRoot() {
       else setAllStates([]);
       if (typeof parsed.stepIndex === "number") setStepIndex(parsed.stepIndex);
       else setStepIndex(0);
-      setRegisterOverrides(
-        parsed.registerOverrides && typeof parsed.registerOverrides === "object"
-          ? parsed.registerOverrides
-          : {}
-      );
+        setRegisterOverrides(
+          parsed.registerOverrides && typeof parsed.registerOverrides === "object"
+            ? parsed.registerOverrides
+            : ({} as Record<string, string>)
+        );
     };
 
     const applyFresh = (): SavedVersion => {
@@ -211,7 +211,7 @@ export default function LabRoot() {
         simState: null,
         stepIndex: 0,
         allStates: [],
-        registerOverrides: {},
+        registerOverrides: {} as Record<string, string>,
       };
       applySession(fresh);
       return fresh;
@@ -237,6 +237,8 @@ export default function LabRoot() {
       }
 
       if (remote.session) {
+        const registerOverrides =
+          (remote.session.registerOverrides ?? {}) as Record<string, string>;
         const parsed: SavedVersion = {
           uid: remote.session.uid ?? makeUid(),
           labUid: remote.session.labUid ?? undefined,
@@ -248,11 +250,7 @@ export default function LabRoot() {
           allStates: Array.isArray(remote.session.allStates)
             ? remote.session.allStates
             : [],
-          registerOverrides:
-            remote.session.registerOverrides &&
-            typeof remote.session.registerOverrides === "object"
-              ? remote.session.registerOverrides
-              : {},
+          registerOverrides,
         };
         window.localStorage.setItem(storageKey, JSON.stringify(parsed));
         applySession(parsed);

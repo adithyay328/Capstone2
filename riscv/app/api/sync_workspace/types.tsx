@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Workspace } from '@/components/types';
 
 const ProjectStateSchema = z.object({
   code: z.string().optional(),
@@ -6,7 +7,7 @@ const ProjectStateSchema = z.object({
   simState: z.unknown().nullable().optional(),
   stepIndex: z.number().optional(),
   allStates: z.array(z.unknown()).optional(),
-  registerOverrides: z.record(z.string()).optional(),
+  registerOverrides: z.record(z.string(), z.string()).optional(),
 });
 
 const ProjectSchema = z.object({
@@ -27,7 +28,9 @@ export const SyncWorkspaceRequestSchema = z.object({
   workspace: WorkspaceSchema,
 });
 
-export type SyncWorkspaceRequest = z.infer<typeof SyncWorkspaceRequestSchema>;
+export type SyncWorkspaceRequest = {
+  workspace: Workspace;
+};
 
 export const SyncWorkspaceResponseSchema = z.object({
   success: z.boolean(),

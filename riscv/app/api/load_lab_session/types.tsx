@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AssemblyInfoData, SimState, SubmitResponse } from '@/components/types';
 
 const LabSessionSchema = z.object({
   storageKey: z.string(),
@@ -10,7 +11,7 @@ const LabSessionSchema = z.object({
   simState: z.unknown().nullable(),
   stepIndex: z.number(),
   allStates: z.array(z.unknown()),
-  registerOverrides: z.record(z.string()),
+  registerOverrides: z.record(z.string(), z.string()),
 });
 
 export const LoadLabSessionResponseSchema = z.object({
@@ -20,4 +21,22 @@ export const LoadLabSessionResponseSchema = z.object({
   error: z.string().optional(),
 });
 
-export type LoadLabSessionResponse = z.infer<typeof LoadLabSessionResponseSchema>;
+export type LabSession = {
+  storageKey: string;
+  uid: string;
+  labUid: string | null;
+  version: number;
+  code: string;
+  resp: AssemblyInfoData | null;
+  simState: SimState | null;
+  stepIndex: number;
+  allStates: SubmitResponse["states"];
+  registerOverrides: Record<string, string>;
+};
+
+export type LoadLabSessionResponse = {
+  success: boolean;
+  session?: LabSession | null;
+  message?: string;
+  error?: string;
+};
