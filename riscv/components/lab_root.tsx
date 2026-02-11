@@ -568,7 +568,7 @@ export default function LabRoot() {
   if (initStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
-        <div className="text-sm text-zinc-300">Connecting to the database...</div>
+        <div className="h-12 w-12 rounded-full border-4 border-zinc-500 border-t-transparent animate-spin" />
       </div>
     );
   }

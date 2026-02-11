@@ -254,6 +254,12 @@ export default function Root({
     [buildWorkspacePayload]
   );
 
+  React.useEffect(() => {
+    return () => {
+      void syncWorkspaceNow(true, true);
+    };
+  }, [syncWorkspaceNow]);
+
 const persist = React.useCallback(
   (next?: Partial<ProjectState>) => {
     if (typeof window === "undefined") return;
@@ -389,6 +395,7 @@ const persist = React.useCallback(
           projects: nextProjects,
         };
         writeWorkspace(workspace);
+        void syncWorkspace(workspace);
         return nextProjects;
       });
     },
@@ -420,6 +427,7 @@ const persist = React.useCallback(
           projects: updatedProjects,
         };
         writeWorkspace(workspace);
+        void syncWorkspace(workspace);
         return updatedProjects;
       });
     },
@@ -656,6 +664,7 @@ React.useEffect(() => {
         projects: updatedProjects,
       };
       writeWorkspace(workspace);
+      void syncWorkspace(workspace);
     }
   }
 
@@ -680,6 +689,7 @@ function handleSelectProject(projectId: string) {
       projects,
     };
     writeWorkspace(workspace);
+    void syncWorkspace(workspace);
   }
 }
 
@@ -708,10 +718,15 @@ function handleSelectProject(projectId: string) {
   if (initStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
-        <div className="text-sm text-zinc-300">Connecting to the database...</div>
+        <div className="h-12 w-12 rounded-full border-4 border-zinc-500 border-t-transparent animate-spin" />
       </div>
     );
   }
+
+  const handleOpenProjects = () => {
+    void syncWorkspaceNow(false, true);
+    setView("projects");
+  };
 
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
@@ -719,7 +734,7 @@ function handleSelectProject(projectId: string) {
       <Sidebar
         initialOpen={false}
         onNewProject={handleNewProject}
-        onOpenProjects={() => setView("projects")}
+        onOpenProjects={handleOpenProjects}
       />
       <HelpModal title="AI Helper Chatbot">
         <p>Potential Chatgpt??</p>
