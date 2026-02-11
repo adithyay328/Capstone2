@@ -115,12 +115,12 @@ export default function LabRoot() {
 
   const labSessionDirtyRef = React.useRef(false);
 
-  const buildLabSessionPayload = React.useCallback(() => {
+  const buildLabSessionPayload = React.useCallback((overrides?: { storageKey?: string; labUid?: string | null }) => {
     if (!uid) return null;
     return {
-      storageKey,
+      storageKey: overrides?.storageKey ?? storageKey,
       uid,
-      labUid: labUidFromQuery || null,
+      labUid: overrides?.labUid ?? (labUidFromQuery || null),
       version: 1,
       code,
       resp,
@@ -142,9 +142,13 @@ export default function LabRoot() {
   ]);
 
   const syncLabSessionNow = React.useCallback(
-    async (useBeacon = false, force = false) => {
+    async (
+      useBeacon = false,
+      force = false,
+      overrides?: { storageKey?: string; labUid?: string | null }
+    ) => {
       if (!labSessionDirtyRef.current && !force) return;
-      const payload = buildLabSessionPayload();
+      const payload = buildLabSessionPayload(overrides);
       if (!payload) return;
 
       if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -169,6 +173,25 @@ export default function LabRoot() {
     },
     [buildLabSessionPayload]
   );
+
+  const prevStorageKeyRef = React.useRef<string | null>(null);
+  const prevLabUidRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const prevKey = prevStorageKeyRef.current;
+    const prevLabUid = prevLabUidRef.current;
+    if (prevKey && prevKey !== storageKey) {
+      void syncLabSessionNow(false, true, { storageKey: prevKey, labUid: prevLabUid });
+    }
+    prevStorageKeyRef.current = storageKey;
+    prevLabUidRef.current = labUidFromQuery || null;
+  }, [labUidFromQuery, storageKey, syncLabSessionNow]);
+
+  React.useEffect(() => {
+    return () => {
+      void syncLabSessionNow(true, true);
+    };
+  }, [syncLabSessionNow]);
 
   // LOADS LOCAL STORAGE (scoped per lab)
   React.useEffect(() => {
@@ -459,13 +482,15 @@ export default function LabRoot() {
     resetSession({ registerOverrides: {} });
   }, [resetSession]);
 
-  const handleNewProject = React.useCallback(() => {
+  const handleNewProject = React.useCallback(async () => {
+    await syncLabSessionNow(false, true);
     router.push("/student/new-project");
-  }, [router]);
+  }, [router, syncLabSessionNow]);
 
-  const handleOpenProjects = React.useCallback(() => {
+  const handleOpenProjects = React.useCallback(async () => {
+    await syncLabSessionNow(false, true);
     router.push("/student/projects");
-  }, [router]);
+  }, [router, syncLabSessionNow]);
 
   // Grade the current code against all test cases for the selected lab
   async function handleGrade(): Promise<boolean> {
