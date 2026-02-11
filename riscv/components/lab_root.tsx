@@ -17,6 +17,8 @@ import { Lab } from "@/app/api/list_labs/types";
 import { listTestCases } from "@/app/api/list_test_cases/frontend";
 import { scoreTestCase } from "@/app/api/score/frontend";
 import { getGradeStatus } from "@/app/api/grade_status/frontend";
+import { syncLabSession } from "@/app/api/sync_lab_session/frontend";
+import { loadLabSession } from "@/app/api/load_lab_session/frontend";
 import useRunner from "@/components/use-runner";
 import type {
   AssemblyInfoData,
@@ -72,6 +74,10 @@ export default function LabRoot() {
   const [allStates, setAllStates] = React.useState<SubmitResponse["states"]>([]);
   const [stepIndex, setStepIndex] = React.useState(0);
   const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
+  const [initStatus, setInitStatus] = React.useState<"loading" | "ready" | "error">(
+    "loading"
+  );
+  const [initError, setInitError] = React.useState<string | null>(null);
 
   const defaultRegisters = React.useMemo(
     () =>
@@ -107,64 +113,176 @@ export default function LabRoot() {
     errorMessage: "",
   });
 
+  const labSessionDirtyRef = React.useRef(false);
+
+  const buildLabSessionPayload = React.useCallback(() => {
+    if (!uid) return null;
+    return {
+      storageKey,
+      uid,
+      labUid: labUidFromQuery || null,
+      version: 1,
+      code,
+      resp,
+      simState,
+      stepIndex,
+      allStates,
+      registerOverrides,
+    };
+  }, [
+    uid,
+    storageKey,
+    labUidFromQuery,
+    code,
+    resp,
+    simState,
+    stepIndex,
+    allStates,
+    registerOverrides,
+  ]);
+
+  const syncLabSessionNow = React.useCallback(
+    async (useBeacon = false, force = false) => {
+      if (!labSessionDirtyRef.current && !force) return;
+      const payload = buildLabSessionPayload();
+      if (!payload) return;
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return;
+      }
+
+      if (useBeacon && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+        const ok = navigator.sendBeacon(
+          "/api/sync_lab_session",
+          JSON.stringify({ session: payload })
+        );
+        if (ok) {
+          labSessionDirtyRef.current = false;
+        }
+        return;
+      }
+
+      const result = await syncLabSession(payload);
+      if (result.success) {
+        labSessionDirtyRef.current = false;
+      }
+    },
+    [buildLabSessionPayload]
+  );
 
   // LOADS LOCAL STORAGE (scoped per lab)
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    let cancelled = false;
 
-    const payload = window.localStorage.getItem(storageKey);
-    if (payload) {
-      try {
-        const parsed: SavedVersion = JSON.parse(payload);
+    const applySession = (parsed: SavedVersion) => {
+      if (cancelled) return;
+      setUid(parsed.uid ?? makeUid());
 
-        // uid
-        setUid(parsed.uid ?? makeUid());
-
-        // code
-        if (typeof parsed.code === "string") {
-          setCode(parsed.code);
-        } else {
-          setCode("");
-        }
-
-        // restore resp + simState (so right panel + highlighting show up)
-        if (parsed.resp) setResp(parsed.resp);
-        else setResp(null);
-        if (parsed.simState) setSimState(parsed.simState);
-        else setSimState(null);
-        if (Array.isArray(parsed.allStates)) setAllStates(parsed.allStates);
-        else setAllStates([]);
-        if (typeof parsed.stepIndex === "number") setStepIndex(parsed.stepIndex);
-        else setStepIndex(0);
-        setRegisterOverrides(
-          parsed.registerOverrides && typeof parsed.registerOverrides === "object"
-            ? parsed.registerOverrides
-            : {}
-        );
-
-      } catch (e) {
-        console.warn("bad local session, resetting", e);
-        const freshUid = makeUid();
-        setUid(freshUid);
+      if (typeof parsed.code === "string") {
+        setCode(parsed.code);
+      } else {
         setCode("");
-        setResp(null);
-        setSimState(null);
-        setAllStates([]);
-        setStepIndex(0);
-        setRegisterOverrides({});
       }
-    } else {
-      // first time for this lab
+
+      if (parsed.resp) setResp(parsed.resp);
+      else setResp(null);
+      if (parsed.simState) setSimState(parsed.simState);
+      else setSimState(null);
+      if (Array.isArray(parsed.allStates)) setAllStates(parsed.allStates);
+      else setAllStates([]);
+      if (typeof parsed.stepIndex === "number") setStepIndex(parsed.stepIndex);
+      else setStepIndex(0);
+      setRegisterOverrides(
+        parsed.registerOverrides && typeof parsed.registerOverrides === "object"
+          ? parsed.registerOverrides
+          : {}
+      );
+    };
+
+    const applyFresh = (): SavedVersion => {
       const freshUid = makeUid();
-      setUid(freshUid);
-      setCode("");
-      setResp(null);
-      setSimState(null);
-      setAllStates([]);
-      setStepIndex(0);
-      setRegisterOverrides({});
-    }
-  }, [storageKey]);
+      const fresh: SavedVersion = {
+        uid: freshUid,
+        labUid: labUidFromQuery || undefined,
+        version: 1,
+        code: "",
+        resp: null,
+        simState: null,
+        stepIndex: 0,
+        allStates: [],
+        registerOverrides: {},
+      };
+      applySession(fresh);
+      return fresh;
+    };
+
+    const hydrate = async () => {
+      setInitStatus("loading");
+      setInitError(null);
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setInitStatus("error");
+        setInitError("Initial connection required. Check your internet connection and reload.");
+        return;
+      }
+
+      const remote = await loadLabSession(storageKey);
+      if (cancelled) return;
+
+      if (!remote.success) {
+        setInitStatus("error");
+        setInitError(remote.message ?? "Unable to connect to the database.");
+        return;
+      }
+
+      if (remote.session) {
+        const parsed: SavedVersion = {
+          uid: remote.session.uid ?? makeUid(),
+          labUid: remote.session.labUid ?? undefined,
+          version: remote.session.version ?? 1,
+          code: remote.session.code ?? "",
+          resp: remote.session.resp ?? null,
+          simState: remote.session.simState ?? null,
+          stepIndex: remote.session.stepIndex ?? 0,
+          allStates: Array.isArray(remote.session.allStates)
+            ? remote.session.allStates
+            : [],
+          registerOverrides:
+            remote.session.registerOverrides &&
+            typeof remote.session.registerOverrides === "object"
+              ? remote.session.registerOverrides
+              : {},
+        };
+        window.localStorage.setItem(storageKey, JSON.stringify(parsed));
+        applySession(parsed);
+        setInitStatus("ready");
+        return;
+      }
+
+      const fresh = applyFresh();
+      window.localStorage.setItem(storageKey, JSON.stringify(fresh));
+      await syncLabSession({
+        storageKey,
+        uid: fresh.uid,
+        labUid: labUidFromQuery || null,
+        version: 1,
+        code: fresh.code,
+        resp: fresh.resp,
+        simState: fresh.simState,
+        stepIndex: fresh.stepIndex,
+        allStates: fresh.allStates,
+        registerOverrides: fresh.registerOverrides,
+      });
+      setInitStatus("ready");
+    };
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storageKey, labUidFromQuery]);
 
   //HELPER to write everything to local storage
   const persist = React.useCallback(
@@ -195,6 +313,48 @@ export default function LabRoot() {
     if (!uid) return;
     persist();
   }, [uid, code, resp, simState, registerOverrides, persist]);
+
+  React.useEffect(() => {
+    if (!uid) return;
+    labSessionDirtyRef.current = true;
+  }, [uid, storageKey, code, resp, simState, stepIndex, allStates, registerOverrides]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const interval = window.setInterval(() => {
+      void syncLabSessionNow();
+    }, 3 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [syncLabSessionNow]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageHide = () => {
+      void syncLabSessionNow(true);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        void syncLabSessionNow(true);
+      }
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [syncLabSessionNow]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => {
+      void syncLabSessionNow();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [syncLabSessionNow]);
 
   // Fetch labs on mount for grading dropdown
   React.useEffect(() => {
@@ -396,6 +556,24 @@ export default function LabRoot() {
       ? `Grade (${gradeCooldownSeconds}s)`
       : "Grade";
 
+  if (initStatus === "error") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
+        <div className="max-w-lg rounded border border-red-500/40 bg-red-950/30 p-6 text-sm">
+          <div className="font-semibold mb-2">Unable to connect</div>
+          <div>{initError ?? "Initial connection required. Check your internet connection."}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (initStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
+        <div className="text-sm text-zinc-300">Connecting to the database...</div>
+      </div>
+    );
+  }
 
 return (
   <div className="relative min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex ml-7">
@@ -514,6 +692,13 @@ return (
           <span className="text-xs text-zinc-300">
             Grades left: {gradeAttemptsRemaining ?? gradeAttemptsLimit}/{gradeAttemptsLimit}
           </span>
+
+          <button
+            onClick={() => void syncLabSessionNow(false, true)}
+            className="rounded border px-3 py-2 text-xs hover:bg-zinc-100"
+          >
+            Sync Now
+          </button>
 
           {/* uid (kept from Version 1) */}
           <span className="ml-auto text-xs text-zinc-500">

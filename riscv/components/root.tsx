@@ -6,11 +6,13 @@ import ProjectsGrid from "./projects-grid";
 import EditorPanel from "./editor-panel";
 import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
-import { readWorkspace, writeWorkspace } from "./workspace-store";
+import { writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 import RegisterEditor from "./register-editor";
 import HelpModal from "@/components/help-modal";
+import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
+import { loadWorkspace } from "@/app/api/load_workspace/frontend";
 
 import type {
   ProjectState,
@@ -111,6 +113,7 @@ const EditorView: React.FC<EditorViewProps> = ({
           onStepForward={onStepForward}
           onStepBack={onStepBack}
           onReset={onReset}
+          onSyncNow={() => void syncWorkspaceNow(false, true)}
           uid={uid}
           stepsEngaged={stepsEngaged}
           stepIndex={stepIndex}
@@ -164,6 +167,10 @@ export default function Root({
   const [simState, setSimState] = React.useState<SimState | null>(null);
   const [allStates, setAllStates] = React.useState<SubmitResponse["states"]>([]);
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [initStatus, setInitStatus] = React.useState<"loading" | "ready" | "error">(
+    "loading"
+  );
+  const [initError, setInitError] = React.useState<string | null>(null);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectId] = React.useState<string | null>(null);
   const [view, setView] = React.useState<"editor" | "projects">(
@@ -204,6 +211,46 @@ export default function Root({
     hadError: false,
     errorMessage: "",
   });
+
+  const workspaceDirtyRef = React.useRef(false);
+
+  const buildWorkspacePayload = React.useCallback((): Workspace | null => {
+    if (!uid) return null;
+    return {
+      uid,
+      currentProjectId,
+      projects,
+    };
+  }, [uid, currentProjectId, projects]);
+
+  const syncWorkspaceNow = React.useCallback(
+    async (useBeacon = false, force = false) => {
+      if (!workspaceDirtyRef.current && !force) return;
+      const payload = buildWorkspacePayload();
+      if (!payload) return;
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return;
+      }
+
+      if (useBeacon && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+        const ok = navigator.sendBeacon(
+          "/api/sync_workspace",
+          JSON.stringify({ workspace: payload })
+        );
+        if (ok) {
+          workspaceDirtyRef.current = false;
+        }
+        return;
+      }
+
+      const result = await syncWorkspace(payload);
+      if (result.success) {
+        workspaceDirtyRef.current = false;
+      }
+    },
+    [buildWorkspacePayload]
+  );
 
 const persist = React.useCallback(
   (next?: Partial<ProjectState>) => {
@@ -380,76 +427,76 @@ const persist = React.useCallback(
 
 React.useEffect(() => {
   if (typeof window === "undefined") return;
+  let cancelled = false;
 
-  const parsed = readWorkspace();
+  const applyWorkspace = (parsed: Partial<Workspace>) => {
+    if (cancelled) return;
+    const workspaceUid = parsed.uid ?? makeUid();
+    setUid(workspaceUid);
 
-    if (parsed) {
-      const workspaceUid = parsed.uid ?? makeUid();
-      setUid(workspaceUid);
-
-      let existingProjects: Project[] = Array.isArray(parsed.projects)
-        ? (parsed.projects as Project[])
-        : [];
-      // ensure description exists on old data
-      existingProjects = existingProjects.map((p) => {
-        const state = (p.state ?? {}) as Partial<ProjectState> & {
-          versions?: Array<{ id?: string; code?: string }>;
-          currentVersionId?: string | null;
-        };
-        let codeValue = typeof state.code === "string" ? state.code : "";
-        if (!codeValue && Array.isArray(state.versions)) {
-          const match =
-            state.versions.find((v) => v?.id === state.currentVersionId) ??
-            state.versions[0];
-          if (match?.code) {
-            codeValue = match.code;
-          }
+    let existingProjects: Project[] = Array.isArray(parsed.projects)
+      ? (parsed.projects as Project[])
+      : [];
+    // ensure description exists on old data
+    existingProjects = existingProjects.map((p) => {
+      const state = (p.state ?? {}) as Partial<ProjectState> & {
+        versions?: Array<{ id?: string; code?: string }>;
+        currentVersionId?: string | null;
+      };
+      let codeValue = typeof state.code === "string" ? state.code : "";
+      if (!codeValue && Array.isArray(state.versions)) {
+        const match =
+          state.versions.find((v) => v?.id === state.currentVersionId) ??
+          state.versions[0];
+        if (match?.code) {
+          codeValue = match.code;
         }
-        return {
-          description: p.description ?? "",
-          ...p,
-          state: {
-            ...defaultProjectState,
-            ...state,
-            code: codeValue,
-          },
-        };
-      });
-
-      // If somehow there are no projects, create one.
-        if (existingProjects.length === 0) {
-          const firstProject: Project = {
-            id: makeProjectId(),
-            name: "Untitled project 1",
-            description: "",
-            createdAt: new Date().toISOString(),
-            state: { ...defaultProjectState, code: "" },
-          };
-          existingProjects = [firstProject];
-
-        const newWorkspace: Workspace = {
-          uid: workspaceUid,
-          currentProjectId: firstProject.id,
-          projects: existingProjects,
-        };
-        writeWorkspace(newWorkspace);
       }
+      return {
+        description: p.description ?? "",
+        ...p,
+        state: {
+          ...defaultProjectState,
+          ...state,
+          code: codeValue,
+        },
+      };
+    });
 
-      setProjects(existingProjects);
+    // If somehow there are no projects, create one.
+    if (existingProjects.length === 0) {
+      const firstProject: Project = {
+        id: makeProjectId(),
+        name: "Untitled project 1",
+        description: "",
+        createdAt: new Date().toISOString(),
+        state: { ...defaultProjectState, code: "" },
+      };
+      existingProjects = [firstProject];
 
-      let projId = parsed.currentProjectId;
-      if (!projId || !existingProjects.some((p) => p.id === projId)) {
-        projId = existingProjects[0].id;
-      }
-      setCurrentProjectId(projId);
-
-      const currentProject =
-        existingProjects.find((p) => p.id === projId) ?? existingProjects[0];
-
-      loadProjectIntoState(currentProject);
-      return;
+      const newWorkspace: Workspace = {
+        uid: workspaceUid,
+        currentProjectId: firstProject.id,
+        projects: existingProjects,
+      };
+      writeWorkspace(newWorkspace);
     }
 
+    setProjects(existingProjects);
+
+    let projId = parsed.currentProjectId;
+    if (!projId || !existingProjects.some((p) => p.id === projId)) {
+      projId = existingProjects[0].id;
+    }
+    setCurrentProjectId(projId);
+
+    const currentProject =
+      existingProjects.find((p) => p.id === projId) ?? existingProjects[0];
+
+    loadProjectIntoState(currentProject);
+  };
+
+  const applyFreshWorkspace = (): Workspace => {
     const freshUid = makeUid();
     const firstProject: Project = {
       id: makeProjectId(),
@@ -479,7 +526,88 @@ React.useEffect(() => {
       projects: [firstProject],
     };
     writeWorkspace(workspace);
-  }, [loadProjectIntoState]);
+    return workspace;
+  };
+
+  const hydrate = async () => {
+    setInitStatus("loading");
+    setInitError(null);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setInitStatus("error");
+      setInitError("Initial connection required. Check your internet connection and reload.");
+      return;
+    }
+
+    const remote = await loadWorkspace();
+    if (cancelled) return;
+
+    if (!remote.success) {
+      setInitStatus("error");
+      setInitError(remote.message ?? "Unable to connect to the database.");
+      return;
+    }
+
+    if (remote.workspace) {
+      writeWorkspace(remote.workspace);
+      applyWorkspace(remote.workspace);
+      setInitStatus("ready");
+      return;
+    }
+
+    const fresh = applyFreshWorkspace();
+    await syncWorkspace(fresh);
+    setInitStatus("ready");
+  };
+
+  void hydrate();
+
+  return () => {
+    cancelled = true;
+  };
+}, [loadProjectIntoState]);
+
+  React.useEffect(() => {
+    if (!uid) return;
+    workspaceDirtyRef.current = true;
+  }, [uid, currentProjectId, projects, code, resp, simState, stepIndex, allStates, registerOverrides]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const interval = window.setInterval(() => {
+      void syncWorkspaceNow();
+    }, 3 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [syncWorkspaceNow]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageHide = () => {
+      void syncWorkspaceNow(true);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        void syncWorkspaceNow(true);
+      }
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [syncWorkspaceNow]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => {
+      void syncWorkspaceNow();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [syncWorkspaceNow]);
 
 
     //changes site based on any changes to the paramters in []
@@ -562,6 +690,25 @@ function handleSelectProject(projectId: string) {
     setRegisterOverrides({});
     resetSession({ registerOverrides: {} });
   }, [resetSession]);
+
+  if (initStatus === "error") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
+        <div className="max-w-lg rounded border border-red-500/40 bg-red-950/30 p-6 text-sm">
+          <div className="font-semibold mb-2">Unable to connect</div>
+          <div>{initError ?? "Initial connection required. Check your internet connection."}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (initStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
+        <div className="text-sm text-zinc-300">Connecting to the database...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">

@@ -2,6 +2,9 @@
 -- PostgreSQL database dump
 --
 
+-- INSERT THIS FIRST BEFORE ANYTHING ELSE
+
+
 \restrict rDGhRcw7ZMmnKih4NJRgWJwOVmV7lwbRJGd2f50eKLTHli4ZjFGDiNsLIleAGFU
 
 -- Dumped from database version 14.19 (Ubuntu 14.19-0ubuntu0.22.04.1)

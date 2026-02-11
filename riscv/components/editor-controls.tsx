@@ -7,6 +7,7 @@ type EditorControlsProps = {
   onStepForward: () => void;
   onStepBack: () => void;
   onReset: () => void;
+  onSyncNow?: () => void;
   uid: string;
   stepsEngaged: boolean;
   stepIndex: number;
@@ -20,6 +21,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
   onStepForward,
   onStepBack,
   onReset,
+  onSyncNow,
   uid,
   stepsEngaged,
   stepIndex,
@@ -74,6 +76,14 @@ const EditorControls: React.FC<EditorControlsProps> = ({
       </button>
 
       <div className="flex flex-wrap gap-3 items-center ml-auto">
+        {onSyncNow ? (
+          <button
+            onClick={onSyncNow}
+            className="rounded border px-3 py-2 text-xs hover:bg-zinc-100"
+          >
+            Sync Now
+          </button>
+        ) : null}
         <span className="text-xs text-zinc-500">{uid}</span>
       </div>
     </div>
