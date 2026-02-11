@@ -166,3 +166,19 @@ ALTER TABLE ONLY public.test_cases
 
 \unrestrict rDGhRcw7ZMmnKih4NJRgWJwOVmV7lwbRJGd2f50eKLTHli4ZjFGDiNsLIleAGFU
 
+-- ===== Human-Readable Schema Summary (Init) =====
+-- users
+--   username (PK), salt, password_hash, instructor
+--
+-- labs
+--   uid (PK), title, md
+--
+-- test_cases
+--   uid (PK), lab_uid (FK -> labs.uid), name,
+--   seed_registers, seed_memory, result_registers, result_memory
+--
+-- secrets
+--   name (PK), value
+--
+-- Relationships
+--   test_cases.lab_uid -> labs.uid (ON DELETE CASCADE)

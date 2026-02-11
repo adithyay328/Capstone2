@@ -137,3 +137,23 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS lab_sessions_username_idx
     ON public.lab_sessions (username);
+
+-- ===== Human-Readable Schema Summary (Persistence) =====
+-- workspaces
+--   username (PK, FK -> users.username), uid, current_project_id (FK -> workspace_projects.id)
+--
+-- workspace_projects
+--   id (PK), workspace_username (FK -> workspaces.username), name, description,
+--   created_at, updated_at, code, resp, sim_state, step_index, all_states, register_overrides
+--
+-- lab_sessions
+--   (username, storage_key) (PK),
+--   lab_uid (FK -> labs.uid), uid, version, code, resp, sim_state, step_index,
+--   all_states, register_overrides, created_at, updated_at
+--
+-- Relationships
+--   workspaces.username -> users.username
+--   workspace_projects.workspace_username -> workspaces.username
+--   workspaces.current_project_id -> workspace_projects.id (ON DELETE SET NULL)
+--   lab_sessions.username -> users.username
+--   lab_sessions.lab_uid -> labs.uid
