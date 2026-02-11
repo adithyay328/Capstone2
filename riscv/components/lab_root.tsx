@@ -26,13 +26,39 @@ import type {
   SimState,
   SubmitResponse,
 } from "@/components/types";
+import { useState } from "react";
 
 // Dynamically import the markdown preview to avoid SSR issues
 const MdPreview = dynamic(
   () => import("md-editor-rt").then((mod) => mod.MdPreview),
   { ssr: false }
 );
+// Instructions Panel for Students to Read
+const InstructionsPanel: React.FC = () => {
+  const [open, setOpen] = useState(true);
 
+  if (!open) return null; // fully hidden when closed
+
+  return (
+    <div className="relative mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+      {/* Close button */}
+      <button
+        onClick={() => setOpen(false)}
+        className="absolute top-2 right-2 text-yellow-800 font-bold hover:text-yellow-900"
+        aria-label="Close instructions"
+      >
+        ✕
+      </button>
+
+      <h3 className="font-semibold text-yellow-800 mb-2">Lab Instructions</h3>
+      <ul className="list-disc ml-5 text-sm text-yellow-900">
+        <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
+        <li>Register inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
+        <li>Use only allowed instructions and follow lab instructions carefully.</li>
+      </ul>
+    </div>
+  );
+};
 // Import the CSS for the markdown preview
 import "md-editor-rt/lib/preview.css";
 
@@ -633,6 +659,7 @@ return (
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Editor + controls column */}
         <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
+        <InstructionsPanel/>
         {/* EDITOR */}
         <CodeEditor
           code={code}

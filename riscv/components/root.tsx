@@ -10,6 +10,7 @@ import { writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 import RegisterEditor from "./register-editor";
+import { useState } from "react";
 import HelpModal from "@/components/help-modal";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
 import { loadWorkspace } from "@/app/api/load_workspace/frontend";
@@ -30,6 +31,30 @@ type ProjectsViewProps = {
   onUpdateProject: (id: string, next: { name?: string; description?: string }) => void;
 };
 
+const InstructionsPanel: React.FC = () => {
+  const [open, setOpen] = useState(true);
+
+  if (!open) return null; // fully hidden when closed
+
+  return (
+    <div className="relative mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+      {/* Close button */}
+      <button
+        onClick={() => setOpen(false)}
+        className="absolute top-2 right-2 text-yellow-800 font-bold hover:text-yellow-900"
+        aria-label="Close instructions"
+      >
+        ✕
+      </button>
+
+      <h3 className="font-semibold text-yellow-800 mb-2">Instructions for Use</h3>
+      <ul className="list-disc ml-5 text-sm text-yellow-900">
+        <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
+        <li>Register inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
+      </ul>
+    </div>
+  );
+};
 const ProjectsView: React.FC<ProjectsViewProps> = ({
   projects,
   onOpenProject,
@@ -96,6 +121,8 @@ const EditorView: React.FC<EditorViewProps> = ({
             {projectDescription}
           </div>
         )}
+        {/* Instructions for students */}
+        <InstructionsPanel />
       </div>
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Editor + controls column */}
