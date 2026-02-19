@@ -3,11 +3,43 @@ import { CreateUserRequestSchema, CreateUserResponseSchema } from "./types";
 
 import { DBConnection } from "@/app/sql/sql";
 import { hashPassword, generateSalt } from "@/app/passwords";
+import { verifyCookieInternal } from "@/app/verify/internal";
+import { modifyCookieData } from "@/app/verify/modify";
 
 export async function POST(req: Request) {
   let db: DBConnection | null = null;
   
   try {
+    // Verify the cookie to ensure user is authenticated
+    const cookieHeader = req.headers.get('cookie') || '';
+    const verifyResponse = await verifyCookieInternal(cookieHeader);
+
+    // Check that username is set and student boolean exists
+    if (!verifyResponse.data || 
+        !verifyResponse.data.username || 
+        typeof verifyResponse.data.student === 'undefined') {
+      const modifiedCookie = await modifyCookieData({});
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid or missing authentication",
+        },
+        { status: 401, headers: { 'Set-Cookie': modifiedCookie } }
+      );
+    }
+
+    // Check that user is an instructor (student must be false)
+    if (verifyResponse.data.student !== false) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Only instructors can create users",
+        },
+        { status: 403 }
+      );
+    }
+
     // Parse and validate request body
     const body = await req.json();
     const validatedBody = CreateUserRequestSchema.parse(body);

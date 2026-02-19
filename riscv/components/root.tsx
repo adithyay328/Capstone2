@@ -14,6 +14,7 @@ import { useState } from "react";
 import HelpModal from "@/components/help-modal";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
 import { loadWorkspace } from "@/app/api/load_workspace/frontend";
+import { logout } from "@/app/logout/frontend";
 
 import type {
   ProjectState,
@@ -614,24 +615,29 @@ React.useEffect(() => {
     if (typeof window === "undefined") return;
     const interval = window.setInterval(() => {
       void syncWorkspaceNow();
-    }, 3 * 60 * 1000);
+    }, 90 * 1000);
     return () => window.clearInterval(interval);
   }, [syncWorkspaceNow]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const handlePageHide = () => {
-      void syncWorkspaceNow(true);
+      void syncWorkspaceNow(true, true);
     };
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
-        void syncWorkspaceNow(true);
+        void syncWorkspaceNow(true, true);
       }
     };
+    const handleBeforeUnload = () => {
+      void syncWorkspaceNow(true, true);
+    };
     window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [syncWorkspaceNow]);
@@ -762,6 +768,10 @@ function handleSelectProject(projectId: string) {
         initialOpen={false}
         onNewProject={handleNewProject}
         onOpenProjects={handleOpenProjects}
+        onLogout={async () => {
+          await syncWorkspaceNow(true, true);
+          await logout();
+        }}
       />
       <HelpModal title="AI Helper Chatbot">
         <p>Potential Chatgpt??</p>
