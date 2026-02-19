@@ -1,206 +1,162 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { listLabs } from '@/app/api/list_labs/frontend';
-import { createLab } from '@/app/api/create_lab/frontend';
-import { deleteLab } from '@/app/api/delete_lab/frontend';
-import { Lab } from '@/app/api/list_labs/types';
+import { useState } from 'react';
 import Link from 'next/link';
+import { logout } from '@/app/logout/frontend';
 
 export default function InstructorPage() {
-    const [labs, setLabs] = useState<Lab[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [newLabName, setNewLabName] = useState('');
-    const [creating, setCreating] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // Dedicated load function that fetches labs from backend
-    const loadLabs = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await listLabs();
-            
-            if (response.success && response.labs) {
-                setLabs(response.labs);
-            } else {
-                setError(response.message || 'Failed to fetch labs');
-            }
-        } catch (err) {
-            setError('An error occurred while fetching labs');
-            console.error('Error fetching labs:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Load labs on component mount
-    useEffect(() => {
-        loadLabs();
-    }, []);
-
-    const handleCreateLab = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (!newLabName.trim()) {
-            alert('Please enter a lab name');
-            return;
-        }
-
-        try {
-            setCreating(true);
-            const response = await createLab(newLabName.trim());
-            
-            if (response.success && response.lab) {
-                // Reload labs from backend to ensure proper sorting and fresh data
-                await loadLabs();
-                setNewLabName(''); // Clear the input field
-            } else {
-                alert(response.message || 'Failed to create lab');
-            }
-        } catch (err) {
-            console.error('Error creating lab:', err);
-            alert('An error occurred while creating the lab');
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    const handleDeleteLab = async (uid: string, title: string) => {
-        if (!confirm(`Are you sure you want to delete the lab "${title}"? This action cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            const response = await deleteLab(uid);
-            
-            if (response.success) {
-                // Reload labs from backend to ensure proper sorting and fresh data
-                await loadLabs();
-            } else {
-                alert(response.message || 'Failed to delete lab');
-            }
-        } catch (err) {
-            console.error('Error deleting lab:', err);
-            alert('An error occurred while deleting the lab');
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen p-8">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-bold mb-6">Lab List</h1>
-                    <div className="text-center py-8">
-                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                        <p className="mt-2">Loading labs...</p>
-                    </div>
-                </div>
-            </div>
-        );
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      window.location.href = '/login';
     }
+  };
 
-    if (error) {
-        return (
-            <div className="min-h-screen p-8">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-bold mb-6">Lab List</h1>
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                        <strong className="font-bold">Error: </strong>
-                        <span className="block sm:inline">{error}</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+  const header = (
+    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Instructor</p>
+        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Manage labs, users, and access admin controls.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium shadow-sm transition ${
+            isLoggingOut
+              ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+              : 'bg-slate-900 text-white hover:bg-slate-800'
+          }`}
+        >
+          {isLoggingOut ? 'Logging out...' : 'Log out'}
+        </button>
+      </div>
+    </div>
+  );
 
-    return (
-        <div className="min-h-screen p-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold">Lab List</h1>
-                <Link
-                    href="/instructor/create_user"
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    >
-                    + Add New Teacher
-                </Link>
-</div>
-
-                
-                {/* Existing labs list */}
-                {labs.length === 0 ? (
-                    <div className="text-center py-8">
-                        <p className="text-gray-500">No labs available.</p>
-                    </div>
-                ) : (
-                    <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
-                        <ul className="divide-y divide-gray-200">
-                            {labs.map((lab) => (
-                                <li key={lab.uid} className="flex items-center justify-between">
-                                    <Link href={`/instructor/edit_lab/${lab.uid}`} className="flex-grow hover:bg-gray-50">
-                                        <div className="px-4 py-4 sm:px-6">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-lg font-medium text-indigo-600 truncate">
-                                                    {lab.title}
-                                                </p>
-                                                <div className="ml-2 flex-shrink-0 flex">
-                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                                                        Edit
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                    <div className="px-4">
-                                        <button
-                                            onClick={() => handleDeleteLab(lab.uid, lab.title)}
-                                            className="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                            aria-label={`Delete ${lab.title}`}
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* Create new lab form */}
-                <div className="bg-white shadow sm:rounded-lg p-6">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Create New Lab</h2>
-                    <form onSubmit={handleCreateLab} className="flex gap-4">
-                        <div className="flex-grow">
-                            <label htmlFor="labName" className="block text-sm font-medium text-gray-700 mb-1">
-                                Lab Name
-                            </label>
-                            <input
-                                type="text"
-                                id="labName"
-                                value={newLabName}
-                                onChange={(e) => setNewLabName(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-indigo-600 font-medium"
-                                placeholder="Enter lab name"
-                                disabled={creating}
-                            />
-                        </div>
-                        <div className="flex items-end">
-                            <button
-                                type="submit"
-                                disabled={creating || !newLabName.trim()}
-                                className={`px-6 py-2 rounded-md text-white font-medium ${
-                                    creating || !newLabName.trim()
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                                }`}
-                            >
-                                {creating ? 'Creating...' : 'Create Lab'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+  const quickActions = (
+    <section className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Labs</p>
+        <h2 className="mt-2 text-lg font-semibold text-slate-900">Lab Management</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Create, edit, and remove labs and test cases.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <Link
+            href="/instructor/labs"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            View/Edit labs
+          </Link>
         </div>
-    );
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Users</p>
+        <h2 className="mt-2 text-lg font-semibold text-slate-900">User Management</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Create instructor accounts and manage access.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <Link
+            href="/instructor/create_user"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Create New User
+          </Link>
+          <Link
+            href="/instructor/user_search"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Search users
+          </Link>
+        </div>
+      </div>
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Admin Controls</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Administrative Actions.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            Manage Roles
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            future potential button
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            future potential button
+          </button>
+        </div>
+      </section>
+    </section>
+
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-6xl p-8 space-y-8">
+        {header}
+        {quickActions}
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Course Controls</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Manage course-wide settings, roster visibility, and grading policies.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            >
+              Create New Course
+            </button>
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            >
+              View/Edit Courses
+            </button>
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            >
+              Add Student to Course
+            </button>
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            >
+              Drop Student from Course
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }
