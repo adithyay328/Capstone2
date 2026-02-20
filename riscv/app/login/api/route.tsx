@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         const userData = {
           username: user.username,
           student: !user.instructor, // student is the inverse of instructor
+          instructor: user.instructor,
         };
 
         // Create a new cookie with the user data
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
             username: user.username,
             success: true,
             student: userData.student,
+            instructor: userData.instructor,
           }),
           {
             status: 200,
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
             username: user.username,
             success: true,
             student: !user.instructor,
+            instructor: user.instructor,
           }),
           {
             status: 200,

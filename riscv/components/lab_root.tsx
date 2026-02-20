@@ -19,6 +19,7 @@ import { scoreTestCase } from "@/app/api/score/frontend";
 import { getGradeStatus } from "@/app/api/grade_status/frontend";
 import { syncLabSession } from "@/app/api/sync_lab_session/frontend";
 import { loadLabSession } from "@/app/api/load_lab_session/frontend";
+import { logout } from "@/app/logout/frontend";
 import useRunner from "@/components/use-runner";
 import type {
   AssemblyInfoData,
@@ -370,24 +371,29 @@ export default function LabRoot() {
     if (typeof window === "undefined") return;
     const interval = window.setInterval(() => {
       void syncLabSessionNow();
-    }, 3 * 60 * 1000);
+    }, 90 * 1000);
     return () => window.clearInterval(interval);
   }, [syncLabSessionNow]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const handlePageHide = () => {
-      void syncLabSessionNow(true);
+      void syncLabSessionNow(true, true);
     };
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
-        void syncLabSessionNow(true);
+        void syncLabSessionNow(true, true);
       }
     };
+    const handleBeforeUnload = () => {
+      void syncLabSessionNow(true, true);
+    };
     window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [syncLabSessionNow]);
@@ -574,6 +580,11 @@ export default function LabRoot() {
           toast.error(scoreResponse.error);
           return didRequest;
         }
+        if (scoreResponse.error) {
+          toast.error(scoreResponse.error);
+          allPassed = false;
+          break;
+        }
         if (!scoreResponse.pass) {
           allPassed = false;
           break;
@@ -585,6 +596,16 @@ export default function LabRoot() {
         toast.success(`Lab ${lab.title}: PASSED!`);
       } else {
         toast.error(`Lab ${lab.title}: FAILED!`);
+      }
+      const refreshedStatus = await getGradeStatus(lab.uid);
+      if (typeof refreshedStatus.attemptsLimit === "number") {
+        setGradeAttemptsLimit(refreshedStatus.attemptsLimit);
+      }
+      if (typeof refreshedStatus.attemptsUsed === "number") {
+        setGradeAttemptsUsed(refreshedStatus.attemptsUsed);
+      }
+      if (typeof refreshedStatus.attemptsRemaining === "number") {
+        setGradeAttemptsRemaining(refreshedStatus.attemptsRemaining);
       }
       return didRequest;
     } catch (error) {
@@ -632,6 +653,10 @@ return (
         initialOpen={false}
         onNewProject={handleNewProject}
         onOpenProjects={handleOpenProjects}
+        onLogout={async () => {
+          await syncLabSessionNow(true, true);
+          await logout();
+        }}
       />
       <HelpModal title="AI Helper Chatbot">
         <p>Potential Chatgpt??</p>

@@ -37,12 +37,25 @@ export async function middleware(request: NextRequest) {
   // the user is a student, and accessing a non
   // /student route
   const isStudentRoute = pathname.indexOf('student') !== -1;
-  const isUserStudent = verifyResponse.data.student;
-  if ( isUserStudent && !isStudentRoute ) {
+  const userData = verifyResponse.data as {
+    student?: boolean;
+    instructor?: boolean;
+  };
+  const isUserStudent = userData?.student === true;
+  const isUserInstructor =
+    userData?.instructor === true ||
+    (userData?.student === false && typeof userData?.instructor === "undefined");
+
+  if (isUserStudent && !isStudentRoute) {
     const studentUrl = new URL('/student', request.url);
     return NextResponse.redirect(studentUrl);
-  } else if ( !isUserStudent && isStudentRoute ) {
+  } else if (!isUserStudent && isStudentRoute) {
     const homeUrl = new URL('/instructor', request.url);
     return NextResponse.redirect(homeUrl);
+  }
+
+  if (!isUserStudent && !isUserInstructor) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
   }
 }
