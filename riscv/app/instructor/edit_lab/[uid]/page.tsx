@@ -37,6 +37,12 @@ export default function EditLabPage() {
   const [newTestCaseName, setNewTestCaseName] = useState('');
   const [creatingTestCase, setCreatingTestCase] = useState(false);
 
+    // ===== Course Assignment =====
+  const [courses, setCourses] = useState<any[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchLab = async () => {
       try {
@@ -70,6 +76,32 @@ export default function EditLabPage() {
     }
   }, [params.uid]);
 
+  // Fetch all courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        setCoursesError(null);
+
+        const res = await fetch('/api/list_courses');
+        const data = await res.json();
+
+        if (data.success) {
+          setCourses(data.courses);
+        } else {
+          setCoursesError(data.message || 'Failed to load courses');
+        }
+      } catch (err) {
+        console.error('Error loading courses:', err);
+        setCoursesError('Error loading courses');
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
   useEffect(() => {
     const fetchTestCases = async () => {
       if (!params.uid) return;
@@ -94,6 +126,8 @@ export default function EditLabPage() {
   }, [params.uid]);
 
   const handleSave = async () => {
+    console.log("Selected courses:", selectedCourses);
+
     if (!lab) return;
 
     try {
@@ -157,6 +191,14 @@ export default function EditLabPage() {
       console.error('Error deleting test case:', err);
       setTestCasesError('An error occurred while deleting test case');
     }
+  };
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourses((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
   };
 
   const handleUpdateTestCase = (updated: TestCase) => {
@@ -260,6 +302,40 @@ export default function EditLabPage() {
                 style={{ height: '700px' }}
               />
             )}
+          </div>
+        </div>
+
+        {/* ================= Assign To Courses ================= */}
+        <div className="mt-10">
+          <h2 className="text-2xl font-semibold mb-4">Assign To Courses</h2>
+
+          {coursesLoading && <p>Loading courses...</p>}
+
+          {coursesError && (
+            <p className="text-red-600">{coursesError}</p>
+          )}
+
+          {!coursesLoading && courses.length === 0 && (
+            <p>No courses found.</p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {courses.map((course) => (
+              <label
+                key={course.course_id}
+                className="flex items-center gap-2 border p-3 rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCourses.includes(course.course_id)}
+                  onChange={() => toggleCourse(course.course_id)}
+                />
+
+                <span>
+                  {course.code} — {course.title}
+                </span>
+              </label>
+            ))}
           </div>
         </div>
 
