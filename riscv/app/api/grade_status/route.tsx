@@ -1,9 +1,39 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { GradeStatusRequest, GradeStatusResponse } from "./types";
+import { verifyCookieInternal } from "@/app/verify/internal";
+import { modifyCookieData } from "@/app/verify/modify";
 
 const BACKEND_URL = "http://localhost:25565/grade_status";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Verify the cookie to ensure user is authenticated
+  const cookieHeader = req.headers.get('cookie') || '';
+  const verifyResponse = await verifyCookieInternal(cookieHeader);
+
+  // Check that username is set and student boolean exists
+  if (!verifyResponse.data || 
+      !verifyResponse.data.username || 
+      typeof verifyResponse.data.student === 'undefined') {
+    // Unauthorized - clear cookies using modifyCookieData with empty object
+    const modifiedCookie = await modifyCookieData({});
+
+    return new Response(
+      JSON.stringify({
+        error: 'Unauthorized',
+        message: 'Invalid or missing authentication',
+      }),
+      {
+        status: 401,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Set-Cookie': modifiedCookie,
+        },
+      }
+    );
+  }
+
+  const username = String(verifyResponse.data.username);
+
   let body: GradeStatusRequest;
   try {
     body = await req.json();
@@ -28,7 +58,7 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ lab_uid }),
+      body: JSON.stringify({ lab_uid, username }),
     });
 
     if (!response.ok) {

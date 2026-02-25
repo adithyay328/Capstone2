@@ -1,26 +1,30 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FiAlignJustify } from "react-icons/fi";
+import { FiAlignJustify, FiLogOut } from "react-icons/fi";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { LuGrid2X2Plus } from "react-icons/lu";
 import { IoLibrary, IoPersonCircle } from "react-icons/io5";
 import { PiProjectorScreenDuotone } from "react-icons/pi";
 import { MdOutlineSettings } from "react-icons/md";
 import { ImStack } from "react-icons/im";
+import { logout } from "@/app/logout/frontend";
 
 
 type SidebarProps = {
   initialOpen?: boolean;
   onNewProject?: () => void;
   onOpenProjects?: () => void;
+  onLogout?: () => void | Promise<void>;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     initialOpen = false,
     onNewProject,
     onOpenProjects,
+    onLogout,
 }) => {
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const asideRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -72,6 +76,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/student/help" },
     { id: "riscv-docs", label: "RISC-V Documentation", icon: ImStack, href: "/student/docs" },
   ];
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        await logout();
+      }
+    } finally {
+      window.location.href = "/login";
+    }
+  };
 
 
   return (
@@ -164,6 +182,27 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </nav>
+
+      {/* Logout */}
+      <div className="px-3 pb-2">
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+            isOpen ? "justify-start" : "justify-center"
+          } ${
+            isLoggingOut
+              ? "cursor-not-allowed bg-slate-800 text-slate-500"
+              : "text-slate-100 hover:bg-[rgb(59,56,59)]"
+          }`}
+        >
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-600 text-white">
+            <FiLogOut className="h-4 w-4" />
+          </span>
+          {isOpen && <span className="truncate">{isLoggingOut ? "Logging out..." : "Log out"}</span>}
+        </button>
+      </div>
 
       {/* Footer / version / whatever (optional) */}
       <div className="px-3 py-3 border-t border-slate-800 text-[11px] text-slate-500">
