@@ -46,5 +46,9 @@ next-env.d.ts
 
 #cache annoying
 __pychache__/
+Updated upstream
 *.pyc
 prototype_interp/__pycache__/*
+
+*.pyc__pycache__/
+Stashed changes

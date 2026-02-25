@@ -13,6 +13,9 @@ from machine import Register, MemoryAddress, MachineState
 
 from pydantic import BaseModel
 
+LED_ADDR      = 0x3F0
+SEVENSEG_ADDR = 0x3F4
+
 def checkRegister(token: str) -> int:
   """
   Validates that a token is a valid register format (e.g., 'x0', 'x15')
@@ -61,6 +64,7 @@ class Instruction(ABC):
   """
   The base type for an instruction.
   """
+
   @staticmethod
   @abstractmethod
   def getName() -> str:
@@ -1228,8 +1232,6 @@ class BLTU(Instruction):
       state.isJumping = True
       state.jumpOffset = self.imm
 
-    return state
-
 class BGEU(Instruction):
   def __init__(self, aIdx, bIdx, imm):
     self.aIdx = aIdx
@@ -1252,17 +1254,23 @@ class BGEU(Instruction):
     if tokens[0].lower() != 'bgeu':
       raise ValueError(f"Expected 'bgeu' instruction, got '{tokens[0]}'")
     
-    aIdx = checkRegister(tokens[1])
-    bIdx = checkRegister(tokens[2])
-    imm = checkImmediate(tokens[3])
+    #aIdx = checkRegister(tokens[1])
+    #bIdx = checkRegister(tokens[2])
+    #imm = checkImmediate(tokens[3])
+
+    dIdx = checkRegister(tokens[1]) #rd (destination)
+    imm = checkImmediate(tokens[2]) #immediate
     
-    return BGEU(aIdx, bIdx, imm)
+    #return BGEU(aIdx, bIdx, imm)
+    return AUIPC(dIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
+
     """
     Implements the forward pass of BGEU (Branch Greater or Equal Unsigned)
     If aIdx >= bIdx (unsigned), branch to PC + imm
     """
+
     aVal = state.regs[self.aIdx].value
     bVal = state.regs[self.bIdx].value
 
@@ -1311,11 +1319,22 @@ class SW(Instruction):
     aVal = state.regs[self.aIdx].value
     addr = (aVal + self.imm) % (2 ** 32)
 
-    # Store 4 bytes to memory (little-endian)
+    # Memory-mapped LED
+    if addr == LED_ADDR:
+      state.ledRegister = sVal & 0xFFFFFFFF
+      print("LED UPDATED:", state.ledRegister)
+      return state
+
+    # Memory-mapped 7-seg
+    if addr == SEVENSEG_ADDR:
+      state.sevenSegRegister = sVal & 0xFFFFFFFF
+      print("7SEG UPDATED:", state.sevenSegRegister)
+      return state
+
+    # Normal memory write
     if addr + 3 >= len(state.memory):
-      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
-    
-    # Break word into 4 bytes (little-endian)
+      raise ValueError("Memory access out of bounds")
+
     state.memory[addr].value = sVal & 0xFF
     state.memory[addr + 1].value = (sVal >> 8) & 0xFF
     state.memory[addr + 2].value = (sVal >> 16) & 0xFF

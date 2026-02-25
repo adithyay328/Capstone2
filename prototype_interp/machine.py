@@ -17,7 +17,7 @@ class Register:
   """
   def __init__(self, val, idx):
     self.__value = val
-
+    
     # Make sure the value has
     # less than 32 bits of value
     assert val >= 0 and val < 2 ** 32, "Register value out of bounds"
@@ -74,3 +74,7 @@ class MachineState:
     self.pc = pc
     self.isJumping = False
     self.jumpOffset = 0
+
+    #Memory-mapped hardware registers
+    self.ledRegister = 0
+    self.sevenSegRegister = 0

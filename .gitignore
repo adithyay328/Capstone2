@@ -101,3 +101,5 @@ __pychache__/
 prototype_interp/__pycache__/*
 riscv/node_modules/**
 prototype_interp/venv/
+__pycache__/
+*.pyc
