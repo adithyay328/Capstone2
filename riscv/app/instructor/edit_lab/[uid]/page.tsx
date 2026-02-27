@@ -282,7 +282,7 @@ export default function EditLabPage() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter lab title"
           />
         </div>
@@ -380,7 +380,7 @@ export default function EditLabPage() {
                   id="testCaseName"
                   value={newTestCaseName}
                   onChange={(e) => setNewTestCaseName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-indigo-600 font-medium"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter test case name"
                   disabled={creatingTestCase}
                 />
