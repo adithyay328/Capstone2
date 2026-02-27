@@ -128,7 +128,7 @@ export default function ViewEditCoursesPage() {
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="rounded border border-slate-300 px-3 py-1 text-sm"
+                        className="rounded border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100"
                       >
                         Cancel
                       </button>
@@ -145,15 +145,21 @@ export default function ViewEditCoursesPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(c)}
-                        className="rounded border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-50"
+                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100"
                       >
                         Edit
                       </button>
                       <Link
                         href={`/instructor/courses/roster?course_id=${c.course_id}`}
-                        className="rounded border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-50"
+                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100"
                       >
                         Roster
+                      </Link>
+                      <Link
+                        href={`/instructor/courses/labs?course_id=${c.course_id}`}
+                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100"
+                      >
+                        Labs
                       </Link>
                     </div>
                   </div>

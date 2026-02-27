@@ -1,0 +1,1 @@
+Instructor dashboard: course controls, add/drop members, demo scripts and input styling fixes

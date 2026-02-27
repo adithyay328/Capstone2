@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { updateLab } from '@/app/api/update_lab/frontend';
 import { Lab } from '@/app/api/list_labs/types';
+import { getLabCourses, syncLabCourses } from '@/app/api/lab_courses/frontend';
 import { listTestCases } from '@/app/api/list_test_cases/frontend';
 import { createTestCase } from '@/app/api/create_test_case/frontend';
 import { deleteTestCase } from '@/app/api/delete_test_case/frontend';
@@ -102,6 +103,16 @@ export default function EditLabPage() {
     fetchCourses();
   }, []);
 
+  // Load which courses this lab is assigned to
+  useEffect(() => {
+    if (!params.uid) return;
+    const load = async () => {
+      const res = await getLabCourses(params.uid);
+      if (res.success && res.course_ids) setSelectedCourses(res.course_ids);
+    };
+    load();
+  }, [params.uid]);
+
   useEffect(() => {
     const fetchTestCases = async () => {
       if (!params.uid) return;
@@ -126,8 +137,6 @@ export default function EditLabPage() {
   }, [params.uid]);
 
   const handleSave = async () => {
-    console.log("Selected courses:", selectedCourses);
-
     if (!lab) return;
 
     try {
@@ -142,13 +151,19 @@ export default function EditLabPage() {
       };
 
       const response = await updateLab(updatedLab);
-
-      if (response.success) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
+      if (!response.success) {
         setError(response.message || 'Failed to update lab');
+        return;
       }
+
+      const syncRes = await syncLabCourses(lab.uid, selectedCourses);
+      if (!syncRes.success) {
+        setError(syncRes.message || 'Lab saved but course assignments failed to update');
+        return;
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError('An error occurred while saving the lab');
       console.error('Error saving lab:', err);
