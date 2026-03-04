@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { updateLab } from '@/app/api/update_lab/frontend';
 import { Lab } from '@/app/api/list_labs/types';
+import { getLabCourses, syncLabCourses } from '@/app/api/lab_courses/frontend';
 import { listTestCases } from '@/app/api/list_test_cases/frontend';
 import { createTestCase } from '@/app/api/create_test_case/frontend';
 import { deleteTestCase } from '@/app/api/delete_test_case/frontend';
@@ -37,6 +38,12 @@ export default function EditLabPage() {
   const [newTestCaseName, setNewTestCaseName] = useState('');
   const [creatingTestCase, setCreatingTestCase] = useState(false);
 
+    // ===== Course Assignment =====
+  const [courses, setCourses] = useState<any[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchLab = async () => {
       try {
@@ -68,6 +75,42 @@ export default function EditLabPage() {
     if (params.uid) {
       fetchLab();
     }
+  }, [params.uid]);
+
+  // Fetch all courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        setCoursesError(null);
+
+        const res = await fetch('/api/list_courses');
+        const data = await res.json();
+
+        if (data.success) {
+          setCourses(data.courses);
+        } else {
+          setCoursesError(data.message || 'Failed to load courses');
+        }
+      } catch (err) {
+        console.error('Error loading courses:', err);
+        setCoursesError('Error loading courses');
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  // Load which courses this lab is assigned to
+  useEffect(() => {
+    if (!params.uid) return;
+    const load = async () => {
+      const res = await getLabCourses(params.uid);
+      if (res.success && res.course_ids) setSelectedCourses(res.course_ids);
+    };
+    load();
   }, [params.uid]);
 
   useEffect(() => {
@@ -108,13 +151,19 @@ export default function EditLabPage() {
       };
 
       const response = await updateLab(updatedLab);
-
-      if (response.success) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
+      if (!response.success) {
         setError(response.message || 'Failed to update lab');
+        return;
       }
+
+      const syncRes = await syncLabCourses(lab.uid, selectedCourses);
+      if (!syncRes.success) {
+        setError(syncRes.message || 'Lab saved but course assignments failed to update');
+        return;
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError('An error occurred while saving the lab');
       console.error('Error saving lab:', err);
@@ -157,6 +206,14 @@ export default function EditLabPage() {
       console.error('Error deleting test case:', err);
       setTestCasesError('An error occurred while deleting test case');
     }
+  };
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourses((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
   };
 
   const handleUpdateTestCase = (updated: TestCase) => {
@@ -240,7 +297,7 @@ export default function EditLabPage() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter lab title"
           />
         </div>
@@ -260,6 +317,40 @@ export default function EditLabPage() {
                 style={{ height: '700px' }}
               />
             )}
+          </div>
+        </div>
+
+        {/* ================= Assign To Courses ================= */}
+        <div className="mt-10">
+          <h2 className="text-2xl font-semibold mb-4">Assign To Courses</h2>
+
+          {coursesLoading && <p>Loading courses...</p>}
+
+          {coursesError && (
+            <p className="text-red-600">{coursesError}</p>
+          )}
+
+          {!coursesLoading && courses.length === 0 && (
+            <p>No courses found.</p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {courses.map((course) => (
+              <label
+                key={course.course_id}
+                className="flex items-center gap-2 border p-3 rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCourses.includes(course.course_id)}
+                  onChange={() => toggleCourse(course.course_id)}
+                />
+
+                <span>
+                  {course.code} — {course.title}
+                </span>
+              </label>
+            ))}
           </div>
         </div>
 
@@ -304,7 +395,7 @@ export default function EditLabPage() {
                   id="testCaseName"
                   value={newTestCaseName}
                   onChange={(e) => setNewTestCaseName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-indigo-600 font-medium"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter test case name"
                   disabled={creatingTestCase}
                 />
