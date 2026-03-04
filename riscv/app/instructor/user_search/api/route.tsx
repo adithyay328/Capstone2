@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Only instructors can search users
-  if (verifyResponse.data.student !== false) {
+  if (verifyResponse.data.instructor !== true) {
     return new Response(
       JSON.stringify({
         success: false,
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       }
 
       sql = `
-        SELECT u.username, u.instructor, cm.role AS course_role, cm.course_id
+        SELECT u.username, u.asuid, u.instructor, cm.role AS course_role, cm.course_id
         FROM users u
         JOIN course_memberships cm ON cm.username = u.username
         JOIN courses c ON c.course_id = cm.course_id
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       }
 
       sql = `
-        SELECT DISTINCT u.username, u.instructor
+        SELECT DISTINCT u.username, u.asuid, u.instructor
         FROM users u
         JOIN course_memberships cm ON cm.username = u.username
         WHERE ${filters.join(" AND ")}
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       }
 
       sql = `
-        SELECT u.username, u.instructor
+        SELECT u.username, u.asuid, u.instructor
         FROM users u
         ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
         ORDER BY u.username ASC
@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
     const result = await client.query(sql, values);
     const users = result.rows.map((row) => ({
       username: row.username,
+      asuid: row.asuid ?? null,
       instructor: Boolean(row.instructor),
       courseId: row.course_id ?? null,
       courseRole: row.course_role ?? null,
@@ -166,12 +167,13 @@ export async function POST(req: NextRequest) {
       } satisfies UserSearchResponse),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("User search error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({
         success: false,
-        message: "Failed to search users: " + (error.message || "Unknown error"),
+        message: "Failed to search users: " + errorMessage,
       } satisfies UserSearchResponse),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Check that user is an instructor (student must be false)
-  if (verifyResponse.data.student !== false) {
+  if (verifyResponse.data.instructor !== true) {
     return new Response(
       JSON.stringify({
         error: 'Forbidden',
@@ -95,11 +95,16 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete test case error:', error);
+    const isZodError =
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name?: string }).name === 'ZodError';
     
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (isZodError) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -117,7 +122,9 @@ export async function POST(req: NextRequest) {
       JSON.stringify({
         success: false,
         error: 'Internal Server Error',
-        message: 'An unexpected error occurred while deleting test case: ' + (error.message || 'Unknown error'),
+        message:
+          'An unexpected error occurred while deleting test case: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
       }),
       {
         status: 500,

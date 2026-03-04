@@ -8,6 +8,7 @@ export const UserSearchRequestSchema = z.object({
 
 export const UserSearchResultSchema = z.object({
   username: z.string(),
+  asuid: z.string().nullable().optional(),
   instructor: z.boolean(),
   courseId: z.string().nullable().optional(),
   courseRole: z.string().nullable().optional(),

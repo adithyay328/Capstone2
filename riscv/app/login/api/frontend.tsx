@@ -1,21 +1,26 @@
 'use client';
 
-import { LoginRequest, LoginResponse } from './types';
+import { LoginPortal, LoginRequest, LoginResponse } from './types';
 
 /**
  * Attempts to log in a user
  * @param username - The username
  * @param password - The password
+ * @param portal - Login portal mode ('student' or 'admin')
  * @returns Promise with login result
  */
-export async function login(username: string, password: string): Promise<LoginResponse> {
+export async function login(
+  username: string,
+  password: string,
+  portal: LoginPortal = 'student'
+): Promise<LoginResponse> {
   try {
     const response = await fetch('/login/api', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password } satisfies LoginRequest)
+      body: JSON.stringify({ username, password, portal } satisfies LoginRequest)
     });
 
     const result = await response.json();
