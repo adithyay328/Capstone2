@@ -95,7 +95,7 @@ export default function UserSearchPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by username"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -107,7 +107,7 @@ export default function UserSearchPage() {
                 id="role"
                 value={role}
                 onChange={(event) => setRole(event.target.value as RoleFilter)}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -127,7 +127,7 @@ export default function UserSearchPage() {
                 value={course}
                 onChange={(event) => setCourse(event.target.value)}
                 placeholder="Course ID or code"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -160,6 +160,7 @@ export default function UserSearchPage() {
                 <thead className="border-b border-slate-200 text-slate-500">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Username</th>
+                    <th className="py-2 pr-4 font-medium">ASU ID</th>
                     <th className="py-2 pr-4 font-medium">Role</th>
                     <th className="py-2 pr-4 font-medium">Course</th>
                   </tr>
@@ -180,6 +181,7 @@ export default function UserSearchPage() {
                     return (
                       <tr key={user.username} className="text-slate-700">
                         <td className="py-2 pr-4 font-medium">{user.username}</td>
+                        <td className="py-2 pr-4">{user.asuid ?? "—"}</td>
                         <td className="py-2 pr-4">{roleLabel}</td>
                         <td className="py-2 pr-4">{courseLabel}</td>
                       </tr>

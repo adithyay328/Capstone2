@@ -1,10 +1,16 @@
 import { CreateUserRequest, CreateUserResponse, CreateUserRequestSchema, CreateUserResponseSchema } from './types';
 
-export async function createUser(username: string, password: string, instructor: boolean): Promise<CreateUserResponse> {
+export async function createUser(
+  username: string,
+  asuid: string,
+  password: string,
+  instructor: boolean
+): Promise<CreateUserResponse> {
   try {
     // Build the request object
     const requestBody: CreateUserRequest = {
       username,
+      asuid,
       password,
       instructor,
     };

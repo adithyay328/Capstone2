@@ -87,13 +87,12 @@ export default function InstructorPage() {
           Administrative Actions.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+          <Link
+            href="/instructor/manage_roles"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             Manage Roles
-          </button>
+          </Link>
           <button
             type="button"
             disabled
@@ -126,34 +125,30 @@ export default function InstructorPage() {
             Manage course-wide settings, roster visibility, and grading policies.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            <Link
+              href="/instructor/courses/create"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
               Create New Course
-            </button>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            </Link>
+            <Link
+              href="/instructor/courses"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
               View/Edit Courses
-            </button>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            </Link>
+            <Link
+              href="/instructor/courses/add_member"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
               Add Student to Course
-            </button>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+            </Link>
+            <Link
+              href="/instructor/courses/drop_member"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
               Drop Student from Course
-            </button>
+            </Link>
           </div>
         </section>
       </div>
