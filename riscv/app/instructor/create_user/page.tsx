@@ -5,6 +5,7 @@ import { createUser } from './api/frontend';
 
 export default function CreateUserPage() {
   const [username, setUsername] = useState('');
+  const [asuid, setAsuid] = useState('');
   const [password, setPassword] = useState('');
   const [isInstructor, setIsInstructor] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,12 +17,13 @@ export default function CreateUserPage() {
     setMessage(null);
     
     try {
-      const result = await createUser(username, password, isInstructor);
+      const result = await createUser(username, asuid, password, isInstructor);
       setMessage({ success: result.success, text: result.message });
       
       if (result.success) {
         // Clear form on success
         setUsername('');
+        setAsuid('');
         setPassword('');
         setIsInstructor(false);
       }
@@ -71,6 +73,23 @@ export default function CreateUserPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="asuid" className="block text-sm font-medium mb-1">
+              ASU ID
+            </label>
+            <input
+              type="text"
+              id="asuid"
+              value={asuid}
+              onChange={(e) => setAsuid(e.target.value)}
+              inputMode="numeric"
+              pattern="[0-9]{10}"
+              maxLength={10}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>

@@ -8,8 +8,11 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [portal, setPortal] = useState<'student' | 'admin'>('student');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isAdminPortal = portal === 'admin';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,17 +20,25 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await login(username, password);
+      const result = await login(username, password, portal);
       
       if (result.success) {
-        // Clear form fields
-        setUsername('');
-        setPassword('');
-        
-        // Redirect based on user role
-        if (result.student !== undefined) {
-          const redirectPath = result.student ? '/student' : '/instructor';
+        let redirectPath: string | null = null;
+        if (result.instructor) {
+          redirectPath = '/instructor';
+        } else if (result.ta) {
+          redirectPath = '/ta';
+        } else if (result.student) {
+          redirectPath = '/student';
+        }
+
+        if (redirectPath) {
+          // Clear form fields
+          setUsername('');
+          setPassword('');
           router.push(redirectPath);
+        } else {
+          setError('Unable to determine account role for sign-in.');
         }
       } else {
         // Server handles cookie clearing via Set-Cookie header
@@ -45,10 +56,25 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <div>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setPortal(isAdminPortal ? 'student' : 'admin')}
+              disabled={isLoading}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+            >
+              {isAdminPortal ? 'Use Student Login' : 'Admin Login'}
+            </button>
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            {isAdminPortal ? 'Admin Login' : 'Student Login'}
           </h2>
+          <p className="text-center text-sm text-gray-500">
+            {isAdminPortal
+              ? 'For TA and Instructor accounts'
+              : 'For student accounts'}
+          </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
@@ -106,7 +132,7 @@ export default function LoginPage() {
                   </svg>
                 </span>
               ) : null}
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? 'Signing in...' : isAdminPortal ? 'Sign in as Admin' : 'Sign in as Student'}
             </button>
           </div>
         </form>

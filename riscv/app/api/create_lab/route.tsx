@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Check that user is an instructor (student must be false)
-  if (verifyResponse.data.student !== false) {
+  if (verifyResponse.data.instructor !== true) {
     return new Response(
       JSON.stringify({
         error: 'Forbidden',
@@ -106,17 +106,27 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create lab error:', error);
+    const isZodError =
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name?: string }).name === 'ZodError';
     
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (isZodError) {
       return new Response(
         JSON.stringify({
           success: false,
           error: 'Validation Error',
           message: 'Invalid request data format',
-          details: error.errors,
+          details:
+            typeof error === 'object' &&
+            error !== null &&
+            'errors' in error
+              ? (error as { errors?: unknown[] }).errors
+              : undefined,
         }),
         {
           status: 400,
@@ -129,7 +139,9 @@ export async function POST(req: NextRequest) {
       JSON.stringify({
         success: false,
         error: 'Internal Server Error',
-        message: 'An unexpected error occurred while creating lab: ' + (error.message || 'Unknown error'),
+        message:
+          'An unexpected error occurred while creating lab: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
       }),
       {
         status: 500,

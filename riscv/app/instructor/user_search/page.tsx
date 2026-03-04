@@ -160,6 +160,7 @@ export default function UserSearchPage() {
                 <thead className="border-b border-slate-200 text-slate-500">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Username</th>
+                    <th className="py-2 pr-4 font-medium">ASU ID</th>
                     <th className="py-2 pr-4 font-medium">Role</th>
                     <th className="py-2 pr-4 font-medium">Course</th>
                   </tr>
@@ -180,6 +181,7 @@ export default function UserSearchPage() {
                     return (
                       <tr key={user.username} className="text-slate-700">
                         <td className="py-2 pr-4 font-medium">{user.username}</td>
+                        <td className="py-2 pr-4">{user.asuid ?? "—"}</td>
                         <td className="py-2 pr-4">{roleLabel}</td>
                         <td className="py-2 pr-4">{courseLabel}</td>
                       </tr>

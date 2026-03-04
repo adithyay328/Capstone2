@@ -88,8 +88,8 @@ export default function InstructorPage() {
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href="/instructor/courses/add_member"
-            className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            href="/instructor/manage_roles"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             Manage Roles
           </Link>
