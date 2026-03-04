@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { CreateUserRequestSchema, CreateUserResponseSchema } from "./types";
+import { CreateUserRequestSchema } from "./types";
 
 import { DBConnection } from "@/app/sql/sql";
 import { hashPassword, generateSalt } from "@/app/passwords";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { modifyCookieData } from "@/app/verify/modify";
+import { ZodError } from "zod";
 
 export async function POST(req: Request) {
   let db: DBConnection | null = null;
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // Check that user is an instructor (student must be false)
-    if (verifyResponse.data.student !== false) {
+    if (verifyResponse.data.instructor !== true) {
       return NextResponse.json(
         {
           success: false,
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedBody = CreateUserRequestSchema.parse(body);
 
-    const { username, password, instructor } = validatedBody;
+    const { username, asuid, password, instructor } = validatedBody;
 
     // Get database connection
     db = new DBConnection();
@@ -58,8 +59,8 @@ export async function POST(req: Request) {
 
     // Insert user into database
     await client.query(
-      "INSERT INTO users (username, salt, password_hash, instructor) VALUES ($1, $2, $3, $4)",
-      [username, salt, passwordHash, instructor]
+      "INSERT INTO users (username, asuid, salt, password_hash, instructor) VALUES ($1, $2, $3, $4, $5)",
+      [username, asuid, salt, passwordHash, instructor]
     );
 
     // Return success response
@@ -71,24 +72,29 @@ export async function POST(req: Request) {
       { status: 201 }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid request format: " + error.errors.map((e: any) => e.message).join(", "),
+          message: "Invalid request format: " + error.issues.map((issue) => issue.message).join(", "),
         },
         { status: 400 }
       );
     }
 
     // Handle database errors
-    if (error.code === '23505') { // Unique violation
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "23505"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Username already exists",
+          message: "Username or ASU ID already exists",
         },
         { status: 409 }
       );
@@ -96,10 +102,11 @@ export async function POST(req: Request) {
 
     // Handle other errors
     console.error("Error creating user:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create user: " + (error.message || "Unknown error"),
+        message: "Failed to create user: " + errorMessage,
       },
       { status: 500 }
       );

@@ -9,7 +9,8 @@ export const config = {
   runtime: 'nodejs', // Specify the Node.js runtime
   matcher: [
     '/student/:path*',
-    '/instructor/:path*'
+    '/instructor/:path*',
+    '/ta/:path*'
   ],
 };
 
@@ -33,29 +34,37 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // The only other violation is if
-  // the user is a student, and accessing a non
-  // /student route
-  const isStudentRoute = pathname.indexOf('student') !== -1;
+  const isStudentRoute = pathname.startsWith('/student');
+  const isInstructorRoute = pathname.startsWith('/instructor');
+  const isTaRoute = pathname.startsWith('/ta');
   const userData = verifyResponse.data as {
     student?: boolean;
     instructor?: boolean;
+    ta?: boolean;
   };
-  const isUserStudent = userData?.student === true;
-  const isUserInstructor =
-    userData?.instructor === true ||
-    (userData?.student === false && typeof userData?.instructor === "undefined");
+  const isUserInstructor = userData?.instructor === true;
+  const isUserTa = userData?.ta === true && !isUserInstructor;
+  const isUserStudent = userData?.student === true && !isUserInstructor && !isUserTa;
 
-  if (isUserStudent && !isStudentRoute) {
-    const studentUrl = new URL('/student', request.url);
-    return NextResponse.redirect(studentUrl);
-  } else if (!isUserStudent && isStudentRoute) {
-    const homeUrl = new URL('/instructor', request.url);
-    return NextResponse.redirect(homeUrl);
-  }
+  const homePath = isUserInstructor
+    ? '/instructor'
+    : isUserTa
+      ? '/ta'
+      : isUserStudent
+        ? '/student'
+        : null;
 
-  if (!isUserStudent && !isUserInstructor) {
+  if (!homePath) {
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const isOnWrongProtectedRoute =
+    (isStudentRoute && homePath !== '/student') ||
+    (isInstructorRoute && homePath !== '/instructor') ||
+    (isTaRoute && homePath !== '/ta');
+
+  if (isOnWrongProtectedRoute) {
+    return NextResponse.redirect(new URL(homePath, request.url));
   }
 }
