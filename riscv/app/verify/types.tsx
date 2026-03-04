@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Schema for the sens object structure
 export const SensDataSchema = z.object({
   hmac: z.string(),
-  data: z.record(z.unknown()), // Generic JSON object
+  data: z.record(z.string(), z.unknown()), // Generic JSON object
 });
 
 export type SensData = z.infer<typeof SensDataSchema>;
@@ -18,7 +18,7 @@ export type VerifyRequest = z.infer<typeof VerifyRequestSchema>;
 // Schema for the verification response
 export const VerifyResponseSchema = z.object({
   cookie: z.string(),
-  data: z.record(z.unknown()).nullable(),
+  data: z.record(z.string(), z.unknown()).nullable(),
 });
 
 export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;

@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
           details:
             typeof error === 'object' &&
             error !== null &&
-            'errors' in error
-              ? (error as { errors?: unknown[] }).errors
+            'issues' in error
+              ? (error as { issues?: unknown[] }).issues
               : undefined,
         }),
         {

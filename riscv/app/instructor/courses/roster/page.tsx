@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getCourseMembers } from '@/app/api/course_members/frontend';
@@ -9,7 +9,7 @@ import { listCourses } from '@/app/api/list_courses/frontend';
 import type { CourseMember } from '@/app/api/course_members/types';
 import type { Course } from '@/app/api/list_courses/types';
 
-export default function CourseRosterPage() {
+function CourseRosterContent() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('course_id') ?? '';
   const [course, setCourse] = useState<Course | null>(null);
@@ -129,5 +129,19 @@ export default function CourseRosterPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CourseRosterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 p-8">
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      }
+    >
+      <CourseRosterContent />
+    </Suspense>
   );
 }

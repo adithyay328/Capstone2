@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const parsed = CreateCourseRequestSchema.safeParse(body);
   if (!parsed.success) {
     return new Response(
-      JSON.stringify({ success: false, message: parsed.error.errors.map((e) => e.message).join(', ') }),
+      JSON.stringify({ success: false, message: parsed.error.issues.map((e) => e.message).join(', ') }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }

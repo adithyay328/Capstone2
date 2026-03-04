@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { listCourses } from '@/app/api/list_courses/frontend';
@@ -11,7 +11,7 @@ import type { UserSearchResult } from '@/app/instructor/user_search/api/types';
 
 type Role = 'student' | 'instructor' | 'ta';
 
-export default function AddMemberPage() {
+function AddMemberPageContent() {
   const searchParams = useSearchParams();
   const defaultCourseId = searchParams.get('course_id') ?? '';
   const [courses, setCourses] = useState<Course[]>([]);
@@ -153,5 +153,19 @@ export default function AddMemberPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AddMemberPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 p-8">
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      }
+    >
+      <AddMemberPageContent />
+    </Suspense>
   );
 }

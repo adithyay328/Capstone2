@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { listCourses } from '@/app/api/list_courses/frontend';
@@ -9,7 +9,7 @@ import { listLabs } from '@/app/api/list_labs/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { Lab } from '@/app/api/list_labs/types';
 
-export default function CourseLabsPage() {
+function CourseLabsPageContent() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('course_id') ?? '';
   const [course, setCourse] = useState<Course | null>(null);
@@ -20,7 +20,7 @@ export default function CourseLabsPage() {
   const [adding, setAdding] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
       setLoading(false);
       return;
@@ -43,11 +43,11 @@ export default function CourseLabsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
 
   useEffect(() => {
-    load();
-  }, [courseId]);
+    void load();
+  }, [load]);
 
   const inCourse = new Set(courseLabs.map((l) => l.lab_uid));
   const labsNotInCourse = allLabs.filter((l) => !inCourse.has(l.uid));
@@ -190,5 +190,19 @@ export default function CourseLabsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CourseLabsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 p-8">
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      }
+    >
+      <CourseLabsPageContent />
+    </Suspense>
   );
 }
