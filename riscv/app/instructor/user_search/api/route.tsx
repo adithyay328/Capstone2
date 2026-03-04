@@ -152,7 +152,17 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await client.query(sql, values);
-    const users = result.rows.map((row) => ({
+    type UserSearchRow = {
+      username: string;
+      asuid: string | null;
+      instructor: unknown; // DB driver may return boolean / number / string
+      course_id?: string | null;
+      course_role?: string | null;
+    };
+    
+    const result = await client.query(sql, values);
+    
+    const users = (result.rows as UserSearchRow[]).map((row) => ({
       username: row.username,
       asuid: row.asuid ?? null,
       instructor: Boolean(row.instructor),
