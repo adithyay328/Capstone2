@@ -11,7 +11,7 @@ export async function modifyCookieData(newData: Record<string, unknown>): Promis
   
   try {
     // Get database connection and secret for HMAC computation
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
     const secretResult = await client.query(
       "SELECT value FROM secrets WHERE name = 'hmac'"

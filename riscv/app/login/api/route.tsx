@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const portal = parsedBody.data.portal ?? 'student';
 
     // Get database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Get user from database
@@ -193,6 +193,11 @@ export async function POST(req: NextRequest) {
     }
   } catch (error: unknown) {
     console.error('Login error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const message =
+      process.env.NODE_ENV === 'development'
+        ? `Backend error: ${errorMessage}`
+        : 'Unknown error in backend';
 
     // Make an empty cookie to clear any existing cookies
     const modifiedCookie = await modifyCookieData({});
@@ -200,7 +205,7 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({
         success: false,
-        message: 'Unknown error in backend',
+        message,
       }),
       {
         status: 200,

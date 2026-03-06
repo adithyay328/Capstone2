@@ -1,38 +1,40 @@
-// Contains our login creds for this server. This
-// is on wireguard regardless, no one can
-// access this but Adi.
-const USERNAME = "capstone";
-const PASSWORD = "capstone";
-const HOST = "localhost";
-const DB_NAME = "capstone";
-
 import { Client } from "pg";
 
-// To help with preventing too many connections,
-// all connections are wrapped in this object.
-// When it's auto destroyed, the connections close.
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const getDatabaseUrl = () => getRequiredEnv("DATABASE_URL");
+
 export class DBConnection {
   client: Client;
 
-  constructor() {
-    this.client = new Client({
-      user: USERNAME,
-      host: HOST,
-      database: DB_NAME,
-      password: PASSWORD,
-      port: 5432,
-    });
-    this.client.connect();
+  private constructor(client: Client) {
+    this.client = client;
 
-    // In one minute, register
-    // a callback to close this connection
-    // if not already closed
     setTimeout(async () => {
       try {
         await this.client.end();
-      } catch (error) {
-        // Silently ignore errors if connection is already closed
+      } catch {
+        // ignore if already closed
       }
     }, 15 * 1000);
+  }
+
+  static async create(): Promise<DBConnection> {
+    const DATABASE_URL = getDatabaseUrl();
+    const client = new Client({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    await client.connect();
+    // Neon roles can have an empty search_path; force public for unqualified table names.
+    await client.query("SET search_path TO public");
+    return new DBConnection(client);
   }
 }

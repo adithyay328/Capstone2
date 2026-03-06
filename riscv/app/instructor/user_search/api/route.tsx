@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
 
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     const values: string[] = [];
@@ -151,7 +151,6 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    const result = await client.query(sql, values);
     type UserSearchRow = {
       username: string;
       asuid: string | null;

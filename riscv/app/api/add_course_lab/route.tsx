@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     await db.client.query(
       'INSERT INTO course_labs (course_id, lab_uid, position) VALUES ($1, $2, 0) ON CONFLICT (course_id, lab_uid) DO NOTHING',
       [course_id, lab_uid]

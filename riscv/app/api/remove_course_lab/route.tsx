@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const result = await db.client.query(
       'DELETE FROM course_labs WHERE course_id = $1 AND lab_uid = $2 RETURNING 1',
       [course_id, lab_uid]

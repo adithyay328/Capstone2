@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const labData = LabSchema.parse(body);
     
     // Create database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Update the lab record

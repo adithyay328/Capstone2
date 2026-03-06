@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest) {
 
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     await db.client.query(
       `UPDATE courses SET ${updates.join(', ')} WHERE course_id = $${idx}`,
       values

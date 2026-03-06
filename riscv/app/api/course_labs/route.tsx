@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const result = await db.client.query(
       `SELECT l.uid AS lab_uid, l.title
        FROM course_labs cl

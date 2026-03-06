@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const requestData = DeleteTestCaseRequestSchema.parse(body);
     
     // Create database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Check if test case exists
