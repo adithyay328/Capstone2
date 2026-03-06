@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   
   try {
     // Create database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Query all labs, ordered alphabetically by title

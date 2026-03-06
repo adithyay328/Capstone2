@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const result = await db.client.query(
       'SELECT course_id FROM course_labs WHERE lab_uid = $1 ORDER BY course_id',
       [lab_uid]
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   }
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
     await client.query('DELETE FROM course_labs WHERE lab_uid = $1', [lab_uid]);
     for (const course_id of course_ids) {

@@ -46,7 +46,7 @@ export async function verifyCookieInternal(cookie: string): Promise<VerifyRespon
     const { hmac, data } = sensData;
     
     // Get database connection and secret for HMAC verification
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
     const secretResult = await client.query(
       "SELECT value FROM secrets WHERE name = 'hmac'"

@@ -4,6 +4,8 @@ and sending it out.
 """
 
 import json
+import os
+from pathlib import Path
 import psycopg2
 from flask import Flask, request, jsonify
 from stringParse import sourceToInstructions
@@ -15,14 +17,46 @@ app = Flask(__name__)
 # Grade attempt limits (server-side; persisted in DB)
 GRADE_LIMIT = 5
 
+def load_local_env() -> None:
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+def get_required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+load_local_env()
+
 # Database connection helper
 def get_db_connection():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+
+    db_port_raw = get_required_env("DB_PORT")
+    try:
+        db_port = int(db_port_raw)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid DB_PORT value: {db_port_raw}") from exc
+
     return psycopg2.connect(
-        host="localhost",
-        database="capstone",
-        user="capstone",
-        password="capstone",
-        port=5432
+        host=get_required_env("DB_HOST"),
+        database=get_required_env("DB_NAME"),
+        user=get_required_env("DB_USER"),
+        password=get_required_env("DB_PASSWORD"),
+        port=db_port,
     )
 
 def constraint_exists(cur, name: str) -> bool:

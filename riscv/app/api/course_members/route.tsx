@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   let db: DBConnection | null = null;
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const result = await db.client.query(
       `SELECT username, role, status FROM course_memberships WHERE course_id = $1 ORDER BY role, username`,
       [courseId]

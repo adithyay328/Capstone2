@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     };
     
     // Create database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Insert the new lab record

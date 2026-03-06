@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const { username, asuid, password, instructor } = validatedBody;
 
     // Get database connection
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     // Generate 2000-character random salt (for database compatibility)

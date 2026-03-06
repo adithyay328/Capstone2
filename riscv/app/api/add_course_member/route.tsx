@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
 
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     const courseCheck = await client.query('SELECT 1 FROM courses WHERE course_id = $1', [course_id]);

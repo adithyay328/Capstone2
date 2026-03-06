@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   let db: DBConnection | null = null;
 
   try {
-    db = new DBConnection();
+    db = await DBConnection.create();
     const client = db.client;
 
     const result = await client.query(
