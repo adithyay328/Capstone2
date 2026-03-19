@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AssemblyInfoData, SimState, SubmitResponse } from '@/components/types';
 
-const LabSessionSchema = z.object({
+export const LabSessionSchema = z.object({
   storageKey: z.string(),
   uid: z.string(),
   labUid: z.string().nullable(),

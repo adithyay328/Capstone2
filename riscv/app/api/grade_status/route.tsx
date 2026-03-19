@@ -44,7 +44,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const course_id = (body.course_id ?? "").trim();
   const lab_uid = (body.lab_uid ?? "").trim();
+  if (!/^[0-9]{5}$/.test(course_id)) {
+    return NextResponse.json(
+      { error: "Valid course_id (5 digits) required" } satisfies GradeStatusResponse,
+      { status: 200 }
+    );
+  }
+
   if (!lab_uid) {
     return NextResponse.json(
       { error: "No lab_uid provided" } satisfies GradeStatusResponse,
@@ -58,7 +66,7 @@ export async function POST(req: NextRequest) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ lab_uid, username }),
+      body: JSON.stringify({ course_id, lab_uid, username }),
     });
 
     if (!response.ok) {

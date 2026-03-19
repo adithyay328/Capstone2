@@ -43,8 +43,10 @@ END $$;
 
 -- Run all remaining setup scripts in established dependency order.
 \ir setupDB_Persistence.sql
+\ir setupDB_UserSettings.sql
 \ir setupDB_Courses.sql
 \ir setupDB_GradeAttempts.sql
+\ir setupDB_CourseGradeAttempts.sql
 \ir setupDB_ASUID.sql
 \ir setupDB_TARoles.sql
 

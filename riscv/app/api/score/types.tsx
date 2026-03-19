@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Schema for the score request
 export const ScoreRequestSchema = z.object({
   code: z.string(),
+  course_id: z.string().length(5).regex(/^[0-9]{5}$/),
   test_uid: z.string(),
   grade_session_id: z.string().optional(),
 });

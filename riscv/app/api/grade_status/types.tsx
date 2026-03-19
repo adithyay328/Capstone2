@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 // Schema for the grade status request
 export const GradeStatusRequestSchema = z.object({
+  course_id: z.string().length(5).regex(/^[0-9]{5}$/),
   lab_uid: z.string(),
 });
 

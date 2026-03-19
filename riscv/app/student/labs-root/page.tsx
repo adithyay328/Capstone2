@@ -6,15 +6,16 @@ import LabRoot from "@/components/lab_root";
 function StudentLabsRootPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const courseId = searchParams.get("course_id");
   const labUid = searchParams.get("lab");
 
   useEffect(() => {
-    if (!labUid) {
+    if (!courseId || !labUid) {
       router.replace("/student/labs");
     }
-  }, [labUid, router]);
+  }, [courseId, labUid, router]);
 
-  if (!labUid) {
+  if (!courseId || !labUid) {
     return null;
   }
 

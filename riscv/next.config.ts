@@ -1,7 +1,15 @@
+import path from "path";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
+const projectRoot = path.resolve(__dirname);
 
-export default nextConfig;
+export default function nextConfig(phase: string): NextConfig {
+  return {
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+    outputFileTracingRoot: projectRoot,
+    turbopack: {
+      root: projectRoot,
+    },
+  };
+}

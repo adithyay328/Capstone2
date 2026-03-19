@@ -10,11 +10,15 @@ import { writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 import RegisterEditor from "./register-editor";
-import { useState } from "react";
 import HelpModal from "@/components/help-modal";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
 import { loadWorkspace } from "@/app/api/load_workspace/frontend";
 import { logout } from "@/app/logout/frontend";
+import { getUserSettings } from "@/app/api/user_settings/frontend";
+import {
+  DEFAULT_USER_SETTINGS,
+  type UserSettings,
+} from "@/app/api/user_settings/types";
 
 import type {
   ProjectState,
@@ -32,16 +36,22 @@ type ProjectsViewProps = {
   onUpdateProject: (id: string, next: { name?: string; description?: string }) => void;
 };
 
-const InstructionsPanel: React.FC = () => {
-  const [open, setOpen] = useState(true);
+type InstructionsPanelProps = {
+  open: boolean;
+  onClose: () => void;
+};
 
-  if (!open) return null; // fully hidden when closed
+const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
+  open,
+  onClose,
+}) => {
+  if (!open) return null;
 
   return (
     <div className="relative mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
       {/* Close button */}
       <button
-        onClick={() => setOpen(false)}
+        onClick={onClose}
         className="absolute top-2 right-2 text-yellow-800 font-bold hover:text-yellow-900"
         aria-label="Close instructions"
       >
@@ -91,6 +101,9 @@ type EditorViewProps = {
   fatalError: string | null;
   resp: AssemblyInfoData | null;
   registerPanel: React.ReactNode;
+  instructionsOpen: boolean;
+  onCloseInstructions: () => void;
+  editorFontSize: number;
 };
 
 const EditorView: React.FC<EditorViewProps> = ({
@@ -112,6 +125,9 @@ const EditorView: React.FC<EditorViewProps> = ({
   fatalError,
   resp,
   registerPanel,
+  instructionsOpen,
+  onCloseInstructions,
+  editorFontSize,
 }) => (
   <div className="relative">
     <div className="pt-4 w-full max-w-[90rem] mx-auto">
@@ -123,7 +139,10 @@ const EditorView: React.FC<EditorViewProps> = ({
           </div>
         )}
         {/* Instructions for students */}
-        <InstructionsPanel />
+        <InstructionsPanel
+          open={instructionsOpen}
+          onClose={onCloseInstructions}
+        />
       </div>
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Editor + controls column */}
@@ -134,6 +153,7 @@ const EditorView: React.FC<EditorViewProps> = ({
             code={code}
             onCodeChange={onCodeChange}
             showHeader={false}
+            editorFontSize={editorFontSize}
           />
 
         <EditorControls
@@ -208,6 +228,12 @@ export default function Root({
   );
   const [deleteMode, setDeleteMode] = React.useState(false);
   const [selectedForDelete, setSelectedForDelete] = React.useState<string[]>([]);
+  const [userSettings, setUserSettings] = React.useState<UserSettings>(
+    DEFAULT_USER_SETTINGS
+  );
+  const [instructionsOpen, setInstructionsOpen] = React.useState(
+    DEFAULT_USER_SETTINGS.openInstructionsByDefault
+  );
 
   // we make an object to store defualt 0x0 values for all 32 registers
   //this is what we load into uiRegisters when start up the app 
@@ -653,6 +679,24 @@ React.useEffect(() => {
     };
   }, [syncWorkspaceNow]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      const response = await getUserSettings();
+      if (cancelled || !response.success || !response.settings) return;
+
+      setUserSettings(response.settings);
+      setInstructionsOpen(response.settings.openInstructionsByDefault);
+    }
+
+    void loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
     //changes site based on any changes to the paramters in []
   React.useEffect(() => {
@@ -773,10 +817,12 @@ function handleSelectProject(projectId: string) {
           await logout();
         }}
       />
-      <HelpModal title="AI Helper Chatbot">
-        <p>Potential Chatgpt??</p>
-        <p>Like SensAI to help students find out whats going on?</p>
-      </HelpModal>
+      {userSettings.showHelpBubble && (
+        <HelpModal title="AI Helper Chatbot">
+          <p>Potential Chatgpt??</p>
+          <p>Like SensAI to help students find out whats going on?</p>
+        </HelpModal>
+      )}
 
       {/* MAIN AREA */}
       <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
@@ -808,6 +854,9 @@ function handleSelectProject(projectId: string) {
             allStatesLength={allStates.length}
             fatalError={fatalError}
             resp={resp}
+            instructionsOpen={instructionsOpen}
+            onCloseInstructions={() => setInstructionsOpen(false)}
+            editorFontSize={userSettings.editorFontSize}
             registerPanel={
               <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[46rem] p-4 flex flex-col">
                 <h2 className="font-semibold text-sm uppercase tracking-wide">

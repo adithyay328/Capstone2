@@ -1,0 +1,15 @@
+{
+  "/api/sync_lab_session/route": "app/api/sync_lab_session/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/user_settings/route": "app/api/user_settings/route.js",
+  "/api/student_lab_context/route": "app/api/student_lab_context/route.js",
+  "/api/grade_status/route": "app/api/grade_status/route.js",
+  "/api/load_workspace/route": "app/api/load_workspace/route.js",
+  "/api/sync_workspace/route": "app/api/sync_workspace/route.js",
+  "/student/labs-root/page": "app/student/labs-root/page.js",
+  "/student/settings/page": "app/student/settings/page.js",
+  "/student/projects/page": "app/student/projects/page.js",
+  "/student/projects/[projectId]/page": "app/student/projects/[projectId]/page.js",
+  "/student/labs/page": "app/student/labs/page.js",
+  "/student/profile/page": "app/student/profile/page.js"
+}

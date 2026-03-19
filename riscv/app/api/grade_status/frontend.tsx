@@ -5,17 +5,21 @@ import { GradeStatusResponse } from './types';
 /**
  * Frontend function to get remaining grade attempts for a lab.
  *
+ * @param course_id - The course containing the lab
  * @param lab_uid - The UID of the lab
  * @returns GradeStatusResponse with attempts info
  */
-export async function getGradeStatus(lab_uid: string): Promise<GradeStatusResponse> {
+export async function getGradeStatus(
+  course_id: string,
+  lab_uid: string
+): Promise<GradeStatusResponse> {
   try {
     const response = await fetch('/api/grade_status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ lab_uid }),
+      body: JSON.stringify({ course_id, lab_uid }),
     });
 
     const data: GradeStatusResponse = await response.json();

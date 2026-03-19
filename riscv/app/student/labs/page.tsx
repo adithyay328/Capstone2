@@ -1,104 +1,161 @@
-'use client';
+import { headers } from 'next/headers';
+import { DBConnection } from '@/app/sql/sql';
+import { verifyCookieInternal } from '@/app/verify/internal';
+import type { StudentCourse } from '@/app/api/student_courses/types';
+import type { StudentCourseLab } from '@/app/api/student_course_labs/types';
+import StudentLabsClient from './client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { listLabs } from '@/app/api/list_labs/frontend';
-import { Lab } from '@/app/api/list_labs/types';
-import Link from 'next/link';
-import Sidebar from '@/components/sidebar';
+type StudentLabsPageProps = {
+  searchParams?: Promise<{ course_id?: string | string[] | undefined }>;
+};
 
-export default function StudentLabsPage() {
-    const router = useRouter();
-    const [labs, setLabs] = useState<Lab[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+type StudentLabsSearchParams = {
+  course_id?: string | string[] | undefined;
+};
 
-    const handleNewProject = useCallback(() => {
-        router.push('/student/new-project');
-    }, [router]);
+type StudentCourseRow = {
+  course_id: string;
+  code: string;
+  title: string;
+  term: string | null;
+};
 
-    const handleOpenProjects = useCallback(() => {
-        router.push('/student/projects');
-    }, [router]);
+type StudentCourseLabRow = {
+  uid: string;
+  title: string;
+  md: string;
+};
 
-    // Dedicated load function that fetches labs from backend
-    const loadLabs = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await listLabs();
-            
-            if (response.success && response.labs) {
-                setLabs(response.labs);
-            } else {
-                setError(response.message || 'Failed to fetch labs');
-            }
-        } catch (err) {
-            setError('An error occurred while fetching labs');
-            console.error('Error fetching labs:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+function getSingleSearchParam(
+  value: string | string[] | undefined
+): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
 
-    // Load labs on component mount
-    useEffect(() => {
-        loadLabs();
-    }, []);
+  return value ?? '';
+}
+
+export default async function StudentLabsPage({
+  searchParams,
+}: StudentLabsPageProps) {
+  const resolvedSearchParams: StudentLabsSearchParams = await (
+    searchParams ?? Promise.resolve({} as StudentLabsSearchParams)
+  );
+  const requestedCourseId = getSingleSearchParam(
+    resolvedSearchParams.course_id
+  ).trim();
+
+  let courses: StudentCourse[] = [];
+  let labs: StudentCourseLab[] = [];
+  let selectedCourseId = '';
+  let coursesError: string | null = null;
+  let labsError: string | null = null;
+
+  const headerStore = await headers();
+  const cookieHeader = headerStore.get('cookie') ?? '';
+  const verifyResponse = await verifyCookieInternal(cookieHeader);
+
+  if (!verifyResponse.data || !verifyResponse.data.username) {
+    coursesError = 'Invalid or missing authentication';
 
     return (
-        <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
-            <Sidebar
-                initialOpen={false}
-                onNewProject={handleNewProject}
-                onOpenProjects={handleOpenProjects}
-            />
-            <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
-                <div className="max-w-4xl mx-auto pt-8">
-                    <div className="flex items-center mb-6">
-                        <h1 className="text-3xl font-bold">Available Labs</h1>
-                    </div>
-
-                    {loading ? (
-                        <div className="text-center py-8">
-                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-200"></div>
-                            <p className="mt-2 text-zinc-300">Loading labs...</p>
-                        </div>
-                    ) : error ? (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                            <strong className="font-bold">Error: </strong>
-                            <span className="block sm:inline">{error}</span>
-                        </div>
-                    ) : labs.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-zinc-300">No labs available.</p>
-                        </div>
-                    ) : (
-                        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                            <ul className="divide-y divide-gray-200">
-                                {labs.map((lab) => (
-                                    <li key={lab.uid}>
-                                        <Link href={`/student/labs-root?lab=${lab.uid}`} className="block hover:bg-gray-50">
-                                            <div className="px-4 py-4 sm:px-6">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-lg font-medium text-indigo-600 truncate">
-                                                        {lab.title}
-                                                    </p>
-                                                    <div className="ml-2 flex-shrink-0 flex">
-                                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                                                            Select
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                </div>
-            </main>
-        </div>
+      <StudentLabsClient
+        courses={courses}
+        labs={labs}
+        selectedCourseId={selectedCourseId}
+        coursesError={coursesError}
+        labsError={labsError}
+      />
     );
+  }
+
+  if (verifyResponse.data.student !== true) {
+    coursesError = 'Only students can view labs';
+
+    return (
+      <StudentLabsClient
+        courses={courses}
+        labs={labs}
+        selectedCourseId={selectedCourseId}
+        coursesError={coursesError}
+        labsError={labsError}
+      />
+    );
+  }
+
+  let db: DBConnection | null = null;
+
+  try {
+    db = await DBConnection.create();
+    const username = String(verifyResponse.data.username);
+
+    const coursesResult = await db.client.query<StudentCourseRow>(
+      `SELECT c.course_id, c.code, c.title, c.term
+       FROM course_memberships cm
+       JOIN courses c ON c.course_id = cm.course_id
+       WHERE cm.username = $1
+         AND cm.role = 'student'
+         AND cm.status = 'active'
+       ORDER BY c.code ASC, c.term ASC NULLS LAST, c.title ASC`,
+      [username]
+    );
+
+    courses = coursesResult.rows.map((row) => ({
+      course_id: row.course_id,
+      code: row.code,
+      title: row.title,
+      term: row.term ?? null,
+    }));
+
+    if (
+      /^[0-9]{5}$/.test(requestedCourseId) &&
+      courses.some((course) => course.course_id === requestedCourseId)
+    ) {
+      selectedCourseId = requestedCourseId;
+
+      const labsResult = await db.client.query<StudentCourseLabRow>(
+        `SELECT l.uid, l.title, l.md
+         FROM course_memberships cm
+         JOIN course_labs cl ON cl.course_id = cm.course_id
+         JOIN labs l ON l.uid = cl.lab_uid
+         WHERE cm.username = $1
+           AND cm.course_id = $2
+           AND cm.role = 'student'
+           AND cm.status = 'active'
+         ORDER BY cl.position ASC, l.title ASC`,
+        [username, selectedCourseId]
+      );
+
+      labs = labsResult.rows.map((row) => ({
+        uid: row.uid,
+        title: row.title,
+        md: row.md,
+      }));
+    }
+  } catch (error: unknown) {
+    if (courses.length > 0) {
+      labsError =
+        error instanceof Error ? error.message : 'Failed to load labs for this course';
+    } else {
+      coursesError =
+        error instanceof Error ? error.message : 'Failed to load student courses';
+    }
+  } finally {
+    if (db) {
+      try {
+        await db.client.end();
+      } catch {}
+    }
+  }
+
+  return (
+    <StudentLabsClient
+      courses={courses}
+      labs={labs}
+      selectedCourseId={selectedCourseId}
+      coursesError={coursesError}
+      labsError={labsError}
+    />
+  );
 }
