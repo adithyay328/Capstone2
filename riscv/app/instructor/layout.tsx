@@ -1,13 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import IdleTimeoutGate from "@/components/IdleTimeoutGate";
 
 export default function InstructorLayout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    console.log("InstructorLayout mounted");
-  }, []);
-
   return (
     <IdleTimeoutGate
       timeoutMs={30 * 60 * 1000}           // testing: 10 seconds 10 * 1000

@@ -4,6 +4,13 @@ import { DBConnection } from '@/app/sql/sql';
 import { verifyPassword } from '@/app/passwords';
 import { modifyCookieData } from '@/app/verify/modify';
 
+type LoginUserRow = {
+  username: string;
+  password_hash: string;
+  instructor: boolean | null;
+  has_active_ta_role?: boolean;
+};
+
 export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
   
@@ -38,11 +45,33 @@ export async function POST(req: NextRequest) {
     db = await DBConnection.create();
     const client = db.client;
 
-    // Get user from database
-    const userResult = await client.query(
-      "SELECT username, salt, password_hash, instructor FROM users WHERE username = $1",
-      [username]
-    );
+    let userResult;
+    try {
+      userResult = await client.query<LoginUserRow>(
+        `
+        SELECT
+          u.username,
+          u.password_hash,
+          u.instructor,
+          EXISTS (
+            SELECT 1
+            FROM course_memberships cm
+            WHERE cm.username = u.username
+              AND cm.role = 'ta'
+              AND cm.status = 'active'
+          ) AS has_active_ta_role
+        FROM users u
+        WHERE u.username = $1
+        `,
+        [username]
+      );
+    } catch (taLookupError) {
+      console.warn('TA role lookup skipped:', taLookupError);
+      userResult = await client.query<LoginUserRow>(
+        "SELECT username, password_hash, instructor FROM users WHERE username = $1",
+        [username]
+      );
+    }
 
     if (userResult.rows.length === 0) {
       // Username not found. Use modifyCookieData with empty object to clear cookie
@@ -65,25 +94,7 @@ export async function POST(req: NextRequest) {
 
     const user = userResult.rows[0];
     const { password_hash: storedHash } = user;
-
-    let hasActiveTaRole = false;
-    try {
-      const taRoleResult = await client.query(
-        `
-        SELECT 1
-        FROM course_memberships
-        WHERE username = $1
-          AND role = $2
-          AND status = 'active'
-        LIMIT 1
-        `,
-        [username, 'ta']
-      );
-      hasActiveTaRole = taRoleResult.rows.length > 0;
-    } catch (taLookupError) {
-      // Keep login backwards compatible if course role tables are not present yet.
-      console.warn('TA role lookup skipped:', taLookupError);
-    }
+    const hasActiveTaRole = user.has_active_ta_role === true;
 
     // Verify password using Argon2id
     const isValid = await verifyPassword(password, storedHash);
@@ -130,7 +141,6 @@ export async function POST(req: NextRequest) {
 
         // Create a new cookie with the user data
         const newCookie = await modifyCookieData(userData);
-        console.log('Created new cookie for user:', newCookie);
 
         // Return success response with cookie and student info
         return new Response(

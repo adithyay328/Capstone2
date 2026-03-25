@@ -45,7 +45,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedBody = CreateUserRequestSchema.parse(body);
 
-    const { username, asuid, password, instructor } = validatedBody;
+    const { username, asuid, password, role } = validatedBody;
+    const instructor = role === "instructor";
 
     // Get database connection
     db = await DBConnection.create();
@@ -67,7 +68,10 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: "User created successfully",
+        message:
+          role === "ta"
+            ? "TA user created successfully. Assign them as a TA in a course from Manage Roles before they can sign in through the admin portal."
+            : "User created successfully",
       },
       { status: 201 }
     );

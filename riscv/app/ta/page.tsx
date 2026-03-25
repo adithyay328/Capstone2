@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { logout } from '@/app/logout/frontend';
 
@@ -66,6 +67,14 @@ export default function TADashboardPage() {
             <p className="mt-2 text-sm text-slate-600">
               Current lab rollout status and pending checks for your sections.
             </p>
+            <div className="mt-4">
+              <Link
+                href="/ta/simulator"
+                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Open simulator sandbox
+              </Link>
+            </div>
           </article>
         </section>
 

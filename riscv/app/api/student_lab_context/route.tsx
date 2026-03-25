@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { parsePersistedInputOverrides } from '@/components/input-overrides';
 import type { LabSession } from '../load_lab_session/types';
 import type { StudentLabContextResponse } from './types';
 
@@ -28,6 +29,8 @@ function buildSession(
     return null;
   }
 
+  const overrides = parsePersistedInputOverrides(row.register_overrides);
+
   return {
     storageKey,
     uid: row.session_uid,
@@ -38,11 +41,8 @@ function buildSession(
     simState: (row.sim_state ?? null) as LabSession['simState'],
     stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
     allStates: (Array.isArray(row.all_states) ? row.all_states : []) as LabSession['allStates'],
-    registerOverrides: (
-      row.register_overrides && typeof row.register_overrides === 'object'
-        ? (row.register_overrides as Record<string, string>)
-        : {}
-    ) as LabSession['registerOverrides'],
+    registerOverrides: overrides.registerOverrides,
+    memoryOverrides: overrides.memoryOverrides,
   };
 }
 

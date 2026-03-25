@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { serializePersistedInputOverrides } from '@/components/input-overrides';
 import { SyncLabSessionRequestSchema, SyncLabSessionResponse } from './types';
 
 export async function POST(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await req.text();
     body = raw ? JSON.parse(raw) : null;
-  } catch (parseError) {
+  } catch {
     body = null;
   }
 
@@ -98,7 +99,12 @@ export async function POST(req: NextRequest) {
         JSON.stringify(session.simState ?? null),
         session.stepIndex,
         JSON.stringify(session.allStates ?? []),
-        JSON.stringify(session.registerOverrides ?? {}),
+        JSON.stringify(
+          serializePersistedInputOverrides(
+            session.registerOverrides ?? {},
+            session.memoryOverrides ?? {}
+          )
+        ),
       ]
     );
 
@@ -112,7 +118,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Sync lab session error:', error);
     return new Response(
       JSON.stringify({
