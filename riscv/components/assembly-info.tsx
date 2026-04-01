@@ -21,6 +21,10 @@ export default function AssemblyInfo({
 }) {
   const hadError = response?.hadError ?? false;
   const errorMessage = response?.errorMessage ?? "";
+  const isMeaningfulRegisterValue = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    return normalized !== "0x0" && normalized !== "0x00000000";
+  };
 
   /**
    * ----------------------------
@@ -40,7 +44,9 @@ export default function AssemblyInfo({
    * - If parsing fails (e.g., unexpected key), we fall back to string comparison to keep it stable
    */
   const sortedRegisters = response?.registers
-    ? Object.entries(response.registers).sort(([a], [b]) => {
+    ? Object.entries(response.registers)
+        .filter(([name, value]) => name === "x0" || isMeaningfulRegisterValue(value))
+        .sort(([a], [b]) => {
         // Extract the numeric suffix from keys like "x0", "x1", ..., "x31"
         // \D matches non-digits; replace them with "" to keep only digits
         const numA = parseInt(a.replace(/\D/g, ""), 10);
