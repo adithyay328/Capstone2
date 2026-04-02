@@ -34,6 +34,7 @@ yarn-error.log*
 .env*
 !risc/.env.example
 !.env.example
+**/.next-dev/
 
 # vercel
 .vercel
