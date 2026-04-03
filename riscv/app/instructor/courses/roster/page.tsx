@@ -111,8 +111,8 @@ function CourseRosterContent() {
                     key={m.username}
                     className="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-2"
                   >
-                    <span className="font-medium">{m.username}</span>
-                    <span className="text-sm text-slate-500">{m.role}</span>
+                    <span className="font-medium text-slate-900">{m.username}</span>
+                    <span className="text-sm text-slate-700">{m.role}</span>
                     <button
                       type="button"
                       onClick={() => handleRemove(m.username)}

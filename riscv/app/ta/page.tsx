@@ -18,7 +18,7 @@ export default function TADashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="ta-shell min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-8 space-y-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex flex-col gap-2">
