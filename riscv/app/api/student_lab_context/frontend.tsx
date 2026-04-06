@@ -9,7 +9,8 @@ export type StudentLabContextFrontendResponse = StudentLabContextResponse & {
 export async function getStudentLabContext(
   course_id: string,
   lab_uid: string,
-  storage_key: string
+  storage_key: string,
+  student_username?: string
 ): Promise<StudentLabContextFrontendResponse> {
   try {
     const params = new URLSearchParams({
@@ -17,6 +18,9 @@ export async function getStudentLabContext(
       lab_uid,
       storage_key,
     });
+    if (student_username?.trim()) {
+      params.set('student_username', student_username.trim());
+    }
     const res = await fetch(`/api/student_lab_context?${params.toString()}`);
     const data = await res.json();
 

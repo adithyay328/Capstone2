@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { logout } from '@/app/logout/frontend';
 
@@ -58,6 +59,14 @@ export default function TADashboardPage() {
             <p className="mt-2 text-sm text-slate-600">
               Quick view of student-facing assistance and grading queues.
             </p>
+            <div className="mt-4">
+              <a
+                href="/ta/student-labs-root"
+                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Review student labs
+              </a>
+            </div>
           </article>
 
           <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -74,6 +83,14 @@ export default function TADashboardPage() {
           <p className="mt-1 text-sm text-slate-600">
             TA-specific announcements and updates can be shown in this panel.
           </p>
+          <div className="mt-4">
+            <Link
+              href="/ta/courses"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              View Courses
+            </Link>
+          </div>
         </section>
       </div>
     </div>

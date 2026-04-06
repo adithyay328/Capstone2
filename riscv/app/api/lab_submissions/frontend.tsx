@@ -7,11 +7,20 @@ import type {
 
 export async function getLabSubmissions(
   course_id: string,
-  lab_uid: string
+  lab_uid: string,
+  student_username?: string
 ): Promise<LabSubmissionsResponse> {
   try {
+    const params = new URLSearchParams({
+      course_id,
+      lab_uid,
+    });
+    if (student_username?.trim()) {
+      params.set('student_username', student_username.trim());
+    }
+
     const response = await fetch(
-      `/api/lab_submissions?course_id=${encodeURIComponent(course_id)}&lab_uid=${encodeURIComponent(lab_uid)}`
+      `/api/lab_submissions?${params.toString()}`
     );
     const data: LabSubmissionsResponse = await response.json();
     return data;

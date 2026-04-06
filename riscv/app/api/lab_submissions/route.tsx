@@ -29,6 +29,25 @@ async function hasCourseLabAccess(
   return accessResult.rows.length > 0;
 }
 
+async function hasStaffCourseAccess(
+  client: DBConnection['client'],
+  username: string,
+  courseId: string
+): Promise<boolean> {
+  const accessResult = await client.query(
+    `SELECT 1
+     FROM course_memberships
+     WHERE username = $1
+       AND course_id = $2
+       AND role IN ('ta', 'instructor')
+       AND status = 'active'
+     LIMIT 1`,
+    [username, courseId]
+  );
+
+  return accessResult.rows.length > 0;
+}
+
 export async function GET(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
   const verifyResponse = await verifyCookieInternal(cookieHeader);
@@ -51,21 +70,10 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (verifyResponse.data.student !== true) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: 'Only students can view submission history',
-      } satisfies LabSubmissionsResponse),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
   const course_id = req.nextUrl.searchParams.get('course_id') ?? '';
   const lab_uid = req.nextUrl.searchParams.get('lab_uid') ?? '';
+  const requestedStudentUsername =
+    req.nextUrl.searchParams.get('student_username')?.trim() ?? '';
 
   if (!/^[0-9]{5}$/.test(course_id) || !lab_uid.trim()) {
     return new Response(
@@ -86,8 +94,71 @@ export async function GET(req: NextRequest) {
     db = await DBConnection.create();
     const client = db.client;
     const username = String(verifyResponse.data.username);
+    const isStudent = verifyResponse.data.student === true;
+    const isInstructor = verifyResponse.data.instructor === true;
+    const isTa = verifyResponse.data.ta === true;
 
-    const hasAccess = await hasCourseLabAccess(client, username, course_id, lab_uid);
+    let targetUsername = username;
+    let hasAccess = false;
+
+    if (isStudent) {
+      if (requestedStudentUsername && requestedStudentUsername !== username) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Students can only view their own submission history',
+          } satisfies LabSubmissionsResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      hasAccess = await hasCourseLabAccess(client, username, course_id, lab_uid);
+    } else if (isInstructor || isTa) {
+      if (!requestedStudentUsername) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'student_username is required for TA/instructor submission history lookups',
+          } satisfies LabSubmissionsResponse),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const hasStaffAccess = await hasStaffCourseAccess(client, username, course_id);
+      if (!hasStaffAccess) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'You do not have access to this course',
+          } satisfies LabSubmissionsResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      targetUsername = requestedStudentUsername;
+      hasAccess = await hasCourseLabAccess(client, targetUsername, course_id, lab_uid);
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'You do not have permission to view submission history',
+        } satisfies LabSubmissionsResponse),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     if (!hasAccess) {
       return new Response(
         JSON.stringify({
@@ -115,7 +186,7 @@ export async function GET(req: NextRequest) {
          AND course_id = $2
          AND lab_uid = $3
        ORDER BY submitted_at DESC`,
-      [username, course_id, lab_uid]
+      [targetUsername, course_id, lab_uid]
     );
 
     return new Response(
