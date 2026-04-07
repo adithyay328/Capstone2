@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import OverrideListEditor from "./override-list-editor";
 
 type RegisterEditorProps = {
   registers: Record<string, string>;
@@ -9,30 +9,27 @@ type RegisterEditorProps = {
 
 export default function RegisterEditor({ registers, onChange, disabled }: RegisterEditorProps) {
   return (
-    <div
-      className={`p-4 border rounded bg-white text-black ${
-        disabled ? "opacity-60 cursor-not-allowed" : ""
-      }`}
-    >
-      <h2 className="text-lg font-semibold mb-2">Registers</h2>
-      <div className="grid grid-cols-2 gap-2">
-        {Object.entries(registers).map(([name, value]) => (
-          <div key={name} className="flex items-center gap-2">
-            <label className="w-12 text-sm font-mono">{name}</label>
-            <input
-              type="text"
-              value={value ?? ""}
-              disabled={disabled}
-              // onChange={(e) => onChange(name, e.target.value)}
-              onChange={(e) => {
-                console.log("✏️ Changed register:", name, "to", e.target.value);
-                onChange(name, e.target.value);
-              }}
-              className="w-20 border rounded px-2 py-1 text-sm font-mono text-black disabled:bg-zinc-200"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
+    <OverrideListEditor
+      kind="register"
+      title="Registers"
+      overrides={registers}
+      disabled={disabled}
+      onChange={(nextOverrides) => {
+        const previousKeys = new Set(Object.keys(registers));
+        const nextKeys = new Set(Object.keys(nextOverrides));
+
+        for (const key of previousKeys) {
+          if (!nextKeys.has(key)) {
+            onChange(key, "");
+          }
+        }
+
+        for (const [key, value] of Object.entries(nextOverrides)) {
+          if (registers[key] !== value) {
+            onChange(key, value);
+          }
+        }
+      }}
+    />
   );
 }

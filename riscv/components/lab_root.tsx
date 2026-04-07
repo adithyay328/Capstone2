@@ -4,14 +4,15 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import CodeEditor from "./code-editor";
 import AssemblyInfo from "./assembly-info";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "@/components/sidebar"; //left sidebar
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
 import RegisterEditor from "@/components/register-editor";
+import MemoryEditor from "@/components/memory-editor";
 import HelpModal from "@/components/help-modal";
+import { getClientUsername } from "@/components/client-session";
 import { getStudentLabContext } from "@/app/api/student_lab_context/frontend";
 import type { StudentCourseLab } from "@/app/api/student_course_labs/types";
 import {
@@ -40,6 +41,15 @@ const MdPreview = dynamic(
   () => import("md-editor-rt").then((mod) => mod.MdPreview),
   { ssr: false }
 );
+
+const CodeEditor = dynamic(() => import("./code-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[32rem] items-center justify-center rounded-md border border-zinc-700 bg-zinc-900/60 text-sm text-zinc-400">
+      Loading editor...
+    </div>
+  ),
+});
 // Instructions Panel for Students to Read
 type InstructionsPanelProps = {
   open: boolean;
@@ -66,7 +76,7 @@ const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
       <h3 className="font-semibold text-yellow-800 mb-2">Lab Instructions</h3>
       <ul className="list-disc ml-5 text-sm text-yellow-900">
         <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
-        <li>Register inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
+        <li>Register and memory inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
         <li>Use only allowed instructions and follow lab instructions carefully.</li>
       </ul>
     </div>
@@ -88,6 +98,7 @@ type SavedVersion = {
   stepIndex: number;
   allStates: SubmitResponse["states"];
   registerOverrides: Record<string, string>;
+  memoryOverrides: Record<string, string>;
 };
 
 //BACKEND MUST MATCH THIS
@@ -95,17 +106,30 @@ function makeUid() {
   return "uid-" + Math.random().toString(36).slice(2);
 }
 
-export default function LabRoot() {
+type LabRootProps = {
+  courseIdOverride?: string;
+  labUidOverride?: string;
+};
+
+export default function LabRoot({
+  courseIdOverride,
+  labUidOverride,
+}: LabRootProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const courseIdFromQuery = searchParams.get("course_id") ?? "";
-  const labUidFromQuery = searchParams.get("lab") ?? "";
+  const courseIdFromQuery = courseIdOverride ?? searchParams.get("course_id") ?? "";
+  const labUidFromQuery = labUidOverride ?? searchParams.get("lab") ?? "";
   const storageKey = React.useMemo(
     () =>
       courseIdFromQuery && labUidFromQuery
         ? `${LS_KEY}:${courseIdFromQuery}:${labUidFromQuery}`
         : LS_KEY,
     [courseIdFromQuery, labUidFromQuery]
+  );
+  const cacheUsername = React.useMemo(() => getClientUsername(), []);
+  const localStorageKey = React.useMemo(
+    () => (cacheUsername ? `${storageKey}:${cacheUsername}` : storageKey),
+    [cacheUsername, storageKey]
   );
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
@@ -116,6 +140,7 @@ export default function LabRoot() {
   const [allStates, setAllStates] = React.useState<SubmitResponse["states"]>([]);
   const [stepIndex, setStepIndex] = React.useState(0);
   const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
+  const [memoryOverrides, setMemoryOverrides] = React.useState<Record<string, string>>({});
   const [initStatus, setInitStatus] = React.useState<"loading" | "ready" | "error">(
     "loading"
   );
@@ -139,7 +164,7 @@ export default function LabRoot() {
 
   // Labs for grading
   const [selectedLab, setSelectedLab] = React.useState<StudentCourseLab | null>(null);
-  const [sidePanelTab, setSidePanelTab] = React.useState<"instructions" | "registers">(
+  const [sidePanelTab, setSidePanelTab] = React.useState<"instructions" | "presets">(
     "instructions"
   );
   const [gradeAttemptsRemaining, setGradeAttemptsRemaining] = React.useState<number | null>(null);
@@ -178,6 +203,7 @@ export default function LabRoot() {
       stepIndex,
       allStates,
       registerOverrides,
+      memoryOverrides,
     };
   }, [
     uid,
@@ -189,6 +215,7 @@ export default function LabRoot() {
     stepIndex,
     allStates,
     registerOverrides,
+    memoryOverrides,
   ]);
 
   const syncLabSessionNow = React.useCallback(
@@ -276,6 +303,11 @@ export default function LabRoot() {
             ? parsed.registerOverrides
             : ({} as Record<string, string>)
         );
+      setMemoryOverrides(
+        parsed.memoryOverrides && typeof parsed.memoryOverrides === "object"
+          ? parsed.memoryOverrides
+          : ({} as Record<string, string>)
+      );
     };
 
     const applyFresh = (): SavedVersion => {
@@ -290,19 +322,39 @@ export default function LabRoot() {
         stepIndex: 0,
         allStates: [],
         registerOverrides: {} as Record<string, string>,
+        memoryOverrides: {} as Record<string, string>,
       };
       applySession(fresh);
       return fresh;
     };
 
     const hydrate = async () => {
-      setInitStatus("loading");
       setInitError(null);
       setSelectedLab(null);
 
+      let cachedSession: SavedVersion | null = null;
+      const rawCachedSession = window.localStorage.getItem(localStorageKey);
+      if (rawCachedSession) {
+        try {
+          cachedSession = JSON.parse(rawCachedSession) as SavedVersion;
+        } catch (error) {
+          console.warn("Failed to parse cached lab session", error);
+        }
+      }
+
+      const hasCachedSession = Boolean(cachedSession);
+      if (cachedSession) {
+        applySession(cachedSession);
+        setInitStatus("ready");
+      } else {
+        setInitStatus("loading");
+      }
+
       if (typeof navigator !== "undefined" && !navigator.onLine) {
-        setInitStatus("error");
-        setInitError("Initial connection required. Check your internet connection and reload.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError("Initial connection required. Check your internet connection and reload.");
+        }
         return;
       }
 
@@ -326,22 +378,33 @@ export default function LabRoot() {
           return;
         }
 
-        setInitStatus("error");
-        setInitError(contextResponse.message ?? "Unable to load this lab.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError(contextResponse.message ?? "Unable to load this lab.");
+        }
         return;
       }
 
       if (!contextResponse.lab) {
-        setInitStatus("error");
-        setInitError("Unable to load this lab.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError("Unable to load this lab.");
+        }
         return;
       }
 
       setSelectedLab(contextResponse.lab);
 
+      if (hasCachedSession) {
+        setInitStatus("ready");
+        return;
+      }
+
       if (contextResponse.session) {
         const registerOverrides =
           (contextResponse.session.registerOverrides ?? {}) as Record<string, string>;
+        const memoryOverrides =
+          (contextResponse.session.memoryOverrides ?? {}) as Record<string, string>;
         const parsed: SavedVersion = {
           uid: contextResponse.session.uid ?? makeUid(),
           labUid: contextResponse.session.labUid ?? undefined,
@@ -354,16 +417,18 @@ export default function LabRoot() {
             ? contextResponse.session.allStates
             : [],
           registerOverrides,
+          memoryOverrides,
         };
-        window.localStorage.setItem(storageKey, JSON.stringify(parsed));
+        window.localStorage.setItem(localStorageKey, JSON.stringify(parsed));
         applySession(parsed);
         setInitStatus("ready");
         return;
       }
 
       const fresh = applyFresh();
-      window.localStorage.setItem(storageKey, JSON.stringify(fresh));
-      await syncLabSession({
+      window.localStorage.setItem(localStorageKey, JSON.stringify(fresh));
+      setInitStatus("ready");
+      void syncLabSession({
         storageKey,
         uid: fresh.uid,
         labUid: labUidFromQuery || null,
@@ -374,8 +439,8 @@ export default function LabRoot() {
         stepIndex: fresh.stepIndex,
         allStates: fresh.allStates,
         registerOverrides: fresh.registerOverrides,
+        memoryOverrides: fresh.memoryOverrides,
       });
-      setInitStatus("ready");
     };
 
     void hydrate();
@@ -383,7 +448,7 @@ export default function LabRoot() {
     return () => {
       cancelled = true;
     };
-  }, [courseIdFromQuery, labUidFromQuery, router, storageKey]);
+  }, [courseIdFromQuery, labUidFromQuery, localStorageKey, router, storageKey]);
 
   //HELPER to write everything to local storage
   const persist = React.useCallback(
@@ -400,12 +465,13 @@ export default function LabRoot() {
         stepIndex,
         allStates,
         registerOverrides,
+        memoryOverrides,
         ...next,
       };
 
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      window.localStorage.setItem(localStorageKey, JSON.stringify(payload));
     },
-    [uid, code, resp, simState, stepIndex, allStates, registerOverrides, storageKey, labUidFromQuery]
+    [uid, code, resp, simState, stepIndex, allStates, registerOverrides, memoryOverrides, localStorageKey, labUidFromQuery]
   );
   
 
@@ -413,12 +479,12 @@ export default function LabRoot() {
   React.useEffect(() => {
     if (!uid) return;
     persist();
-  }, [uid, code, resp, simState, registerOverrides, persist]);
+  }, [uid, code, resp, simState, registerOverrides, memoryOverrides, persist]);
 
   React.useEffect(() => {
     if (!uid) return;
     labSessionDirtyRef.current = true;
-  }, [uid, storageKey, code, resp, simState, stepIndex, allStates, registerOverrides]);
+  }, [uid, storageKey, code, resp, simState, stepIndex, allStates, registerOverrides, memoryOverrides]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -574,6 +640,7 @@ export default function LabRoot() {
     allStates,
     runMeta,
     registersForRun: uiRegisters,
+    memoryForRun: memoryOverrides,
     persist: persistRunner,
     setAllStates,
     setStepIndex,
@@ -585,16 +652,17 @@ export default function LabRoot() {
 
   const handleReset = React.useCallback(() => {
     setRegisterOverrides({});
-    resetSession({ registerOverrides: {} });
+    setMemoryOverrides({});
+    resetSession({ registerOverrides: {}, memoryOverrides: {} });
   }, [resetSession]);
 
-  const handleNewProject = React.useCallback(async () => {
-    await syncLabSessionNow(false, true);
+  const handleNewProject = React.useCallback(() => {
+    void syncLabSessionNow(false, true);
     router.push("/student/new-project");
   }, [router, syncLabSessionNow]);
 
-  const handleOpenProjects = React.useCallback(async () => {
-    await syncLabSessionNow(false, true);
+  const handleOpenProjects = React.useCallback(() => {
+    void syncLabSessionNow(false, true);
     router.push("/student/projects");
   }, [router, syncLabSessionNow]);
 
@@ -656,10 +724,11 @@ export default function LabRoot() {
       code: selectedSubmission.submittedCode,
       simState: null,
       registerOverrides,
+      memoryOverrides,
     });
     setSubmissionHistoryOpen(false);
     toast.info("Submission code restored to the editor.");
-  }, [registerOverrides, resetSession, selectedSubmission, userSettings.warnBeforeReinstate]);
+  }, [memoryOverrides, registerOverrides, resetSession, selectedSubmission, userSettings.warnBeforeReinstate]);
 
   // Grade the current code against all test cases for the selected lab
   async function handleGrade(): Promise<boolean> {
@@ -1097,7 +1166,12 @@ export default function LabRoot() {
               )}
 
               <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <AssemblyInfo response={resp} />
+                <AssemblyInfo
+                  response={resp}
+                  states={allStates}
+                  registerInputs={registerOverrides}
+                  memoryInputs={memoryOverrides}
+                />
                 <div className="flex-shrink-0">
                   <RegisterVisualPanel
                     registers={resp?.registers ?? null}
@@ -1125,14 +1199,14 @@ export default function LabRoot() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSidePanelTab("registers")}
+                    onClick={() => setSidePanelTab("presets")}
                     className={`flex-1 px-3 py-2 text-center font-medium ${
-                      sidePanelTab === "registers"
+                      sidePanelTab === "presets"
                         ? "bg-zinc-800 text-white"
                         : "text-zinc-300 hover:bg-zinc-800/60"
                     }`}
                   >
-                    Register Presets
+                    Input Presets
                   </button>
                 </div>
 
@@ -1161,11 +1235,14 @@ export default function LabRoot() {
                   ) : (
                     <div className="h-full p-4 flex flex-col">
                       <h2 className="font-semibold text-sm uppercase tracking-wide">
-                        Register Presets
+                        Input Presets
                       </h2>
-                      <div className="mt-2 flex-1 overflow-y-auto">
+                      <p className="mt-1 text-xs text-zinc-400">
+                        Add only the register and memory overrides you want for this lab run.
+                      </p>
+                      <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                         <RegisterEditor
-                          registers={uiRegisters}
+                          registers={registerOverrides}
                           disabled={stepsEngaged}
                           onChange={(key, value) =>
                             setRegisterOverrides((prev) => {
@@ -1178,6 +1255,11 @@ export default function LabRoot() {
                               return next;
                             })
                           }
+                        />
+                        <MemoryEditor
+                          memory={memoryOverrides}
+                          disabled={stepsEngaged}
+                          onChange={setMemoryOverrides}
                         />
                       </div>
                     </div>

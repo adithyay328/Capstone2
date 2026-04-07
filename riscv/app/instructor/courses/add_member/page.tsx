@@ -135,8 +135,8 @@ function AddMemberPageContent() {
                     key={u.username}
                     className="flex items-center justify-between rounded border border-slate-200 bg-white px-3 py-2"
                   >
-                    <span>{u.username}</span>
-                    <span className="text-xs text-slate-500">{u.instructor ? 'Instructor' : 'Student'}</span>
+                    <span className="font-medium text-slate-900">{u.username}</span>
+                    <span className="text-xs text-slate-700">{u.instructor ? 'Instructor' : 'Student'}</span>
                     <button
                       type="button"
                       onClick={() => handleAdd(u.username)}

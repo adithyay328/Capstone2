@@ -157,7 +157,8 @@ export default function StudentLabsClient({
                   {labs.map((lab) => (
                     <li key={lab.uid}>
                       <Link
-                        href={`/student/labs-root?course_id=${encodeURIComponent(selectedCourse.course_id)}&lab=${encodeURIComponent(lab.uid)}`}
+                        href={`/student/labs/${encodeURIComponent(lab.uid)}?course_id=${encodeURIComponent(selectedCourse.course_id)}`}
+                        prefetch={false}
                         className="block hover:bg-gray-50"
                       >
                         <div className="px-4 py-4 sm:px-6">

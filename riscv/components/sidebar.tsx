@@ -1,14 +1,20 @@
+"use client";
+
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FiAlignJustify, FiLogOut } from "react-icons/fi";
-import { IoIosHelpCircleOutline } from "react-icons/io";
-import { LuGrid2X2Plus } from "react-icons/lu";
-import { IoLibrary, IoPersonCircle } from "react-icons/io5";
-import { PiProjectorScreenDuotone } from "react-icons/pi";
-import { MdOutlineSettings } from "react-icons/md";
-import { ImStack } from "react-icons/im";
-import { logout } from "@/app/logout/frontend";
-
+import { useRouter } from "next/navigation";
+import {
+  DocsIcon,
+  HelpIcon,
+  HomeIcon,
+  LabsIcon,
+  LogoutIcon,
+  MenuIcon,
+  NewProjectIcon,
+  ProfileIcon,
+  ProjectsIcon,
+  SettingsIcon,
+} from "@/components/sidebar-icons";
 
 type SidebarProps = {
   initialOpen?: boolean;
@@ -17,15 +23,32 @@ type SidebarProps = {
   onLogout?: () => void | Promise<void>;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-    initialOpen = false,
-    onNewProject,
-    onOpenProjects,
-    onLogout,
+const STUDENT_PREFETCH_ROUTES = [
+  "/student",
+  "/student/projects",
+  "/student/labs",
+  "/student/profile",
+  "/student/settings",
+  "/student/help",
+  "/student/docs",
+];
+
+const Sidebar: React.FC<SidebarProps> = ({
+  initialOpen = false,
+  onNewProject,
+  onOpenProjects,
+  onLogout,
 }) => {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const asideRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    for (const route of STUDENT_PREFETCH_ROUTES) {
+      router.prefetch(route);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   type SidebarItem = {
     id: string;
     label: string;
-    icon: React.ComponentType<any>;
+    icon: React.ComponentType<{ className?: string }>;
     onClick?: () => void;
     href?: string;
   };
@@ -56,25 +79,26 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: "new-project",
       label: "New Project",
-      icon: LuGrid2X2Plus,
+      icon: NewProjectIcon,
       onClick: onNewProject,
       href: "/student/new-project",
     },
     {
       id: "projects",
       label: "My Projects",
-      icon: IoLibrary,
+      icon: ProjectsIcon,
       onClick: onOpenProjects,
       href: "/student/projects",
     },
-    { id: "labs", label: "Labs", icon: PiProjectorScreenDuotone, href: "/student/labs" },
+    { id: "labs", label: "Labs", icon: LabsIcon, href: "/student/labs" },
   ];
 
   const secondaryItems: SidebarItem[] = [
-    { id: "profile", label: "Profile", icon: IoPersonCircle, href: "/student/profile" },
-    { id: "settings", label: "Settings", icon: MdOutlineSettings, href: "/student/settings" },
-    { id: "help-feedback", label: "Help & Feedback", icon: IoIosHelpCircleOutline, href: "/student/help" },
-    { id: "riscv-docs", label: "RISC-V Documentation", icon: ImStack, href: "/student/docs" },
+    { id: "home", label: "Home", icon: HomeIcon, href: "/student" },
+    { id: "profile", label: "Profile", icon: ProfileIcon, href: "/student/profile" },
+    { id: "settings", label: "Settings", icon: SettingsIcon, href: "/student/settings" },
+    { id: "help-feedback", label: "Help & Feedback", icon: HelpIcon, href: "/student/help" },
+    { id: "riscv-docs", label: "RISC-V Documentation", icon: DocsIcon, href: "/student/docs" },
   ];
 
   const handleLogout = async () => {
@@ -84,6 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       if (onLogout) {
         await onLogout();
       } else {
+        const { logout } = await import("@/app/logout/frontend");
         await logout();
       }
     } finally {
@@ -113,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             aria-expanded={isOpen}
       >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-950 text-white text-lg font-bold">
-                <FiAlignJustify />
+                <MenuIcon className="h-5 w-5" />
             </div>
             {isOpen && (
             <div className="flex flex-col text-left">
@@ -198,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-600 text-white">
-            <FiLogOut className="h-4 w-4" />
+            <LogoutIcon className="h-4 w-4" />
           </span>
           {isOpen && <span className="truncate">{isLoggingOut ? "Logging out..." : "Log out"}</span>}
         </button>
@@ -219,7 +244,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 type SidebarButtonProps = {
   label: string;
   isOpen: boolean;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   showTooltipOnCollapse?: boolean; //for the buttons that are always shown when collapsed
   onClick?: () => void;
   href?: string;
@@ -233,8 +258,6 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
   onClick,
   href,
 }) => {
-  console.log({ label, isOpen, showTooltipOnCollapse });
-
   const content = (
     <>
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-orange-300 text-[11px] font-semibold tracking-wide text-slate-200">

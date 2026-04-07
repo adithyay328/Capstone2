@@ -17,7 +17,11 @@ node_modules/
 # next.js
 /.next/
 /out/
-
+.next
+.next-dev
+/riscv/.next
+/riscv/.next-dev
+/riscv/.next-dev/*
 # production
 /build
 

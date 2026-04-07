@@ -8,7 +8,7 @@ type EditorControlsProps = {
   onStepBack: () => void;
   onReset: () => void;
   onSyncNow?: () => void;
-  uid: string;
+  uid?: string;
   stepsEngaged: boolean;
   stepIndex: number;
   allStatesLength: number;
@@ -84,7 +84,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
             Sync Now
           </button>
         ) : null}
-        <span className="text-xs text-zinc-500">{uid}</span>
+        {uid ? <span className="text-xs text-zinc-500">{uid}</span> : null}
       </div>
     </div>
   );

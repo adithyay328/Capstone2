@@ -16,10 +16,7 @@ export default function IdleTimeoutGate({
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    console.log("⏳ IdleTimeoutGate mounted", { timeoutMs, redirectTo });
-
     const logout = () => {
-      console.log("🚪 Idle timeout fired -> redirect", { redirectTo });
       router.replace(redirectTo);
     };
 

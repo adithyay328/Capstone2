@@ -5,6 +5,7 @@ export type ProjectState = {
   stepIndex: number;
   allStates: SubmitResponse["states"];
   registerOverrides: Record<string, string>;
+  memoryOverrides: Record<string, string>;
 };
 
 /**
