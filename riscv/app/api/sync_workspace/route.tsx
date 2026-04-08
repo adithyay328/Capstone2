@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { serializePersistedInputOverrides } from '@/components/input-overrides';
 import { SyncWorkspaceRequestSchema, SyncWorkspaceResponse } from './types';
 
 export async function POST(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await req.text();
     body = raw ? JSON.parse(raw) : null;
-  } catch (parseError) {
+  } catch {
     body = null;
   }
 
@@ -83,6 +84,10 @@ export async function POST(req: NextRequest) {
         state.registerOverrides && typeof state.registerOverrides === 'object'
           ? state.registerOverrides
           : {};
+      const memoryOverrides =
+        state.memoryOverrides && typeof state.memoryOverrides === 'object'
+          ? state.memoryOverrides
+          : {};
 
       await client.query(
         `INSERT INTO workspace_projects (
@@ -124,7 +129,9 @@ export async function POST(req: NextRequest) {
           JSON.stringify(state.simState ?? null),
           stepIndex,
           JSON.stringify(allStates),
-          JSON.stringify(registerOverrides),
+          JSON.stringify(
+            serializePersistedInputOverrides(registerOverrides, memoryOverrides)
+          ),
         ]
       );
     }
@@ -160,7 +167,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (db) {
       try {
         await db.client.query('ROLLBACK');

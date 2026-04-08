@@ -64,6 +64,12 @@ export default function InstructorPage() {
           >
             Review student labs
           </Link>
+          <Link
+            href="/instructor/simulator"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Open simulator sandbox
+          </Link>
         </div>
       </div>
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

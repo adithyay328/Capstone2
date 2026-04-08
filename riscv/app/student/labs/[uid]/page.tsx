@@ -1,32 +1,34 @@
-'use client';
+import StudentLabRoutePage from "@/components/student-lab-route-page";
 
-import { useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+type StudentLabDetailPageProps = {
+  params: Promise<{ uid: string }>;
+  searchParams?: Promise<{ course_id?: string | string[] | undefined }>;
+};
 
-export default function StudentLabDetailPage() {
-  const params = useParams<{ uid: string }>();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const courseId = searchParams.get('course_id') ?? '';
+function getSingleSearchParam(
+  value: string | string[] | undefined
+): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
 
-  useEffect(() => {
-    if (!params.uid) {
-      router.replace('/student/labs');
-      return;
-    }
-    if (!courseId) {
-      router.replace('/student/labs');
-      return;
-    }
+  return value ?? "";
+}
 
-    router.replace(
-      `/student/labs-root?course_id=${encodeURIComponent(courseId)}&lab=${encodeURIComponent(params.uid)}`
-    );
-  }, [courseId, params.uid, router]);
+export default async function StudentLabDetailPage({
+  params,
+  searchParams,
+}: StudentLabDetailPageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await (
+    searchParams ?? Promise.resolve({} as { course_id?: string | string[] | undefined })
+  );
+  const courseId = getSingleSearchParam(resolvedSearchParams.course_id).trim();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[rgb(82,82,82)] text-zinc-100 px-6">
-      <div className="h-12 w-12 rounded-full border-4 border-zinc-500 border-t-transparent animate-spin" />
-    </div>
+    <StudentLabRoutePage
+      courseId={courseId}
+      labUid={resolvedParams.uid}
+    />
   );
 }

@@ -3,42 +3,19 @@ import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
 import {
-  DEFAULT_USER_SETTINGS,
   UserSettingsSchema,
-  type UserSettings,
   type UserSettingsResponse,
 } from './types';
-
-function mapRowToSettings(row: Record<string, unknown> | undefined): UserSettings {
-  if (!row) {
-    return DEFAULT_USER_SETTINGS;
-  }
-
-  return {
-    editorFontSize:
-      typeof row.editor_font_size === 'number'
-        ? row.editor_font_size
-        : DEFAULT_USER_SETTINGS.editorFontSize,
-    showHelpBubble:
-      typeof row.show_help_bubble === 'boolean'
-        ? row.show_help_bubble
-        : DEFAULT_USER_SETTINGS.showHelpBubble,
-    openInstructionsByDefault:
-      typeof row.open_instructions_by_default === 'boolean'
-        ? row.open_instructions_by_default
-        : DEFAULT_USER_SETTINGS.openInstructionsByDefault,
-    warnBeforeReinstate:
-      typeof row.warn_before_reinstate === 'boolean'
-        ? row.warn_before_reinstate
-        : DEFAULT_USER_SETTINGS.warnBeforeReinstate,
-  };
-}
+import {
+  loadUserSettingsForCookie,
+  mapRowToSettings,
+} from './internal';
 
 export async function GET(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const result = await loadUserSettingsForCookie(cookieHeader);
 
-  if (!verifyResponse.data || !verifyResponse.data.username) {
+  if (!result.authenticated) {
     const modifiedCookie = await modifyCookieData({});
 
     return new Response(
@@ -56,51 +33,29 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let db: DBConnection | null = null;
-
-  try {
-    db = await DBConnection.create();
-    const result = await db.client.query(
-      `SELECT editor_font_size,
-              show_help_bubble,
-              open_instructions_by_default,
-              warn_before_reinstate
-       FROM user_settings
-       WHERE username = $1`,
-      [verifyResponse.data.username]
-    );
-
+  if (result.success) {
     return new Response(
       JSON.stringify({
         success: true,
-        settings: mapRowToSettings(result.rows[0]),
+        settings: result.settings,
       } satisfies UserSettingsResponse),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: unknown) {
-    console.error('user_settings GET:', error);
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message:
-          error instanceof Error ? error.message : 'Failed to load user settings',
-      } satisfies UserSettingsResponse),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  } finally {
-    if (db) {
-      try {
-        await db.client.end();
-      } catch {}
-    }
   }
+
+  return new Response(
+    JSON.stringify({
+      success: false,
+      message: result.message ?? 'Failed to load user settings',
+    } satisfies UserSettingsResponse),
+    {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
 }
 
 export async function POST(req: NextRequest) {

@@ -1,31 +1,43 @@
-"use client";
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import LabRoot from "@/components/lab_root";
+import { redirect } from "next/navigation";
 
-function StudentLabsRootPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const courseId = searchParams.get("course_id");
-  const labUid = searchParams.get("lab");
+type StudentLabsRootPageProps = {
+  searchParams?: Promise<{
+    course_id?: string | string[] | undefined;
+    lab?: string | string[] | undefined;
+  }>;
+};
 
-  useEffect(() => {
-    if (!courseId || !labUid) {
-      router.replace("/student/labs");
-    }
-  }, [courseId, labUid, router]);
-
-  if (!courseId || !labUid) {
-    return null;
+function getSingleSearchParam(
+  value: string | string[] | undefined
+): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
   }
 
-  return <LabRoot />;
+  return value ?? "";
 }
 
-export default function StudentLabsRootPage() {
-  return (
-    <Suspense fallback={null}>
-      <StudentLabsRootPageContent />
-    </Suspense>
+export default async function StudentLabsRootPage({
+  searchParams,
+}: StudentLabsRootPageProps) {
+  const resolvedSearchParams = await (
+    searchParams ??
+    Promise.resolve({
+      course_id: undefined,
+      lab: undefined,
+    } as {
+      course_id?: string | string[] | undefined;
+      lab?: string | string[] | undefined;
+    })
+  );
+  const courseId = getSingleSearchParam(resolvedSearchParams.course_id).trim();
+  const labUid = getSingleSearchParam(resolvedSearchParams.lab).trim();
+
+  if (!courseId || !labUid) {
+    redirect("/student/labs");
+  }
+
+  redirect(
+    `/student/labs/${encodeURIComponent(labUid)}?course_id=${encodeURIComponent(courseId)}`
   );
 }
