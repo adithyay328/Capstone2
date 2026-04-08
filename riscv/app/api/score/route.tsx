@@ -45,12 +45,20 @@ export async function POST(req: NextRequest) {
   }
 
   const code = (body.code ?? "").trim();
+  const course_id = (body.course_id ?? "").trim();
   const test_uid = (body.test_uid ?? "").trim();
   const grade_session_id = (body.grade_session_id ?? "").trim();
 
   if (!code) {
     return NextResponse.json(
       { pass: false, error: "No code provided" } satisfies ScoreResponse,
+      { status: 200 }
+    );
+  }
+
+  if (!/^[0-9]{5}$/.test(course_id)) {
+    return NextResponse.json(
+      { pass: false, error: "Valid course_id (5 digits) required" } satisfies ScoreResponse,
       { status: 200 }
     );
   }
@@ -71,6 +79,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({ 
         code, 
+        course_id,
         test_uid, 
         grade_session_id: grade_session_id || undefined, 
         username,

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { logout } from '@/app/logout/frontend';
 
@@ -17,7 +18,7 @@ export default function TADashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="ta-shell min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-8 space-y-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex flex-col gap-2">
@@ -58,6 +59,14 @@ export default function TADashboardPage() {
             <p className="mt-2 text-sm text-slate-600">
               Quick view of student-facing assistance and grading queues.
             </p>
+            <div className="mt-4">
+              <a
+                href="/ta/student-labs-root"
+                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Review student labs
+              </a>
+            </div>
           </article>
 
           <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -66,6 +75,14 @@ export default function TADashboardPage() {
             <p className="mt-2 text-sm text-slate-600">
               Current lab rollout status and pending checks for your sections.
             </p>
+            <div className="mt-4">
+              <Link
+                href="/ta/simulator"
+                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Open simulator sandbox
+              </Link>
+            </div>
           </article>
         </section>
 
@@ -74,6 +91,14 @@ export default function TADashboardPage() {
           <p className="mt-1 text-sm text-slate-600">
             TA-specific announcements and updates can be shown in this panel.
           </p>
+          <div className="mt-4">
+            <Link
+              href="/ta/courses"
+              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              View Courses
+            </Link>
+          </div>
         </section>
       </div>
     </div>

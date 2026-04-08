@@ -11,6 +11,7 @@ import { ScoreResponse } from './types';
  */
 export async function scoreTestCase(
   code: string,
+  course_id: string,
   test_uid: string,
   grade_session_id?: string
 ): Promise<ScoreResponse> {
@@ -20,7 +21,7 @@ export async function scoreTestCase(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code, test_uid, grade_session_id }),
+      body: JSON.stringify({ code, course_id, test_uid, grade_session_id }),
     });
 
     const data: ScoreResponse = await response.json();

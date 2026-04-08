@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AssemblyInfoData, SimState, SubmitResponse } from '@/components/types';
 
-const LabSessionSchema = z.object({
+export const LabSessionSchema = z.object({
   storageKey: z.string(),
   uid: z.string(),
   labUid: z.string().nullable(),
@@ -12,6 +12,7 @@ const LabSessionSchema = z.object({
   stepIndex: z.number(),
   allStates: z.array(z.unknown()),
   registerOverrides: z.record(z.string(), z.string()),
+  memoryOverrides: z.record(z.string(), z.string()),
 });
 
 export const LoadLabSessionResponseSchema = z.object({
@@ -32,6 +33,7 @@ export type LabSession = {
   stepIndex: number;
   allStates: SubmitResponse["states"];
   registerOverrides: Record<string, string>;
+  memoryOverrides: Record<string, string>;
 };
 
 export type LoadLabSessionResponse = {

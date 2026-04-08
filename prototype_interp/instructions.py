@@ -6,6 +6,7 @@ simple, is to think about an instruction as simply an
 operation that takes in a machine state, and returns a new
 machine state. That's how we'll design it, for now.
 """
+import re
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -15,6 +16,9 @@ from pydantic import BaseModel
 
 LED_ADDR      = 0x3F0
 SEVENSEG_ADDR = 0x3F4
+LOAD_STORE_IMM_MIN = -2048
+LOAD_STORE_IMM_MAX = 2047
+LOAD_STORE_OPERAND_PATTERN = re.compile(r"^(-?\d+|0[xX][0-9a-fA-F]+)\((x\d+)\)$")
 
 def checkRegister(token: str) -> int:
   """
@@ -23,11 +27,53 @@ def checkRegister(token: str) -> int:
   
   Raises ValueError if the token is not a valid register.
   """
-  if not token.startswith('x'):
-    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  # Support ABI register aliases (t0/t1/a0/a7/s0/...).
+  # Existing code primarily uses x0-x31, but many student labs use ABI names.
+  token_norm = token.strip().lower()
+  abi_to_reg = {
+    "zero": 0,
+    "ra": 1,
+    "sp": 2,
+    "gp": 3,
+    "tp": 4,
+    "t0": 5,
+    "t1": 6,
+    "t2": 7,
+    "s0": 8,
+    "fp": 8,
+    "s1": 9,
+    "a0": 10,
+    "a1": 11,
+    "a2": 12,
+    "a3": 13,
+    "a4": 14,
+    "a5": 15,
+    "a6": 16,
+    "a7": 17,
+    "s2": 18,
+    "s3": 19,
+    "s4": 20,
+    "s5": 21,
+    "s6": 22,
+    "s7": 23,
+    "s8": 24,
+    "s9": 25,
+    "s10": 26,
+    "s11": 27,
+    "t3": 28,
+    "t4": 29,
+    "t5": 30,
+    "t6": 31,
+  }
+
+  if token_norm in abi_to_reg:
+    return abi_to_reg[token_norm]
+
+  if not token_norm.startswith('x'):
+    raise ValueError(f"Invalid register format: '{token}'. Expected ABI alias or 'x<number>'")
   
   try:
-    reg_idx = int(token[1:])
+    reg_idx = int(token_norm[1:])
   except ValueError:
     raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
   
@@ -52,6 +98,26 @@ def checkImmediate(token: str) -> int:
       return int(token)
   except ValueError:
     raise ValueError(f"Invalid immediate value: '{token}'. Expected a decimal or hexadecimal number")
+
+def parseLoadStoreOperand(token: str) -> tuple[int, int]:
+  """
+  Parse a canonical RV32I load/store operand like '12(x2)'.
+  """
+  match = LOAD_STORE_OPERAND_PATTERN.fullmatch(token)
+  if match is None:
+    raise ValueError(
+      f"Invalid load/store operand: '{token}'. Expected format: '<offset>(x<register>)'"
+    )
+
+  imm = checkImmediate(match.group(1))
+  if imm < LOAD_STORE_IMM_MIN or imm > LOAD_STORE_IMM_MAX:
+    raise ValueError(
+      f"Load/store immediate out of RV32I 12-bit signed range: {imm}. "
+      f"Valid range: {LOAD_STORE_IMM_MIN} to {LOAD_STORE_IMM_MAX}"
+    )
+
+  aIdx = checkRegister(match.group(2))
+  return aIdx, imm
 
 class Instruction(ABC):
   KNOWN_INSTRUCTIONS = set()
@@ -1153,27 +1219,29 @@ class LW(Instruction):
   def parseFromSourceTokens(tokens: List[str]) -> 'LW':
     """
     Parse LW instruction from tokens.
-    Expected format: ['lw', 'x0', 'x1', '10']
+    Expected format: ['lw', 'x0', '10(x1)']
     """
-    if len(tokens) != 4:
-      raise ValueError(f"LW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    if len(tokens) != 3:
+      raise ValueError(f"LW instruction expects 3 tokens, got {len(tokens)}: {tokens}")
     
     if tokens[0].lower() != 'lw':
       raise ValueError(f"Expected 'lw' instruction, got '{tokens[0]}'")
     
     dIdx = checkRegister(tokens[1])
-    aIdx = checkRegister(tokens[2])
-    imm = checkImmediate(tokens[3])
+    aIdx, imm = parseLoadStoreOperand(tokens[2])
     
     return LW(dIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
-    Implements the forward pass of LW (Load Word)
-    dIdx = memory[aIdx + imm] (4 bytes, little-endian)
+    Implements the forward pass of LW (Load Word).
+    lw rd, offset(rs1)
     """
     aVal = state.regs[self.aIdx].value
     addr = (aVal + self.imm) % (2 ** 32)
+
+    if addr % 4 != 0:
+      raise ValueError(f"Unaligned word access: address {addr} is not divisible by 4")
 
     # Load 4 bytes from memory (little-endian)
     if addr + 3 >= len(state.memory):
@@ -1295,29 +1363,31 @@ class SW(Instruction):
   def parseFromSourceTokens(tokens: List[str]) -> 'SW':
     """
     Parse SW instruction from tokens.
-    Expected format: ['sw', 'x2', 'x1', '10']
-    Stores word from x2 to memory[x1 + 10]
+    Expected format: ['sw', 'x2', '10(x1)']
+    Stores word from x2 to memory[x1 + 10].
     """
-    if len(tokens) != 4:
-      raise ValueError(f"SW instruction expects 4 tokens, got {len(tokens)}: {tokens}")
+    if len(tokens) != 3:
+      raise ValueError(f"SW instruction expects 3 tokens, got {len(tokens)}: {tokens}")
     
     if tokens[0].lower() != 'sw':
       raise ValueError(f"Expected 'sw' instruction, got '{tokens[0]}'")
     
     sIdx = checkRegister(tokens[1])
-    aIdx = checkRegister(tokens[2])
-    imm = checkImmediate(tokens[3])
+    aIdx, imm = parseLoadStoreOperand(tokens[2])
     
     return SW(sIdx, aIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
     """
-    Implements the forward pass of SW (Store Word)
-    memory[aIdx + imm] = sIdx (4 bytes, little-endian)
+    Implements the forward pass of SW (Store Word).
+    sw rs2, offset(rs1)
     """
     sVal = state.regs[self.sIdx].value
     aVal = state.regs[self.aIdx].value
     addr = (aVal + self.imm) % (2 ** 32)
+
+    if addr % 4 != 0:
+      raise ValueError(f"Unaligned word access: address {addr} is not divisible by 4")
 
     # Memory-mapped LED
     if addr == LED_ADDR:
@@ -1333,7 +1403,7 @@ class SW(Instruction):
 
     # Normal memory write
     if addr + 3 >= len(state.memory):
-      raise ValueError("Memory access out of bounds")
+      raise ValueError(f"Memory access out of bounds: address {addr} + 3 >= {len(state.memory)}")
 
     state.memory[addr].value = sVal & 0xFF
     state.memory[addr + 1].value = (sVal >> 8) & 0xFF

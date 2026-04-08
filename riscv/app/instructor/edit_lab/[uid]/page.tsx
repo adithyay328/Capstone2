@@ -11,6 +11,7 @@ import { createTestCase } from '@/app/api/create_test_case/frontend';
 import { deleteTestCase } from '@/app/api/delete_test_case/frontend';
 import type { TestCase } from '@/app/api/create_test_case/types';
 import TestCaseEditor from '@/components/TestCaseEditor';
+import { ins } from '@/components/instructor-shell';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the markdown editor to avoid SSR issues
@@ -224,12 +225,12 @@ export default function EditLabPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Edit Lab</h1>
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            <p className="mt-2">Loading lab...</p>
+      <div className="p-8">
+        <div className="mx-auto max-w-4xl">
+          <h1 className={`${ins.h1} mb-6`}>Edit Lab</h1>
+          <div className="py-8 text-center">
+            <div className={`${ins.spinner} mx-auto`} />
+            <p className="mt-2 text-stone-600">Loading lab...</p>
           </div>
         </div>
       </div>
@@ -238,15 +239,16 @@ export default function EditLabPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Edit Lab</h1>
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <div className="p-8">
+        <div className="mx-auto max-w-4xl">
+          <h1 className={`${ins.h1} mb-6`}>Edit Lab</h1>
+          <div className={ins.msgErr} role="alert">
             <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{error}</span>
-            <button 
+            <span className="inline sm:inline">{error}</span>
+            <button
+              type="button"
               onClick={() => router.back()}
-              className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              className={`${ins.btnDangerSolid} mt-3 block`}
             >
               Go Back
             </button>
@@ -258,14 +260,15 @@ export default function EditLabPage() {
 
   if (!lab) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Edit Lab</h1>
-          <div className="text-center py-8">
-            <p className="text-gray-500">Lab not found.</p>
-            <button 
+      <div className="p-8">
+        <div className="mx-auto max-w-4xl">
+          <h1 className={`${ins.h1} mb-6`}>Edit Lab</h1>
+          <div className="py-8 text-center">
+            <p className="text-stone-600">Lab not found.</p>
+            <button
+              type="button"
               onClick={() => router.back()}
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className={`${ins.btnPrimary} mt-4`}
             >
               Go Back
             </button>
@@ -276,20 +279,30 @@ export default function EditLabPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="w-4/5 mx-auto">
+    <div className="p-8">
+      <div className="mx-auto w-4/5 max-w-5xl">
         <div className="mb-6">
-          <button 
+          <button
+            type="button"
             onClick={() => router.back()}
-            className="mb-4 inline-flex items-center gap-2 rounded-lg bg-blue-100 px-4 py-2 text-blue-700 font-medium hover:bg-blue-200 hover:text-blue-900 transition"
+            className={`${ins.btnSecondary} mb-4 inline-flex items-center gap-2`}
           >
             ← Back to Lab List
           </button>
-          <h1 className="text-3xl font-bold">Edit Lab</h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className={ins.h1}>Edit Lab</h1>
+            <button
+              type="button"
+              onClick={() => router.push(`/instructor/labs-root?lab=${params.uid}`)}
+              className={ins.btnPrimary}
+            >
+              Open Teacher Emulator
+            </button>
+          </div>
         </div>
 
         <div className="mb-6">
-          <label htmlFor="title" className="block text-sm font-medium text-white-700 mb-2">
+          <label htmlFor="title" className={`${ins.label} mb-2`}>
             Lab Title
           </label>
           <input
@@ -297,16 +310,14 @@ export default function EditLabPage() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className={ins.input}
             placeholder="Enter lab title"
           />
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-white-700 mb-2">
-            Lab Content
-          </label>
-          <div className="border border-gray-300 rounded-md overflow-auto">
+          <label className={`${ins.label} mb-2`}>Lab Content</label>
+          <div className="overflow-auto rounded-xl border border-white/15 bg-white shadow-inner">
             {typeof window !== 'undefined' && (
               <MdEditor
                 modelValue={content}
@@ -322,31 +333,30 @@ export default function EditLabPage() {
 
         {/* ================= Assign To Courses ================= */}
         <div className="mt-10">
-          <h2 className="text-2xl font-semibold mb-4">Assign To Courses</h2>
+          <h2 className={`${ins.h2} mb-4`}>Assign To Courses</h2>
 
-          {coursesLoading && <p>Loading courses...</p>}
+          {coursesLoading && <p className="text-stone-600">Loading courses...</p>}
 
-          {coursesError && (
-            <p className="text-red-600">{coursesError}</p>
-          )}
+          {coursesError && <p className="text-red-800">{coursesError}</p>}
 
           {!coursesLoading && courses.length === 0 && (
-            <p>No courses found.</p>
+            <p className="text-stone-600">No courses found.</p>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {courses.map((course) => (
               <label
                 key={course.course_id}
-                className="flex items-center gap-2 border p-3 rounded cursor-pointer"
+                className={`${ins.listRow} cursor-pointer`}
               >
                 <input
                   type="checkbox"
                   checked={selectedCourses.includes(course.course_id)}
                   onChange={() => toggleCourse(course.course_id)}
+                  className="h-4 w-4 rounded border-stone-300 bg-white text-amber-600"
                 />
 
-                <span>
+                <span className="text-stone-900">
                   {course.code} — {course.title}
                 </span>
               </label>
@@ -354,40 +364,33 @@ export default function EditLabPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
-            className={`px-6 py-2 rounded-md text-white font-medium ${
-              saving 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-            }`}
+            className={saving ? ins.btnDisabled : ins.btnPrimary}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
 
           {saveSuccess && (
-            <div className="text-green-600 font-medium">
-              Lab updated successfully!
-            </div>
+            <div className="font-medium text-emerald-800">Lab updated successfully!</div>
           )}
 
           {error && !loading && (
-            <div className="text-red-600 font-medium">
-              Error: {error}
-            </div>
+            <div className="font-medium text-red-800">Error: {error}</div>
           )}
         </div>
 
         <div className="mt-10">
-          <h2 className="text-2xl font-semibold mb-4">Test Cases</h2>
+          <h2 className={`${ins.h2} mb-4`}>Test Cases</h2>
 
-          <div className="bg-white shadow sm:rounded-lg p-4 mb-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-3">Create Test Case</h3>
-            <form onSubmit={handleCreateTestCase} className="flex gap-4">
-              <div className="flex-grow">
-                <label htmlFor="testCaseName" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className={`${ins.card} ${ins.cardPad} mb-6`}>
+            <h3 className={`${ins.h2Card} mb-3`}>Create Test Case</h3>
+            <form onSubmit={handleCreateTestCase} className="flex flex-col gap-4 sm:flex-row">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="testCaseName" className={`${ins.label} mb-1`}>
                   Test Case Name
                 </label>
                 <input
@@ -395,7 +398,7 @@ export default function EditLabPage() {
                   id="testCaseName"
                   value={newTestCaseName}
                   onChange={(e) => setNewTestCaseName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className={ins.input}
                   placeholder="Enter test case name"
                   disabled={creatingTestCase}
                 />
@@ -404,28 +407,29 @@ export default function EditLabPage() {
                 <button
                   type="submit"
                   disabled={creatingTestCase || !newTestCaseName.trim()}
-                  className={`px-6 py-2 rounded-md text-white font-medium ${
-                    creatingTestCase || !newTestCaseName.trim()
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                  }`}
+                  className={
+                    creatingTestCase || !newTestCaseName.trim() ? ins.btnDisabled : ins.btnPrimary
+                  }
                 >
                   {creatingTestCase ? 'Creating...' : 'Create Test Case'}
                 </button>
               </div>
             </form>
             {testCasesError && (
-              <p className="mt-2 text-sm text-red-600">{testCasesError}</p>
+              <p className="mt-2 text-sm text-red-800">{testCasesError}</p>
             )}
           </div>
 
           {testCasesLoading ? (
-            <div className="text-center py-6">
-              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-              <p className="mt-2 text-gray-500">Loading test cases...</p>
+            <div className="py-6 text-center">
+              <div
+                className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-stone-200 border-t-amber-600"
+                aria-hidden
+              />
+              <p className="mt-2 text-stone-600">Loading test cases...</p>
             </div>
           ) : testCases.length === 0 ? (
-            <p className="text-white-500">No test cases yet.</p>
+            <p className="text-stone-600">No test cases yet.</p>
           ) : (
             <div>
               {testCases.map((testCase) => (

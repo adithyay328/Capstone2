@@ -1,10 +1,16 @@
-import { CreateUserRequest, CreateUserResponse, CreateUserRequestSchema, CreateUserResponseSchema } from './types';
+import {
+  CreateUserRequest,
+  CreateUserResponse,
+  CreateUserRequestSchema,
+  CreateUserResponseSchema,
+  type CreateUserRole,
+} from './types';
 
 export async function createUser(
   username: string,
   asuid: string,
   password: string,
-  instructor: boolean
+  role: CreateUserRole
 ): Promise<CreateUserResponse> {
   try {
     // Build the request object
@@ -12,7 +18,7 @@ export async function createUser(
       username,
       asuid,
       password,
-      instructor,
+      role,
     };
 
     // Validate request

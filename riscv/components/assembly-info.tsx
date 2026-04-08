@@ -1,30 +1,49 @@
 // AssemblyInfo.tsx
 "use client";
 import React from "react";
-
-/**
- * The backend returns this shape. Keys in `registers` are things like "x0", "x1", ... "x31".
- * Keys in `memory` are hex addresses like "0x0", "0x4", "0x10", etc.
- */
-type RunResponse = {
-  hadError: boolean;
-  errorMessage: string;
-  registers: Record<string, string>;
-  memory: Record<string, string>;
-};
-
+import type { AssemblyInfoData, SubmitResponse } from "./types";
+import {
+  pickInterestingMemory,
+  pickInterestingRegisters,
+} from "./assembly-info-utils";
 
 export default function AssemblyInfo({
   response,
+  states = [],
+  registerInputs = {},
+  memoryInputs = {},
 }: {
-  response: RunResponse | null;
+  response: AssemblyInfoData | null;
+  states?: SubmitResponse["states"];
+  registerInputs?: Record<string, string>;
+  memoryInputs?: Record<string, string>;
 }) {
   const hadError = response?.hadError ?? false;
   const errorMessage = response?.errorMessage ?? "";
-  const isMeaningfulRegisterValue = (value: string) => {
-    const normalized = value.trim().toLowerCase();
-    return normalized !== "0x0" && normalized !== "0x00000000";
-  };
+  const filteredRegisters = React.useMemo(
+    () => {
+      if (!response) return {};
+
+      return pickInterestingRegisters({
+        current: response.registers,
+        states,
+        seed: registerInputs,
+      });
+    },
+    [registerInputs, response, states]
+  );
+  const filteredMemory = React.useMemo(
+    () => {
+      if (!response) return {};
+
+      return pickInterestingMemory({
+        current: response.memory,
+        states,
+        seed: memoryInputs,
+      });
+    },
+    [memoryInputs, response, states]
+  );
 
   /**
    * ----------------------------
@@ -43,10 +62,7 @@ export default function AssemblyInfo({
    * - We strip non-digits via a regex and parse the remainder in base 10
    * - If parsing fails (e.g., unexpected key), we fall back to string comparison to keep it stable
    */
-  const sortedRegisters = response?.registers
-    ? Object.entries(response.registers)
-        .filter(([name, value]) => name === "x0" || isMeaningfulRegisterValue(value))
-        .sort(([a], [b]) => {
+  const sortedRegisters = Object.entries(filteredRegisters).sort(([a], [b]) => {
         // Extract the numeric suffix from keys like "x0", "x1", ..., "x31"
         // \D matches non-digits; replace them with "" to keep only digits
         const numA = parseInt(a.replace(/\D/g, ""), 10);
@@ -61,8 +77,7 @@ export default function AssemblyInfo({
         // do a stable-ish string compare so we still render deterministically.
         // Note: if you want "pc" at the top/bottom, you could special-case it here.
         return a.localeCompare(b, undefined, { numeric: true });
-      })
-    : [];
+      });
 
   /**
    * ----------------------------
@@ -79,8 +94,7 @@ export default function AssemblyInfo({
    * - parseInt("0x10", 16) === 16
    * - We add graceful fallback if an address is not parseable (keep string order)
    */
-  const sortedMemory = response?.memory
-    ? Object.entries(response.memory).sort(([a], [b]) => {
+  const sortedMemory = Object.entries(filteredMemory).sort(([a], [b]) => {
         const addrA = parseInt(a, 16);
         const addrB = parseInt(b, 16);
 
@@ -90,8 +104,7 @@ export default function AssemblyInfo({
 
         // Fallback if parse failed (unexpected format): keep a predictable order
         return a.localeCompare(b, undefined, { numeric: true });
-      })
-    : [];
+      });
 
   return (
     <div className="w-full max-w-[23.125rem] min-w-[16rem] bg-zinc-900/60 border border-zinc-700 rounded-xl shadow-sm p-4 space-y-3">
@@ -117,6 +130,10 @@ export default function AssemblyInfo({
       >
         {hadError ? errorMessage || "Unknown error" : "No errors"}
       </div>
+
+      <p className="text-xs text-zinc-400">
+        Showing seeded inputs and state that changed during the run.
+      </p>
 
       <div className="space-y-3 text-sm">
         {/* ----------------- REGISTERS PANEL ----------------- */}

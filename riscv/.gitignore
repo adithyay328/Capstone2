@@ -17,7 +17,11 @@ node_modules/
 # next.js
 /.next/
 /out/
-
+.next
+.next-dev
+/riscv/.next
+/riscv/.next-dev
+/riscv/.next-dev/*
 # production
 /build
 
@@ -32,6 +36,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+**/.next-dev/
 
 # vercel
 .vercel
@@ -45,10 +51,5 @@ next-env.d.ts
 .DS_Store
 
 #cache annoying
-__pychache__/
-Updated upstream
+__pycache__/
 *.pyc
-prototype_interp/__pycache__/*
-
-*.pyc__pycache__/
-Stashed changes

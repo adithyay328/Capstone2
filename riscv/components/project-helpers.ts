@@ -8,6 +8,7 @@ export const defaultProjectState: ProjectState = {
   stepIndex: 0,
   allStates: [],
   registerOverrides: {},
+  memoryOverrides: {},
 };
 
 export function makeUid() {

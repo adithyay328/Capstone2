@@ -6,15 +6,21 @@ import ProjectsGrid from "./projects-grid";
 import EditorPanel from "./editor-panel";
 import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
-import { writeWorkspace } from "./workspace-store";
+import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
 import RegisterEditor from "./register-editor";
-import { useState } from "react";
+import MemoryEditor from "./memory-editor";
 import HelpModal from "@/components/help-modal";
+import { getClientUsername } from "./client-session";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
 import { loadWorkspace } from "@/app/api/load_workspace/frontend";
 import { logout } from "@/app/logout/frontend";
+import { getUserSettings } from "@/app/api/user_settings/frontend";
+import {
+  DEFAULT_USER_SETTINGS,
+  type UserSettings,
+} from "@/app/api/user_settings/types";
 
 import type {
   ProjectState,
@@ -32,16 +38,22 @@ type ProjectsViewProps = {
   onUpdateProject: (id: string, next: { name?: string; description?: string }) => void;
 };
 
-const InstructionsPanel: React.FC = () => {
-  const [open, setOpen] = useState(true);
+type InstructionsPanelProps = {
+  open: boolean;
+  onClose: () => void;
+};
 
-  if (!open) return null; // fully hidden when closed
+const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
+  open,
+  onClose,
+}) => {
+  if (!open) return null;
 
   return (
     <div className="relative mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
       {/* Close button */}
       <button
-        onClick={() => setOpen(false)}
+        onClick={onClose}
         className="absolute top-2 right-2 text-yellow-800 font-bold hover:text-yellow-900"
         aria-label="Close instructions"
       >
@@ -51,7 +63,7 @@ const InstructionsPanel: React.FC = () => {
       <h3 className="font-semibold text-yellow-800 mb-2">Instructions for Use</h3>
       <ul className="list-disc ml-5 text-sm text-yellow-900">
         <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
-        <li>Register inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
+        <li>Register and memory inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
       </ul>
     </div>
   );
@@ -90,7 +102,13 @@ type EditorViewProps = {
   allStatesLength: number;
   fatalError: string | null;
   resp: AssemblyInfoData | null;
+  assemblyStates: SubmitResponse["states"];
+  registerInputs: Record<string, string>;
+  memoryInputs: Record<string, string>;
   registerPanel: React.ReactNode;
+  instructionsOpen: boolean;
+  onCloseInstructions: () => void;
+  editorFontSize: number;
 };
 
 const EditorView: React.FC<EditorViewProps> = ({
@@ -111,7 +129,13 @@ const EditorView: React.FC<EditorViewProps> = ({
   allStatesLength,
   fatalError,
   resp,
+  assemblyStates,
+  registerInputs,
+  memoryInputs,
   registerPanel,
+  instructionsOpen,
+  onCloseInstructions,
+  editorFontSize,
 }) => (
   <div className="relative">
     <div className="pt-4 w-full max-w-[90rem] mx-auto">
@@ -123,7 +147,10 @@ const EditorView: React.FC<EditorViewProps> = ({
           </div>
         )}
         {/* Instructions for students */}
-        <InstructionsPanel />
+        <InstructionsPanel
+          open={instructionsOpen}
+          onClose={onCloseInstructions}
+        />
       </div>
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Editor + controls column */}
@@ -134,6 +161,7 @@ const EditorView: React.FC<EditorViewProps> = ({
             code={code}
             onCodeChange={onCodeChange}
             showHeader={false}
+            editorFontSize={editorFontSize}
           />
 
         <EditorControls
@@ -158,7 +186,12 @@ const EditorView: React.FC<EditorViewProps> = ({
         )}
 
         <div className="mt-6 flex flex-col sm:flex-row gap-4">
-          <AssemblyInfo response={resp} />
+          <AssemblyInfo
+            response={resp}
+            states={assemblyStates}
+            registerInputs={registerInputs}
+            memoryInputs={memoryInputs}
+          />
 
           {/* Seven-segment + LEDs */}
           <div className="flex-shrink-0">
@@ -188,9 +221,9 @@ export default function Root({
 }) {
   //starts empty-- Later when a register is changed we will populate this
   const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
+  const [memoryOverrides, setMemoryOverrides] = React.useState<Record<string, string>>({});
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
-  const [memory, setMemory] = React.useState("");
   const [resp, setResp] = React.useState<AssemblyInfoData | null>(null);
   const [stepsEngaged, setStepsEngaged] = React.useState(false); 
   const [fatalError, setFatalError] = React.useState<string | null>(null);
@@ -206,8 +239,13 @@ export default function Root({
   const [view, setView] = React.useState<"editor" | "projects">(
     initialView ?? "editor"
   );
-  const [deleteMode, setDeleteMode] = React.useState(false);
-  const [selectedForDelete, setSelectedForDelete] = React.useState<string[]>([]);
+  const [userSettings, setUserSettings] = React.useState<UserSettings>(
+    DEFAULT_USER_SETTINGS
+  );
+  const [instructionsOpen, setInstructionsOpen] = React.useState(
+    DEFAULT_USER_SETTINGS.openInstructionsByDefault
+  );
+  const cacheUsername = React.useMemo(() => getClientUsername(), []);
 
   // we make an object to store defualt 0x0 values for all 32 registers
   //this is what we load into uiRegisters when start up the app 
@@ -309,6 +347,7 @@ const persist = React.useCallback(
         stepIndex,
         allStates,
         registerOverrides,
+        memoryOverrides,
         ...next,
       };
 
@@ -326,11 +365,11 @@ const persist = React.useCallback(
         projects: updatedProjects,
       };
 
-      writeWorkspace(workspace);
+      writeWorkspace(workspace, cacheUsername);
       return updatedProjects;
     });
   },
-  [uid, currentProjectId, code, resp, simState, stepIndex, allStates, registerOverrides]
+  [uid, currentProjectId, code, resp, simState, stepIndex, allStates, registerOverrides, memoryOverrides, cacheUsername]
 );
 
   const {
@@ -345,6 +384,7 @@ const persist = React.useCallback(
     allStates,
     runMeta,
     registersForRun: uiRegisters,
+    memoryForRun: memoryOverrides,
     persist,
     setAllStates,
     setStepIndex,
@@ -365,6 +405,7 @@ const persist = React.useCallback(
         setStepsEngaged(false);
         setFatalError(null);
         setRegisterOverrides({});
+        setMemoryOverrides({});
         return;
       }
 
@@ -379,6 +420,11 @@ const persist = React.useCallback(
       setRegisterOverrides(
         state.registerOverrides && typeof state.registerOverrides === "object"
           ? state.registerOverrides
+          : ({} as Record<string, string>)
+      );
+      setMemoryOverrides(
+        state.memoryOverrides && typeof state.memoryOverrides === "object"
+          ? state.memoryOverrides
           : ({} as Record<string, string>)
       );
     }, []);
@@ -422,12 +468,12 @@ const persist = React.useCallback(
           currentProjectId: nextCurrentId ?? null,
           projects: nextProjects,
         };
-        writeWorkspace(workspace);
+        writeWorkspace(workspace, cacheUsername);
         void syncWorkspace(workspace);
         return nextProjects;
       });
     },
-    [currentProjectId, loadProjectIntoState, uid]
+    [currentProjectId, loadProjectIntoState, uid, cacheUsername]
   );
 
   const updateProjectById = React.useCallback(
@@ -454,12 +500,12 @@ const persist = React.useCallback(
           currentProjectId,
           projects: updatedProjects,
         };
-        writeWorkspace(workspace);
+        writeWorkspace(workspace, cacheUsername);
         void syncWorkspace(workspace);
         return updatedProjects;
       });
     },
-    [currentProjectId, uid]
+    [currentProjectId, uid, cacheUsername]
   );
 
 
@@ -517,7 +563,7 @@ React.useEffect(() => {
         currentProjectId: firstProject.id,
         projects: existingProjects,
       };
-      writeWorkspace(newWorkspace);
+      writeWorkspace(newWorkspace, cacheUsername);
     }
 
     setProjects(existingProjects);
@@ -556,20 +602,32 @@ React.useEffect(() => {
     setStepsEngaged(false);
     setFatalError(null);
     setRegisterOverrides({});
-    setRegisterOverrides({});
+    setMemoryOverrides({});
 
     const workspace: Workspace = {
       uid: freshUid,
       currentProjectId: firstProject.id,
       projects: [firstProject],
     };
-    writeWorkspace(workspace);
+    writeWorkspace(workspace, cacheUsername);
     return workspace;
   };
 
   const hydrate = async () => {
-    setInitStatus("loading");
     setInitError(null);
+
+    const cachedWorkspace = readWorkspace(cacheUsername);
+    if (
+      cachedWorkspace &&
+      Array.isArray(cachedWorkspace.projects) &&
+      cachedWorkspace.projects.length > 0
+    ) {
+      applyWorkspace(cachedWorkspace);
+      setInitStatus("ready");
+      return;
+    }
+
+    setInitStatus("loading");
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setInitStatus("error");
@@ -588,15 +646,15 @@ React.useEffect(() => {
 
     if (remote.workspace) {
       const workspaceFromRemote = remote.workspace as Workspace;
-      writeWorkspace(workspaceFromRemote);
+      writeWorkspace(workspaceFromRemote, cacheUsername);
       applyWorkspace(workspaceFromRemote);
       setInitStatus("ready");
       return;
     }
 
     const fresh = applyFreshWorkspace();
-    await syncWorkspace(fresh);
     setInitStatus("ready");
+    void syncWorkspace(fresh);
   };
 
   void hydrate();
@@ -604,12 +662,12 @@ React.useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [loadProjectIntoState]);
+}, [cacheUsername, loadProjectIntoState]);
 
   React.useEffect(() => {
     if (!uid) return;
     workspaceDirtyRef.current = true;
-  }, [uid, currentProjectId, projects, code, resp, simState, stepIndex, allStates, registerOverrides]);
+  }, [uid, currentProjectId, projects, code, resp, simState, stepIndex, allStates, registerOverrides, memoryOverrides]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -653,12 +711,30 @@ React.useEffect(() => {
     };
   }, [syncWorkspaceNow]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      const response = await getUserSettings();
+      if (cancelled || !response.success || !response.settings) return;
+
+      setUserSettings(response.settings);
+      setInstructionsOpen(response.settings.openInstructionsByDefault);
+    }
+
+    void loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
     //changes site based on any changes to the paramters in []
   React.useEffect(() => {
     if (!uid) return;
     persist();
-  }, [uid, code, resp, simState, persist]);
+  }, [uid, code, resp, simState, registerOverrides, memoryOverrides, persist]);
 
   function handleNewProject() {
     let workspaceUid = uid;
@@ -689,6 +765,8 @@ React.useEffect(() => {
     setStepIndex(0);
     setStepsEngaged(false);
     setFatalError(null);
+    setRegisterOverrides({});
+    setMemoryOverrides({});
 
     if (typeof window !== "undefined" && workspaceUid) {
       const workspace: Workspace = {
@@ -696,7 +774,7 @@ React.useEffect(() => {
         currentProjectId: newProject.id,
         projects: updatedProjects,
       };
-      writeWorkspace(workspace);
+      writeWorkspace(workspace, cacheUsername);
       void syncWorkspace(workspace);
     }
   }
@@ -721,7 +799,7 @@ function handleSelectProject(projectId: string) {
       currentProjectId: projectId,
       projects,
     };
-    writeWorkspace(workspace);
+    writeWorkspace(workspace, cacheUsername);
     void syncWorkspace(workspace);
   }
 }
@@ -734,7 +812,8 @@ function handleSelectProject(projectId: string) {
 
   const handleReset = React.useCallback(() => {
     setRegisterOverrides({});
-    resetSession({ registerOverrides: {} });
+    setMemoryOverrides({});
+    resetSession({ registerOverrides: {}, memoryOverrides: {} });
   }, [resetSession]);
 
   if (initStatus === "error") {
@@ -773,10 +852,12 @@ function handleSelectProject(projectId: string) {
           await logout();
         }}
       />
-      <HelpModal title="AI Helper Chatbot">
-        <p>Potential Chatgpt??</p>
-        <p>Like SensAI to help students find out whats going on?</p>
-      </HelpModal>
+      {userSettings.showHelpBubble && (
+        <HelpModal title="AI Helper Chatbot">
+          <p>Potential Chatgpt??</p>
+          <p>Like SensAI to help students find out whats going on?</p>
+        </HelpModal>
+      )}
 
       {/* MAIN AREA */}
       <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
@@ -808,28 +889,40 @@ function handleSelectProject(projectId: string) {
             allStatesLength={allStates.length}
             fatalError={fatalError}
             resp={resp}
+            assemblyStates={allStates}
+            registerInputs={registerOverrides}
+            memoryInputs={memoryOverrides}
+            instructionsOpen={instructionsOpen}
+            onCloseInstructions={() => setInstructionsOpen(false)}
+            editorFontSize={userSettings.editorFontSize}
             registerPanel={
               <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[46rem] p-4 flex flex-col">
                 <h2 className="font-semibold text-sm uppercase tracking-wide">
-                  Register Presets
+                  Input Presets
                 </h2>
-                <div className="mt-2 flex-1 overflow-y-auto">
+                <p className="mt-1 text-xs text-zinc-400">
+                  Add only the register and memory overrides you want for this project.
+                </p>
+                <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                   <RegisterEditor
-                    registers={uiRegisters}
+                    registers={registerOverrides}
                     disabled={stepsEngaged}
                     onChange={(key, value) =>
                       setRegisterOverrides((prev) => {
                         const next = { ...prev };
                         if (!value.trim()) {
                           delete next[key];
-                          console.log("Debugging, reached if");
                         } else {
-                          console.log("Debugging else");
                           next[key] = value;
                         }
                         return next;
                       })
                     }
+                  />
+                  <MemoryEditor
+                    memory={memoryOverrides}
+                    disabled={stepsEngaged}
+                    onChange={setMemoryOverrides}
                   />
                 </div>
               </div>

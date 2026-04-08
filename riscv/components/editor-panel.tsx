@@ -1,6 +1,15 @@
 "use client";
 import React from "react";
-import CodeEditor from "./code-editor";
+import dynamic from "next/dynamic";
+
+const CodeEditor = dynamic(() => import("./code-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[32rem] items-center justify-center rounded-md border border-zinc-700 bg-zinc-900/60 text-sm text-zinc-400">
+      Loading editor...
+    </div>
+  ),
+});
 
 type EditorPanelProps = {
   projectName: string;
@@ -8,6 +17,7 @@ type EditorPanelProps = {
   code: string;
   onCodeChange: (nextCode: string) => void;
   showHeader?: boolean;
+  editorFontSize?: number;
 };
 
 const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -16,6 +26,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   code,
   onCodeChange,
   showHeader = true,
+  editorFontSize,
 }) => {
   return (
     <>
@@ -31,7 +42,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
       )}
 
       {/* EDITOR */}
-      <CodeEditor code={code} onChange={onCodeChange} />
+      <CodeEditor code={code} onChange={onCodeChange} fontSize={editorFontSize} />
     </>
   );
 };
