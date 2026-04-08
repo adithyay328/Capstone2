@@ -59,6 +59,12 @@ export default function InstructorPage() {
             View/Edit labs
           </Link>
           <Link
+            href="/instructor/student-labs-root"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Review student labs
+          </Link>
+          <Link
             href="/instructor/simulator"
             className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >

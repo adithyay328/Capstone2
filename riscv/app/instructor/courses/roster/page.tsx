@@ -113,6 +113,15 @@ function CourseRosterContent() {
                   >
                     <span className="font-medium text-slate-900">{m.username}</span>
                     <span className="text-sm text-slate-700">{m.role}</span>
+                    <div className="flex items-center gap-3">
+                      {m.role === 'student' && (
+                        <Link
+                          href={`/instructor/student-labs-root?course_id=${encodeURIComponent(courseId)}&student_username=${encodeURIComponent(m.username)}`}
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                        >
+                          Review labs
+                        </Link>
+                      )}
                     <button
                       type="button"
                       onClick={() => handleRemove(m.username)}
@@ -121,6 +130,8 @@ function CourseRosterContent() {
                     >
                       {removing === m.username ? 'Removing...' : 'Drop'}
                     </button>
+                      
+                    </div>
                   </li>
                 ))}
               </ul>
