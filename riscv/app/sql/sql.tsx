@@ -8,7 +8,12 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
-const getDatabaseUrl = () => getRequiredEnv("DATABASE_URL");
+/** Neon / team hosted URL, or DATABASE_URL from .env (see riscv/.env.example). */
+function getDatabaseUrl(): string {
+  const hosted = process.env.HOSTED_DATABASE_URL?.trim();
+  if (hosted) return hosted;
+  return getRequiredEnv("DATABASE_URL");
+}
 
 type GlobalWithDbPool = typeof globalThis & {
   __riscvDbPool?: Pool;

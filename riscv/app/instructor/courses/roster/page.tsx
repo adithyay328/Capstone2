@@ -8,6 +8,7 @@ import { removeCourseMember } from '@/app/api/remove_course_member/frontend';
 import { listCourses } from '@/app/api/list_courses/frontend';
 import type { CourseMember } from '@/app/api/course_members/types';
 import type { Course } from '@/app/api/list_courses/types';
+import { ins } from '@/components/instructor-shell';
 
 function CourseRosterContent() {
   const searchParams = useSearchParams();
@@ -62,46 +63,51 @@ function CourseRosterContent() {
 
   if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
-        <Link href="/instructor/courses" className="text-sm font-semibold text-indigo-600">
+      <div className={`${ins.pageWrapMd} max-w-2xl`}>
+        <Link href="/instructor/courses" className={ins.backLink}>
           ← Back to courses
         </Link>
-        <p className="mt-4 text-slate-600">Invalid course.</p>
+        <p className="mt-4 text-stone-600">Invalid course.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-2xl p-8">
-        <Link href="/instructor/courses" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
-          ← Back to courses
-        </Link>
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Course Roster</h1>
-        {course && (
-          <p className="mt-1 text-sm text-slate-600">
-            {course.code} — {course.title}
-          </p>
-        )}
+    <div className={`${ins.pageWrapMd} max-w-2xl`}>
+      <Link href="/instructor/courses" className={ins.backLink}>
+        ← Back to courses
+      </Link>
+      <h1 className={`${ins.h1} mt-4`}>Course Roster</h1>
+      {course && (
+        <p className={ins.subtitle}>
+          {course.code} — {course.title}
+        </p>
+      )}
 
-        {message && (
-          <div
-            className={`mt-4 rounded-md p-3 ${message.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+      {message && (
+        <div className={`mt-4 ${message.success ? ins.msgOk : ins.msgErr}`}>
+          {message.text}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="mt-6 text-stone-600">Loading...</p>
+      ) : (
+        <div className="mt-6">
+          <Link
+            href={`/instructor/courses/add_member?course_id=${courseId}`}
+            className={ins.btnPrimary}
           >
-            {message.text}
-          </div>
-        )}
-
-        {loading ? (
-          <p className="mt-6 text-slate-500">Loading...</p>
-        ) : (
-          <div className="mt-6">
+            Add user to this course
+          </Link>
+          <div className="mt-3">
             <Link
-              href={`/instructor/courses/add_member?course_id=${courseId}`}
-              className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              href={`/instructor/courses/grades?course_id=${courseId}&lab_uid=lab0-intro-addition`}
+              className={ins.btnSecondary}
             >
-              Add user to this course
+              View Lab 0 grades
             </Link>
+            
             {members.length === 0 ? (
               <p className="mt-4 text-slate-500">No members yet.</p>
             ) : (
@@ -137,8 +143,28 @@ function CourseRosterContent() {
               </ul>
             )}
           </div>
-        )}
-      </div>
+          {members.length === 0 ? (
+            <p className="mt-4 text-stone-600">No members yet.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {members.map((m) => (
+                <li key={m.username} className={ins.listRow}>
+                  <span className="font-medium text-stone-900">{m.username}</span>
+                  <span className="text-sm text-stone-600">{m.role}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(m.username)}
+                    disabled={removing === m.username}
+                    className={ins.btnDanger}
+                  >
+                    {removing === m.username ? 'Removing...' : 'Drop'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -147,8 +173,8 @@ export default function CourseRosterPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 p-8">
-          <p className="text-slate-500">Loading...</p>
+        <div className={`${ins.pageWrapMd} text-stone-600`}>
+          <p>Loading...</p>
         </div>
       }
     >

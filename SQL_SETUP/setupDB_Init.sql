@@ -96,6 +96,123 @@ COPY public.labs (uid, title, md) FROM stdin;
 --
 -- Data for Name: secrets; Type: TABLE DATA; Schema: public; Owner: capstone
 --
+-- ===== Lab 0: Introduction to Addition in Assembly Language =====
+INSERT INTO public.labs (uid, title, md) VALUES (
+  'lab0-intro-addition',
+  'Lab 0: Introduction to Addition in Assembly Language',
+  $LAB0_MD$
+# Lab 0: Introduction to Addition in Assembly Language
+
+## Objective
+Write an assembly program that:
+
+- Loads two integers from memory
+- Adds them
+- Stores the result back in memory
+
+This lab checks whether students understand:
+- loading values from memory
+- using arithmetic instructions
+- storing results back to memory
+
+## Problem Statement
+Write a program in RISC-V assembly (RV32I) that does the following:
+
+Read integer `A` from memory.
+Read integer `B` from memory.
+Compute `A + B`.
+Store the result in memory location `SUM`.
+
+You are given these labels in the data section:
+
+.data
+A:   .word 7
+B:   .word 5
+SUM: .word 0
+
+After the program runs, `SUM` should contain the value `12`.
+
+## Starter Skeleton
+<!-- STUDENT_STARTER -->
+~~~asm
+.data
+A:   .word 7
+B:   .word 5
+SUM: .word 0
+
+.text
+.globl main
+main:
+    # Your code here
+
+    # End program
+    li a7, 10
+    ecall
+~~~
+<!-- STUDENT_STARTER_END -->
+
+## Expected Student Solution (Teacher Only)
+<!-- EXPECTED_SOLUTION -->
+~~~asm
+.data
+A:   .word 7
+B:   .word 5
+SUM: .word 0
+
+.text
+.globl main
+main:
+    la t0, A
+    lw t1, 0(t0)
+
+    la t0, B
+    lw t2, 0(t0)
+
+    add t3, t1, t2
+
+    la t0, SUM
+    sw t3, 0(t0)
+
+    li a7, 10
+    ecall
+~~~
+<!-- EXPECTED_SOLUTION_END -->
+
+## Short Answer Question
+Question:
+Explain in 2–4 sentences what the following instructions do in your program:
+
+- `lw`
+- `add`
+- `sw`
+
+<!-- SAMPLE_SHORT_ANSWER -->
+Sample Answer:
+
+- `lw` loads a word from memory into a register.
+- `add` adds the values in two registers and stores the result in another register.
+- `sw` stores a word from a register back into memory.
+<!-- SAMPLE_SHORT_ANSWER_END -->
+
+## Grading Breakdown
+Part A: Emulator / Coding Portion — 80 points
+Correctness — 50 points
+
+Test Case 1 passes: 10 pts
+Test Case 2 passes: 10 pts
+Test Case 3 passes: 10 pts
+Test Case 4 passes: 10 pts
+Test Case 5 passes: 10 pts
+
+Core Instructions Used Correctly (`lw`, `add`, `sw`) → 20 pts
+Program Structure (labels + proper exit) → 10 pts
+
+Part B: Short Answer Question — 20 points
+<!-- SAMPLE_SHORT_ANSWER is used only by instructors/teachers -->
+$LAB0_MD$
+);
+
+--
 
 COPY public.secrets (name, value) FROM stdin;
 hmac	FYqCDN07YW74MitmBjkSx5zWw26uuTpGiGzY3kk5_chRR4ss_ePhrbmdIXeQnV06Mp4jr7SY23t6dll45mAHeU5GedbAzcnouE_Wr_9n-hi-enOzUp9CzZNuspz9V0VZIaF8KVHWg4ZpJjqskxpwJ9r9UU7y4RFU1vIAZZXpQdcJT2lUo3Q833p6rUCqj-yDbDNWL5VavTUJWROKq6CLFxE03o0bXLKdBMrK5emGUj3PgizLP5RtP2eZbdTLihqZHaWFCD_L1mE36bzxo8Yx2qDH1MznrY0Vvz1tJACq2LkObto6S-Pt2g0Fozt1KYzG6DwnUVYtP9Lk-5OgTGUbjyEkVDeDWXqbAOWtGgGBCBjUm1ur7AIApxwePufFMosDtSHhE9nuN071UZ_zUFHwaFbBpTOhl5-FhDcnkTWSD9OhFOa0Xn3lbQN80H-fCV39ipDZ1_1Y9XQLHyRx-uOixTYbXFdLN1y-eR8PCUF9M4uDES50GsDEaw1CFALDMjEINCHFiH9IRF_zKS--Vceyko5sybl9vwfV_EYA3W3e8uS2N0FwXBUk3iw4UZPCzqEyvU2Mi4EBmBbYrpXqn53Dqy08N3EY1DwpUDdEltJeURfWa8hbGCwbrTDHSe1y-QOWE5RqCCXxKGSnUktp9fw99TrI-Quga0arhpE--fU75Xs6fHfo_ZK2VjcFIfDj45MUUwxgo4bSau3uRYSJ0G3k86Gwsc5oqj3_ONwLteZSEEAgh2d64OavK4k_rziJP7_n1EWDVBWwUst4-BNLm0qZY-jufe57bAnRP3sU8VKXO_UqZfjAzk3K5_FCi7YKPuD3d15Qn_WBT743DIAH8sJO7OroFN7sgcOSMMTlaLosJGfs47YEeYzlC9JLPWkWsBPVWumH9El6Ni_i43Lu9I3Gsv6ZtKpc0_YWMN8lpkW-UVnmuonaUy3swPAYjVdxLKZk5xGkNtpQ4Nm0u6hIZx1l-B7QIFwHAp0PVxNy6sWMMKoy_z4G9tLSdJhJYfg4X9bNYKreZX3V1zq_KVP63A2xbCIaHGIAKJbjfyCCP_aZW1Jh10kwAurxyRoTm3OXjFyMiepvFcEQFkofpZjFYH7PS5tB5ilIcJlQ_pa6V0ESv8FYb3dt-6r67nhdTop0vKlKSpCiMXDPRm3ziM70q0HnG_l7Kcs1INgVhDdvNQKz3GE8So3q54QvwgMjQCsSuX7v-wJny5LsfLMK_bfdOJECXfy9kBoLJCcqSfNjqpC5K4Q1CJxGHSS_E8GViwJ6CA8tW8JNsjAp95XAMjEq8j7tbkaDDeKFKKkqe0TAyAO69moJHjzKwO8TZ1pM-KRAt8S1Xey1Oz_iW1Pirf00RITU5-b9TzCClr6HywP14Ka7K280MKuWZ87i8WRNtLUBN9IGQnB2d6wkBqc4Q8yvaPQqfXUGT4Yyu4-HOgfvROf86d_XI_77OiyJIVwL3DTyhNrZN30_4NcSUUsAwnVN4n_RY5p7S06lsa4MV8DvW0uj83KRMgC1JOrZM8spJvrN14q8L0cm_FNAGlwVRZbczIdYTBodXq4NlXaCp1rRfk31lzGClyNdqOPXAaCcFQxRkQaeMQndXGBnY9uj6LnIkZFEMvfL6tQSlwZon4-UujG_B2of_R8vEQ5gwMES94HHwDxpXfbeHW5Ut6KMP_S1d7p9SUdMH6BiH_tvEuwedgvvShjhFKtyG5tQpmpzUvZVfq9PjSfsZQ8Az_QY2sS088aInZ7BU8salPXdcvPR6rYgFtmWsCnHifyfgewEpqjv_uWmL57pbbJ8JfyGxuVy0BGb1A2aM6q1Fq9zXLaU5KTOHXdVE_8P-FtHp-7cOCoxVkvL_HVv1QykYYxBdiNe3RQfuJs-UHLc3ymdyL5MYwPE5rWVlaOzHDmSgzdF0gyHX18M_8A0S_REvYh-6uGY_jP5_Y4xy6X104cGj-HtjmLJAwwpXzosGN34bg_HfE5yxxpP_9q5ZCUKs4S1Ru7N
@@ -111,6 +228,61 @@ COPY public.test_cases (uid, lab_uid, name, seed_registers, seed_memory, result_
 2025120316400708111bc40230-ef12-4f05-a742-1045ad33033b	2025120316373801513aa03d83-8962-4322-a6f6-03aa9ffde273	Main Test!	{}	{}	{"x3":"0x1e"}	{}
 \.
 
+
+-- ===== Lab 0 test cases: Introduction to Addition =====
+INSERT INTO public.test_cases (uid, lab_uid, name, seed_registers, seed_memory, result_registers, result_memory) VALUES
+  (
+    'tc-lab0-1',
+    'lab0-intro-addition',
+    'Test Case 1',
+    '{}',
+    '{"0x0":"0x07","0x1":"0x00","0x2":"0x00","0x3":"0x00","0x4":"0x05","0x5":"0x00","0x6":"0x00","0x7":"0x00","0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}',
+    '{}',
+    '{"0x8":"0x0c","0x9":"0x00","0xa":"0x00","0xb":"0x00"}'
+  ),
+  (
+    'tc-lab0-2',
+    'lab0-intro-addition',
+    'Test Case 2',
+    '{}',
+    '{"0x0":"0x00","0x1":"0x00","0x2":"0x00","0x3":"0x00","0x4":"0x00","0x5":"0x00","0x6":"0x00","0x7":"0x00","0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}',
+    '{}',
+    '{"0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}'
+  ),
+  (
+    'tc-lab0-3',
+    'lab0-intro-addition',
+    'Test Case 3',
+    '{}',
+    '{"0x0":"0x0a","0x1":"0x00","0x2":"0x00","0x3":"0x00","0x4":"0xfd","0x5":"0xff","0x6":"0xff","0x7":"0xff","0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}',
+    '{}',
+    '{"0x8":"0x07","0x9":"0x00","0xa":"0x00","0xb":"0x00"}'
+  ),
+  (
+    'tc-lab0-4',
+    'lab0-intro-addition',
+    'Test Case 4',
+    '{}',
+    '{"0x0":"0xf8","0x1":"0xff","0x2":"0xff","0x3":"0xff","0x4":"0xfe","0x5":"0xff","0x6":"0xff","0x7":"0xff","0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}',
+    '{}',
+    '{"0x8":"0xf6","0x9":"0xff","0xa":"0xff","0xb":"0xff"}'
+  ),
+  (
+    'tc-lab0-5',
+    'lab0-intro-addition',
+    'Test Case 5',
+    '{}',
+    '{"0x0":"0x64","0x1":"0x00","0x2":"0x00","0x3":"0x00","0x4":"0xfa","0x5":"0x00","0x6":"0x00","0x7":"0x00","0x8":"0x00","0x9":"0x00","0xa":"0x00","0xb":"0x00"}',
+    '{}',
+    '{"0x8":"0x5e","0x9":"0x01","0xa":"0x00","0xb":"0x00"}'
+  )
+ON CONFLICT (uid) DO UPDATE
+SET lab_uid = EXCLUDED.lab_uid,
+    name = EXCLUDED.name,
+    seed_registers = EXCLUDED.seed_registers,
+    seed_memory = EXCLUDED.seed_memory,
+    result_registers = EXCLUDED.result_registers,
+    result_memory = EXCLUDED.result_memory;
 
 --
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: capstone

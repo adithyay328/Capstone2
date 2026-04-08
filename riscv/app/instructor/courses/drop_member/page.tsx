@@ -7,6 +7,7 @@ import { getCourseMembers } from '@/app/api/course_members/frontend';
 import { removeCourseMember } from '@/app/api/remove_course_member/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { CourseMember } from '@/app/api/course_members/types';
+import { ins } from '@/components/instructor-shell';
 
 export default function DropMemberPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -52,69 +53,62 @@ export default function DropMemberPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-xl p-8">
-        <Link href="/instructor" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
-          ← Back to dashboard
-        </Link>
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Drop Student from Course</h1>
-        <p className="mt-1 text-sm text-slate-600">Select a course, then remove a member from the roster.</p>
+    <div className={ins.pageWrapSm}>
+      <Link href="/instructor" className={ins.backLink}>
+        ← Back to dashboard
+      </Link>
+      <h1 className={`${ins.h1} mt-4`}>Drop Student from Course</h1>
+      <p className={ins.subtitle}>Select a course, then remove a member from the roster.</p>
 
-        {message && (
-          <div
-            className={`mt-4 rounded-md p-3 ${message.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+      {message && (
+        <div className={`mt-4 ${message.success ? ins.msgOk : ins.msgErr}`}>
+          {message.text}
+        </div>
+      )}
+
+      <div className={`mt-6 space-y-4 ${ins.card} ${ins.cardPad}`}>
+        <div>
+          <label className={ins.label}>Course</label>
+          <select
+            value={courseId}
+            onChange={(e) => setCourseId(e.target.value)}
+            className={ins.select}
           >
-            {message.text}
+            <option value="">Select course</option>
+            {courses.map((c) => (
+              <option key={c.course_id} value={c.course_id}>
+                {c.code} — {c.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {courseId && (
+          <div>
+            {loadingMembers ? (
+              <p className="text-stone-600">Loading roster...</p>
+            ) : members.length === 0 ? (
+              <p className="text-stone-600">No members in this course.</p>
+            ) : (
+              <ul className="space-y-2">
+                {members.map((m) => (
+                  <li key={m.username} className={ins.listRow}>
+                    <span className="font-medium text-stone-900">{m.username}</span>
+                    <span className="text-sm text-stone-600">{m.role}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(m.username)}
+                      disabled={removing === m.username}
+                      className={ins.btnDanger}
+                    >
+                      {removing === m.username ? 'Dropping...' : 'Drop'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
-
-        <div className="mt-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Course</label>
-            <select
-              value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900"
-            >
-              <option value="">Select course</option>
-              {courses.map((c) => (
-                <option key={c.course_id} value={c.course_id}>
-                  {c.code} — {c.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {courseId && (
-            <div>
-              {loadingMembers ? (
-                <p className="text-slate-500">Loading roster...</p>
-              ) : members.length === 0 ? (
-                <p className="text-slate-500">No members in this course.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {members.map((m) => (
-                    <li
-                      key={m.username}
-                      className="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-2"
-                    >
-                      <span className="font-medium text-slate-900">{m.username}</span>
-                      <span className="text-sm text-slate-700">{m.role}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(m.username)}
-                        disabled={removing === m.username}
-                        className="rounded border border-red-200 bg-red-50 px-2 py-1 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        {removing === m.username ? 'Dropping...' : 'Drop'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

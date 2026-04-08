@@ -11,6 +11,7 @@ and eliminate all trailing strings.
 """
 import regex
 from typing import List
+from typing import Dict, Tuple
 
 from instructions import Instruction
 
@@ -170,6 +171,169 @@ def sourceToInstructions( s : str ) -> List[Instruction]:
       raise ValueError(f"Failed to parse instruction '{instr_name}': {e}")
   
   return instructions
+
+
+def _int_parse(s: str) -> int:
+  """
+  Parse an immediate token supporting:
+  - decimal: -10, 123
+  - hex: 0xFF, 0xff
+  """
+  return int(s.strip(), 0)
+
+
+def extractDataWords(source: str) -> Tuple[Dict[str, int], List[Tuple[int, int]]]:
+  """
+  Extract a minimal `.data` section of the form:
+
+    .data
+    A:   .word 7
+    B:   .word 5
+    SUM: .word 0
+
+  Returns:
+    - label_to_addr (lowercased labels -> byte address)
+    - data_words: list of (addr, word_value) in the order encountered
+
+  Notes:
+  - This is intentionally minimal for the course lab format.
+  - Word size is assumed to be 4 bytes.
+  - Addresses are assigned sequentially starting at 0.
+  """
+  data_labels: Dict[str, int] = {}
+  data_words: List[Tuple[int, int]] = []
+
+  # Try to capture between `.data` and `.text`
+  data_match = regex.search(r"(?is)\.data\s*(.*?)\.text", source)
+  if data_match:
+    data_body = data_match.group(1)
+  else:
+    # If `.text` isn't present, capture from `.data` to end
+    data_match = regex.search(r"(?is)\.data\s*(.*)$", source)
+    data_body = data_match.group(1) if data_match else ""
+
+  addr = 0
+  for raw_line in data_body.splitlines():
+    # Strip inline comments
+    line = raw_line
+    if "#" in line:
+      line = line[: line.index("#")]
+    line = line.strip()
+    if not line:
+      continue
+
+    # Match: LABEL: .word <imm>
+    m = regex.match(r"(?is)^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\.word\s+(-?(?:0x[0-9a-fA-F]+|\d+))\s*$", line)
+    if not m:
+      continue
+
+    label = m.group(1).lower()
+    val_str = m.group(2)
+    word_val = _int_parse(val_str)
+
+    data_labels[label] = addr
+    data_words.append((addr, word_val))
+    addr += 4
+
+  return data_labels, data_words
+
+
+def preprocessAssemblyForEmulator(source: str) -> Tuple[str, List[Tuple[int, int]]]:
+  """
+  Minimal preprocessing so the Python emulator can run lab-style assembly that includes:
+  - `.data` + `.word` labels
+  - `la rd, LABEL` (pseudo) by rewriting to `addi rd, zero, <addr>`
+  - `li rd, IMM` (pseudo) by rewriting to `addi rd, zero, <imm>`
+  - lw/sw with offset(base) addressing: `lw rd, imm(rs)` and `sw rs, imm(rs)`
+  - `.globl` directives and `main:` labels are removed
+  - `ecall` lines are removed (treated as end-of-program no-op for this emulator)
+  """
+  data_labels, data_words = extractDataWords(source)
+
+  # Use the `.text` portion if present; otherwise use the whole source.
+  text_match = regex.search(r"(?is)\.text", source)
+  if text_match:
+    text_part = source[text_match.end() :]
+  else:
+    text_part = source
+
+  out_lines: List[str] = []
+  for raw_line in text_part.splitlines():
+    # Strip inline comments
+    line = raw_line
+    if "#" in line:
+      line = line[: line.index("#")]
+    line = line.strip()
+    if not line:
+      continue
+
+    lower = line.lower()
+
+    # Drop assembler directives (e.g. `.globl main`)
+    if lower.startswith("."):
+      continue
+
+    # Drop label-only lines (e.g. `main:`)
+    if lower.endswith(":"):
+      continue
+
+    # Drop ecall (not implemented in this emulator)
+    if lower == "ecall":
+      continue
+
+    # Rewrite `li rd, imm` -> `addi rd, zero, imm`
+    m_li = regex.match(
+      r"(?is)^li\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?(?:0x[0-9a-fA-F]+|\d+))\s*$",
+      line,
+    )
+    if m_li:
+      rd = m_li.group(1)
+      imm = m_li.group(2)
+      out_lines.append(f"addi {rd}, zero, {imm}")
+      continue
+
+    # Rewrite `la rd, LABEL` -> `addi rd, zero, <addr>`
+    m_la = regex.match(
+      r"(?is)^la\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*$",
+      line,
+    )
+    if m_la:
+      rd = m_la.group(1)
+      label = m_la.group(2).lower()
+      if label not in data_labels:
+        raise ValueError(f"Unknown .data label in la: {label}")
+      addr = data_labels[label]
+      out_lines.append(f"addi {rd}, zero, {addr}")
+      continue
+
+    # Rewrite lw rd, imm(rs) -> lw rd, rs, imm
+    m_lw = regex.match(
+      r"(?is)^lw\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?(?:0x[0-9a-fA-F]+|\d+))\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
+      line,
+    )
+    if m_lw:
+      rd = m_lw.group(1)
+      imm = m_lw.group(2)
+      rs = m_lw.group(3)
+      out_lines.append(f"lw {rd}, {rs}, {imm}")
+      continue
+
+    # Rewrite sw rs, imm(rs1) -> sw rs, rs1, imm
+    m_sw = regex.match(
+      r"(?is)^sw\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?(?:0x[0-9a-fA-F]+|\d+))\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
+      line,
+    )
+    if m_sw:
+      rs2 = m_sw.group(1)
+      imm = m_sw.group(2)
+      rs1 = m_sw.group(3)
+      out_lines.append(f"sw {rs2}, {rs1}, {imm}")
+      continue
+
+    # Keep everything else unchanged (existing emulator supports a limited ISA).
+    out_lines.append(line)
+
+  return "\n".join(out_lines), data_words
 
 if __name__ == "__main__":
   from machine import MachineState
