@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { updateCourseRole } from "./api/frontend";
-import type {
-  CourseMembershipRole,
-  ManageRoleMembership,
-} from "./api/types";
+import type { CourseMembershipRole, ManageRoleMembership } from "./api/types";
+import { ins } from "@/components/instructor-shell";
 
 const roleOptions: { value: CourseMembershipRole; label: string }[] = [
   { value: "student", label: "Student" },
@@ -52,120 +50,111 @@ export default function ManageRolesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-4xl p-8 space-y-6">
-        <div className="flex flex-col gap-2">
-          <Link
-            href="/instructor"
-            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-          >
-            Back to dashboard
-          </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Manage Roles</h1>
-          <p className="text-sm text-slate-600">
-            Change course membership roles for TA and student accounts.
-          </p>
+    <div className={ins.pageWrapMd}>
+      <div className="flex flex-col gap-2">
+        <Link href="/instructor" className={ins.backLink}>
+          Back to dashboard
+        </Link>
+        <h1 className={ins.h1}>Manage Roles</h1>
+        <p className={ins.subtitle}>
+          Change course membership roles for TA and student accounts.
+        </p>
+      </div>
+
+      <section className={`${ins.card} ${ins.cardPad} mt-6`}>
+        <p className="text-sm text-stone-700">
+          This tool updates{" "}
+          <code className="rounded bg-stone-900 px-1.5 py-0.5 text-amber-200/90">
+            course_memberships.role
+          </code>{" "}
+          for a single user in a single course. Instructor accounts are not editable from this page.
+        </p>
+      </section>
+
+      <form onSubmit={handleSubmit} className={`${ins.card} ${ins.cardPad} mt-6 space-y-4`}>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label htmlFor="username" className={ins.label}>
+              Username
+            </label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Enter username"
+              required
+              className={ins.input}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="courseId" className={ins.label}>
+              Course ID
+            </label>
+            <input
+              id="courseId"
+              type="text"
+              value={courseId}
+              onChange={(event) => setCourseId(event.target.value)}
+              placeholder="5-digit course ID"
+              required
+              pattern="[0-9]{5}"
+              maxLength={5}
+              className={ins.input}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="role" className={ins.label}>
+              New Role
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(event) => setRole(event.target.value as CourseMembershipRole)}
+              className={ins.select}
+            >
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">
-            This tool updates <code>course_memberships.role</code> for a single user in a single
-            course. Instructor accounts are not editable from this page.
-          </p>
-        </section>
-
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="Enter username"
-                required
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="courseId" className="block text-sm font-medium text-slate-700">
-                Course ID
-              </label>
-              <input
-                id="courseId"
-                type="text"
-                value={courseId}
-                onChange={(event) => setCourseId(event.target.value)}
-                placeholder="5-digit course ID"
-                required
-                pattern="[0-9]{5}"
-                maxLength={5}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-slate-700">
-                New Role
-              </label>
-              <select
-                id="role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as CourseMembershipRole)}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={isSubmitting} className={ins.btnPrimary}>
+            {isSubmitting ? "Updating..." : "Update role"}
+          </button>
+          {message && (
+            <span
+              className={`text-sm font-medium ${
+                message.success ? "text-emerald-300" : "text-red-300"
+              }`}
             >
-              {isSubmitting ? "Updating..." : "Update role"}
-            </button>
-            {message && (
-              <span
-                className={`text-sm ${
-                  message.success ? "text-emerald-700" : "text-red-700"
-                }`}
-              >
-                {message.text}
-              </span>
-            )}
-          </div>
-        </form>
+              {message.text}
+            </span>
+          )}
+        </div>
+      </form>
 
-        {lastChange && (
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Last Change</h2>
-            <p className="mt-2 text-sm text-slate-700">
-              <span className="font-medium">{lastChange.username}</span> is now{" "}
-              <span className="font-medium uppercase">{lastChange.role}</span> in course{" "}
-              <span className="font-medium">{lastChange.courseId}</span>.
+      {lastChange && (
+        <section className={`${ins.card} ${ins.cardPad} mt-6`}>
+          <h2 className={ins.h2Card}>Last Change</h2>
+          <p className="mt-2 text-sm text-stone-200">
+            <span className="font-semibold text-stone-900">{lastChange.username}</span> is now{" "}
+            <span className="font-semibold uppercase text-amber-300">{lastChange.role}</span> in course{" "}
+            <span className="font-semibold text-stone-900">{lastChange.courseId}</span>.
+          </p>
+          {lastChange.previousRole && (
+            <p className="mt-1 text-sm text-stone-600">
+              Previous role: <span className="font-medium text-stone-200">{lastChange.previousRole}</span>
             </p>
-            {lastChange.previousRole && (
-              <p className="mt-1 text-sm text-slate-600">
-                Previous role: <span className="font-medium">{lastChange.previousRole}</span>
-              </p>
-            )}
-          </section>
-        )}
-      </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

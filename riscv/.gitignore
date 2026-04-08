@@ -32,7 +32,6 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-!risc/.env.example
 !.env.example
 **/.next-dev/
 
@@ -48,10 +47,5 @@ next-env.d.ts
 .DS_Store
 
 #cache annoying
-__pychache__/
-Updated upstream
+__pycache__/
 *.pyc
-prototype_interp/__pycache__/*
-
-*.pyc__pycache__/
-Stashed changes

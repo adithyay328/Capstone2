@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RISC-V Emulator",
-  description: "Modern RISC-V Emulator in your browser. Designed to enhance your learning experience!",
+  title: "AssemblerLab — ASU RISC-V workspace",
+  description:
+    "Browser-based RISC-V assembly workspace for ASU courses: write, run, and submit assembly code.",
 };
 
 export default function RootLayout({

@@ -23,11 +23,53 @@ def checkRegister(token: str) -> int:
   
   Raises ValueError if the token is not a valid register.
   """
-  if not token.startswith('x'):
-    raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
+  # Support ABI register aliases (t0/t1/a0/a7/s0/...).
+  # Existing code primarily uses x0-x31, but many student labs use ABI names.
+  token_norm = token.strip().lower()
+  abi_to_reg = {
+    "zero": 0,
+    "ra": 1,
+    "sp": 2,
+    "gp": 3,
+    "tp": 4,
+    "t0": 5,
+    "t1": 6,
+    "t2": 7,
+    "s0": 8,
+    "fp": 8,
+    "s1": 9,
+    "a0": 10,
+    "a1": 11,
+    "a2": 12,
+    "a3": 13,
+    "a4": 14,
+    "a5": 15,
+    "a6": 16,
+    "a7": 17,
+    "s2": 18,
+    "s3": 19,
+    "s4": 20,
+    "s5": 21,
+    "s6": 22,
+    "s7": 23,
+    "s8": 24,
+    "s9": 25,
+    "s10": 26,
+    "s11": 27,
+    "t3": 28,
+    "t4": 29,
+    "t5": 30,
+    "t6": 31,
+  }
+
+  if token_norm in abi_to_reg:
+    return abi_to_reg[token_norm]
+
+  if not token_norm.startswith('x'):
+    raise ValueError(f"Invalid register format: '{token}'. Expected ABI alias or 'x<number>'")
   
   try:
-    reg_idx = int(token[1:])
+    reg_idx = int(token_norm[1:])
   except ValueError:
     raise ValueError(f"Invalid register format: '{token}'. Expected format: 'x<number>'")
   

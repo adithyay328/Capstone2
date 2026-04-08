@@ -28,6 +28,7 @@ import { getGradeStatus } from "@/app/api/grade_status/frontend";
 import { syncLabSession } from "@/app/api/sync_lab_session/frontend";
 import { logout } from "@/app/logout/frontend";
 import useRunner from "@/components/use-runner";
+import { filterLabMd } from "@/components/lab-markers";
 import type {
   AssemblyInfoData,
   ProjectState,
@@ -1149,7 +1150,10 @@ export default function LabRoot() {
                       <div className="flex-1 overflow-y-auto border border-gray-200 rounded-md ">
                         {selectedLab ? (
                           typeof window !== "undefined" && (
-                            <MdPreview modelValue={selectedLab.md} language="en-US" />
+                            <MdPreview
+                              modelValue={filterLabMd(selectedLab.md, "student")}
+                              language="en-US"
+                            />
                           )
                         ) : (
                           <p className="p-4 text-sm text-gray-500">

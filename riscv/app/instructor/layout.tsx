@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import IdleTimeoutGate from "@/components/IdleTimeoutGate";
+import { InstructorStudioBackground } from "@/components/instructor-shell";
 
 export default function InstructorLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -10,10 +11,12 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
 
   return (
     <IdleTimeoutGate
-      timeoutMs={30 * 60 * 1000}           // testing: 10 seconds 10 * 1000
-      redirectTo="/instructor/login"  // IMPORTANT: instructor login route
+      timeoutMs={30 * 60 * 1000}
+      redirectTo="/instructor/login"
     >
-      <div className="min-h-screen">{children}</div>
+      <InstructorStudioBackground>
+        <div className="min-h-screen">{children}</div>
+      </InstructorStudioBackground>
     </IdleTimeoutGate>
   );
 }

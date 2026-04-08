@@ -6,9 +6,11 @@ and sending it out.
 import json
 import os
 from pathlib import Path
+
 import psycopg2
 from flask import Flask, request, jsonify
-from stringParse import sourceToInstructions
+
+from stringParse import sourceToInstructions, preprocessAssemblyForEmulator
 from runtime import Runtime
 from machine import MachineState
 
@@ -41,9 +43,12 @@ load_local_env()
 
 # Database connection helper
 def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        return psycopg2.connect(database_url)
+    url = (
+        (os.environ.get("HOSTED_DATABASE_URL") or "").strip()
+        or (os.getenv("DATABASE_URL") or "").strip()
+    )
+    if url:
+        return psycopg2.connect(url)
 
     db_port_raw = get_required_env("DB_PORT")
     try:
@@ -119,6 +124,22 @@ def ensure_grade_attempt_tables(cur):
                 FOREIGN KEY (lab_uid) REFERENCES labs(uid) ON DELETE CASCADE
             """
         )
+
+    # Persist per-test-case pass/fail for each grade session.
+    # This lets instructors compute final scores + show which test cases passed.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS grade_test_case_results (
+            username TEXT NOT NULL,
+            lab_uid TEXT NOT NULL,
+            grade_session_id TEXT NOT NULL,
+            test_uid TEXT NOT NULL,
+            pass BOOLEAN NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (username, lab_uid, grade_session_id, test_uid)
+        )
+        """
+    )
 
 def lock_attempt_row(cur, username: str, lab_uid: str) -> int:
     cur.execute(
@@ -296,13 +317,23 @@ def consume_course_attempt(cur, username: str, course_id: str, lab_uid: str, gra
     )
     return True, attempts_used + 1
 
-def evaluate_test_case(instructions, seed_registers_json: str, seed_memory_json: str, result_registers_json: str, result_memory_json: str) -> bool:
+def evaluate_test_case(code: str, seed_registers_json: str, seed_memory_json: str, result_registers_json: str, result_memory_json: str) -> bool:
     seed_registers = json.loads(seed_registers_json)
     seed_memory = json.loads(seed_memory_json)
     result_registers = json.loads(result_registers_json)
     result_memory = json.loads(result_memory_json)
 
+    processed_code, data_words = preprocessAssemblyForEmulator(code)
     initialState = MachineState()
+
+    for addr, word_val in data_words:
+        u = word_val & 0xFFFFFFFF
+        if addr + 3 >= len(initialState.memory):
+            continue
+        initialState.memory[addr].value = u & 0xFF
+        initialState.memory[addr + 1].value = (u >> 8) & 0xFF
+        initialState.memory[addr + 2].value = (u >> 16) & 0xFF
+        initialState.memory[addr + 3].value = (u >> 24) & 0xFF
 
     for reg_key, val_str in seed_registers.items():
         reg_num = int(reg_key.lower().replace('x', ''))
@@ -314,6 +345,7 @@ def evaluate_test_case(instructions, seed_registers_json: str, seed_memory_json:
         if 0 <= addr < len(initialState.memory):
             initialState.memory[addr].value = int(val_str, 16)
 
+    instructions = sourceToInstructions(processed_code)
     runtime = Runtime(instructions, initialState)
     runtime.run()
     finalState = runtime.states[-1]
@@ -420,11 +452,23 @@ def data():
            })
 
        else:
+           # Preprocess lab-style code (supports .data/.word, la/li, lw/sw offset(base))
+           processed_code, data_words = preprocessAssemblyForEmulator(codeField)
            # Parse the source code into instruction objects using the modern regex-based parser
-           instructions = sourceToInstructions(codeField)
+           instructions = sourceToInstructions(processed_code)
            
            # Build initial state and seed registers/memory overrides
            initialState = MachineState()
+
+           # Seed `.data` words into memory first (request overrides can overwrite later)
+           for addr, word_val in data_words:
+               u = word_val & 0xFFFFFFFF
+               if addr + 3 >= len(initialState.memory):
+                   continue
+               initialState.memory[addr].value = u & 0xFF
+               initialState.memory[addr + 1].value = (u >> 8) & 0xFF
+               initialState.memory[addr + 2].value = (u >> 16) & 0xFF
+               initialState.memory[addr + 3].value = (u >> 24) & 0xFF
 
            registers = jsonData.get('registers') or {}
            memory = jsonData.get('memory') or {}
@@ -438,7 +482,7 @@ def data():
                except Exception:
                    continue
 
-           # Seed memory (format: {"0x0": "0x42"})
+           # Seed memory (format: {"0x0": "0x42"}) - overrides `.data` seeding
            for addr_str, val_str in memory.items():
                try:
                    addr = int(str(addr_str), 16)
@@ -550,15 +594,28 @@ def score():
 
         conn.commit()
 
-        instructions = sourceToInstructions(code)
         passed = evaluate_test_case(
-            instructions,
+            code,
             seed_registers_json,
             seed_memory_json,
             result_registers_json,
             result_memory_json,
         )
-        
+
+        if grade_session_id:
+            cur.execute(
+                """
+                INSERT INTO grade_test_case_results (username, lab_uid, grade_session_id, test_uid, pass)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (username, lab_uid, grade_session_id, test_uid)
+                DO UPDATE SET
+                  pass = EXCLUDED.pass,
+                  created_at = now()
+                """,
+                (username, lab_uid, grade_session_id, test_uid, passed),
+            )
+            conn.commit()
+
         return jsonify({
             "pass": passed,
             "attemptsUsed": attempts_used,
@@ -658,10 +715,9 @@ def grade_lab():
         save_warning = None
 
         try:
-            instructions = sourceToInstructions(code)
             for _, _, seed_registers_json, seed_memory_json, result_registers_json, result_memory_json in test_rows:
                 if evaluate_test_case(
-                    instructions,
+                    code,
                     seed_registers_json,
                     seed_memory_json,
                     result_registers_json,

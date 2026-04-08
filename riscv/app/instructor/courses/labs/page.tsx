@@ -8,6 +8,7 @@ import { getCourseLabs, type CourseLab } from '@/app/api/course_labs/frontend';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { Lab } from '@/app/api/list_labs/types';
+import { ins } from '@/components/instructor-shell';
 
 function CourseLabsPageContent() {
   const searchParams = useSearchParams();
@@ -92,103 +93,94 @@ function CourseLabsPageContent() {
 
   if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
-        <Link href="/instructor/courses" className="text-sm font-semibold text-indigo-600">
+      <div className={`${ins.pageWrapMd} max-w-3xl`}>
+        <Link href="/instructor/courses" className={ins.backLink}>
           ← Back to courses
         </Link>
-        <p className="mt-4 text-slate-600">Invalid course.</p>
+        <p className="mt-4 text-stone-600">Invalid course.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-3xl p-8">
-        <Link href="/instructor/courses" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
-          ← Back to courses
-        </Link>
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Labs in this course</h1>
-        {course && (
-          <p className="mt-1 text-sm text-slate-600">
-            {course.code} — {course.title}
-          </p>
-        )}
+    <div className={`${ins.pageWrapMd} max-w-3xl`}>
+      <Link href="/instructor/courses" className={ins.backLink}>
+        ← Back to courses
+      </Link>
+      <h1 className={`${ins.h1} mt-4`}>Labs in this course</h1>
+      {course && (
+        <p className={ins.subtitle}>
+          {course.code} — {course.title}
+        </p>
+      )}
 
-        {message && (
-          <div
-            className={`mt-4 rounded-md p-3 ${message.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-          >
-            {message.text}
-          </div>
-        )}
+      {message && (
+        <div className={`mt-4 ${message.success ? ins.msgOk : ins.msgErr}`}>
+          {message.text}
+        </div>
+      )}
 
-        {loading ? (
-          <p className="mt-6 text-slate-500">Loading...</p>
-        ) : (
-          <>
-            <section className="mt-6">
-              <h2 className="text-lg font-semibold text-slate-900">Assigned labs</h2>
-              {courseLabs.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">No labs assigned yet. Add one below.</p>
-              ) : (
-                <ul className="mt-2 space-y-2">
-                  {courseLabs.map((l) => (
-                    <li
-                      key={l.lab_uid}
-                      className="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-2"
+      {loading ? (
+        <p className="mt-6 text-stone-600">Loading...</p>
+      ) : (
+        <>
+          <section className="mt-6">
+            <h2 className={ins.h2Card}>Assigned labs</h2>
+            {courseLabs.length === 0 ? (
+              <p className="mt-2 text-sm text-stone-600">No labs assigned yet. Add one below.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {courseLabs.map((l) => (
+                  <li key={l.lab_uid} className={ins.listRow}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="font-medium text-stone-900">{l.title}</span>
+                      <Link href={`/instructor/edit_lab/${l.lab_uid}`} className={ins.linkAccent}>
+                        Edit lab
+                      </Link>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(l.lab_uid)}
+                      disabled={removing === l.lab_uid}
+                      className={ins.btnDanger}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium text-slate-900">{l.title}</span>
-                        <Link
-                          href={`/instructor/edit_lab/${l.lab_uid}`}
-                          className="text-sm text-indigo-600 hover:text-indigo-700"
-                        >
-                          Edit lab
-                        </Link>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(l.lab_uid)}
-                        disabled={removing === l.lab_uid}
-                        className="rounded border border-red-200 bg-red-50 px-2 py-1 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        {removing === l.lab_uid ? 'Removing...' : 'Remove from course'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                      {removing === l.lab_uid ? 'Removing...' : 'Remove from course'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-            <section className="mt-8">
-              <h2 className="text-lg font-semibold text-slate-900">Add a lab to this course</h2>
-              <p className="mt-1 text-sm text-slate-600">Labs created in View/Edit labs that are not yet in this course.</p>
-              {labsNotInCourse.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">All labs are already in this course, or no labs exist yet.</p>
-              ) : (
-                <ul className="mt-3 space-y-2">
-                  {labsNotInCourse.map((l) => (
-                    <li
-                      key={l.uid}
-                      className="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-2"
+          <section className="mt-8">
+            <h2 className={ins.h2Card}>Add a lab to this course</h2>
+            <p className={`${ins.subtitleMuted} mt-1`}>
+              Labs created in View/Edit labs that are not yet in this course.
+            </p>
+            {labsNotInCourse.length === 0 ? (
+              <p className="mt-3 text-sm text-stone-600">
+                All labs are already in this course, or no labs exist yet.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {labsNotInCourse.map((l) => (
+                  <li key={l.uid} className={ins.listRow}>
+                    <span className="font-medium text-stone-900">{l.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAdd(l.uid)}
+                      disabled={adding === l.uid}
+                      className={ins.btnPrimary}
                     >
-                      <span className="font-medium text-slate-900">{l.title}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleAdd(l.uid)}
-                        disabled={adding === l.uid}
-                        className="rounded bg-slate-900 px-3 py-1 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        {adding === l.uid ? 'Adding...' : 'Add to course'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </>
-        )}
-      </div>
+                      {adding === l.uid ? 'Adding...' : 'Add to course'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -197,8 +189,8 @@ export default function CourseLabsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 p-8">
-          <p className="text-slate-500">Loading...</p>
+        <div className={`${ins.pageWrapMd} text-stone-600`}>
+          <p>Loading...</p>
         </div>
       }
     >
