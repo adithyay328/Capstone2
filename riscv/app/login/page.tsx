@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Libre_Baskerville, Plus_Jakarta_Sans, Outfit } from 'next/font/google';
 import { login } from './api/frontend';
@@ -33,6 +33,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   const isAdminPortal = portal === 'admin';
+
+  useEffect(() => {
+    if (portal === 'student') {
+      router.prefetch('/student');
+      return;
+    }
+
+    router.prefetch('/instructor');
+    router.prefetch('/ta');
+  }, [portal, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -4,12 +4,35 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createUser } from './api/frontend';
 import { ins } from '@/components/instructor-shell';
+import type { CreateUserRole } from './api/types';
+
+const roleOptions: Array<{
+  value: CreateUserRole;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'student',
+    label: 'Student',
+    description: 'Standard student account with student portal access.',
+  },
+  {
+    value: 'ta',
+    label: 'TA',
+    description: 'Creates the account now; TA admin access becomes active after course-role assignment.',
+  },
+  {
+    value: 'instructor',
+    label: 'Instructor',
+    description: 'Full instructor account with instructor dashboard access.',
+  },
+];
 
 export default function CreateUserPage() {
   const [username, setUsername] = useState('');
   const [asuid, setAsuid] = useState('');
   const [password, setPassword] = useState('');
-  const [isInstructor, setIsInstructor] = useState(false);
+  const [role, setRole] = useState<CreateUserRole>('student');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(null);
 
@@ -19,14 +42,14 @@ export default function CreateUserPage() {
     setMessage(null);
 
     try {
-      const result = await createUser(username, asuid, password, isInstructor);
+      const result = await createUser(username, asuid, password, role);
       setMessage({ success: result.success, text: result.message });
 
       if (result.success) {
         setUsername('');
         setAsuid('');
         setPassword('');
-        setIsInstructor(false);
+        setRole('student');
       }
     } catch (error) {
       setMessage({
@@ -97,18 +120,26 @@ export default function CreateUserPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="instructor"
-            checked={isInstructor}
-            onChange={(e) => setIsInstructor(e.target.checked)}
-            className="h-4 w-4 rounded border-white/20 bg-stone-900 text-amber-500 focus:ring-amber-500/40"
-          />
-          <label htmlFor="instructor" className="text-sm text-stone-800">
-            Instructor
-          </label>
-        </div>
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium mb-1">
+              Account Type
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as CreateUserRole)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-sm text-gray-600">
+              {roleOptions.find((option) => option.value === role)?.description}
+            </p>
+          </div>
 
         <button type="submit" disabled={isSubmitting} className={`${ins.btnPrimary} w-full`}>
           {isSubmitting ? 'Creating...' : 'Submit'}

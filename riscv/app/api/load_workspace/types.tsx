@@ -8,6 +8,7 @@ const ProjectStateSchema = z.object({
   stepIndex: z.number(),
   allStates: z.array(z.unknown()),
   registerOverrides: z.record(z.string(), z.string()),
+  memoryOverrides: z.record(z.string(), z.string()),
 });
 
 const ProjectSchema = z.object({

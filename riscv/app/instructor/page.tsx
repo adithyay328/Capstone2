@@ -19,14 +19,101 @@ export default function InstructorPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen">
-      <header className="border-b border-amber-200/90 bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div>
-            <p className={ins.kicker}>Instructor</p>
-            <h1 className={`${ins.h1} mt-1`}>Dashboard</h1>
-          </div>
+  const header = (
+    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Instructor</p>
+        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Manage labs, users, and access admin controls.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium shadow-sm transition ${
+            isLoggingOut
+              ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+              : 'bg-slate-900 text-white hover:bg-slate-800'
+          }`}
+        >
+          {isLoggingOut ? 'Logging out...' : 'Log out'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const quickActions = (
+    <section className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Labs</p>
+        <h2 className="mt-2 text-lg font-semibold text-slate-900">Lab Management</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Create, edit, and remove labs and test cases.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <Link
+            href="/instructor/labs"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            View/Edit labs
+          </Link>
+          <Link
+            href="/instructor/student-labs-root"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Review student labs
+          </Link>
+          <Link
+            href="/instructor/simulator"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Open simulator sandbox
+          </Link>
+        </div>
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Users</p>
+        <h2 className="mt-2 text-lg font-semibold text-slate-900">User Management</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Create instructor accounts and manage access.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <Link
+            href="/instructor/create_user"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Create New User
+          </Link>
+          <Link
+            href="/instructor/user_search"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Search users
+          </Link>
+        </div>
+      </div>
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Admin Controls</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Administrative Actions.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/instructor/manage_roles"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Manage Roles
+          </Link>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            future potential button
+          </button>
           <button
             type="button"
             onClick={handleLogout}

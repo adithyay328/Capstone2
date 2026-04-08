@@ -107,6 +107,41 @@ function CourseRosterContent() {
             >
               View Lab 0 grades
             </Link>
+            
+            {members.length === 0 ? (
+              <p className="mt-4 text-slate-500">No members yet.</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {members.map((m) => (
+                  <li
+                    key={m.username}
+                    className="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-2"
+                  >
+                    <span className="font-medium text-slate-900">{m.username}</span>
+                    <span className="text-sm text-slate-700">{m.role}</span>
+                    <div className="flex items-center gap-3">
+                      {m.role === 'student' && (
+                        <Link
+                          href={`/instructor/student-labs-root?course_id=${encodeURIComponent(courseId)}&student_username=${encodeURIComponent(m.username)}`}
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                        >
+                          Review labs
+                        </Link>
+                      )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(m.username)}
+                      disabled={removing === m.username}
+                      className="rounded border border-red-200 bg-red-50 px-2 py-1 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {removing === m.username ? 'Removing...' : 'Drop'}
+                    </button>
+                      
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           {members.length === 0 ? (
             <p className="mt-4 text-stone-600">No members yet.</p>

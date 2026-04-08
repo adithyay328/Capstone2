@@ -9,7 +9,8 @@ import { listLabs } from '@/app/api/list_labs/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { Lab } from '@/app/api/list_labs/types';
 import { ins } from '@/components/instructor-shell';
-
+import StaffCourseLabsPage from '@/components/staff-course-labs-page';
+        
 function CourseLabsPageContent() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('course_id') ?? '';
@@ -101,7 +102,7 @@ function CourseLabsPageContent() {
       </div>
     );
   }
-
+    
   return (
     <div className={`${ins.pageWrapMd} max-w-3xl`}>
       <Link href="/instructor/courses" className={ins.backLink}>
@@ -197,4 +198,8 @@ export default function CourseLabsPage() {
       <CourseLabsPageContent />
     </Suspense>
   );
+import StaffCourseLabsPage from '@/components/staff-course-labs-page';
+
+export default function CourseLabsPage() {
+  return <StaffCourseLabsPage portal="instructor" canManageLabs />;
 }

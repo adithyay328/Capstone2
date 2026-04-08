@@ -2,7 +2,21 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { parsePersistedInputOverrides } from '@/components/input-overrides';
 import type { LoadWorkspaceResponse } from './types';
+
+type WorkspaceProjectRow = {
+  id: string;
+  name: string | null;
+  description: string | null;
+  created_at: string | Date | null;
+  code: string | null;
+  resp: unknown;
+  sim_state: unknown;
+  step_index: number | null;
+  all_states: unknown;
+  register_overrides: unknown;
+};
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
@@ -63,22 +77,25 @@ export async function POST(req: NextRequest) {
       [username]
     );
 
-    const projects = projectsResult.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description ?? '',
-      createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
-      state: {
-        code: row.code ?? '',
-        resp: row.resp ?? null,
-        simState: row.sim_state ?? null,
-        stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
-        allStates: Array.isArray(row.all_states) ? row.all_states : [],
-        registerOverrides: row.register_overrides && typeof row.register_overrides === 'object'
-          ? row.register_overrides
-          : {},
-      },
-    }));
+    const projects = projectsResult.rows.map((row: WorkspaceProjectRow) => {
+      const overrides = parsePersistedInputOverrides(row.register_overrides);
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description ?? '',
+        createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+        state: {
+          code: row.code ?? '',
+          resp: row.resp ?? null,
+          simState: row.sim_state ?? null,
+          stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
+          allStates: Array.isArray(row.all_states) ? row.all_states : [],
+          registerOverrides: overrides.registerOverrides,
+          memoryOverrides: overrides.memoryOverrides,
+        },
+      };
+    });
 
     return new Response(
       JSON.stringify({
@@ -94,7 +111,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Load workspace error:', error);
     return new Response(
       JSON.stringify({

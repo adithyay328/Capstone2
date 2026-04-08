@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { parsePersistedInputOverrides } from '@/components/input-overrides';
 import { z } from 'zod';
 import type { LoadLabSessionResponse } from './types';
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await req.text();
     body = raw ? JSON.parse(raw) : null;
-  } catch (parseError) {
+  } catch {
     body = null;
   }
 
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     const row = sessionResult.rows[0];
+    const overrides = parsePersistedInputOverrides(row.register_overrides);
 
     return new Response(
       JSON.stringify({
@@ -100,9 +102,8 @@ export async function POST(req: NextRequest) {
           simState: row.sim_state ?? null,
           stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
           allStates: Array.isArray(row.all_states) ? row.all_states : [],
-          registerOverrides: row.register_overrides && typeof row.register_overrides === 'object'
-            ? row.register_overrides
-            : {},
+          registerOverrides: overrides.registerOverrides,
+          memoryOverrides: overrides.memoryOverrides,
         },
       } satisfies LoadLabSessionResponse),
       {
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Load lab session error:', error);
     return new Response(
       JSON.stringify({

@@ -3,10 +3,18 @@ import type { Workspace } from "./types";
 
 const WORKSPACE_STORAGE_KEY = "riscv-session";
 
-export const readWorkspace = (): Partial<Workspace> | null => {
+function getWorkspaceStorageKey(username?: string | null) {
+  if (username && username.trim()) {
+    return `${WORKSPACE_STORAGE_KEY}:${username.trim()}`;
+  }
+
+  return WORKSPACE_STORAGE_KEY;
+}
+
+export const readWorkspace = (username?: string | null): Partial<Workspace> | null => {
   if (typeof window === "undefined") return null;
 
-  const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  const raw = window.localStorage.getItem(getWorkspaceStorageKey(username));
   if (!raw) return null;
 
   try {
@@ -17,7 +25,10 @@ export const readWorkspace = (): Partial<Workspace> | null => {
   }
 };
 
-export const writeWorkspace = (workspace: Workspace) => {
+export const writeWorkspace = (workspace: Workspace, username?: string | null) => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
+  window.localStorage.setItem(
+    getWorkspaceStorageKey(username),
+    JSON.stringify(workspace)
+  );
 };

@@ -2,10 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Project, Workspace } from "@/components/types";
-import { writeWorkspace } from "@/components/workspace-store";
+import { readWorkspace, writeWorkspace } from "@/components/workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "@/components/project-helpers";
-import { loadWorkspace } from "@/app/api/load_workspace/frontend";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
+import { getClientUsername } from "@/components/client-session";
 
 export default function StudentNewProjectPage() {
   const router = useRouter();
@@ -17,44 +17,47 @@ export default function StudentNewProjectPage() {
     didRun.current = true;
 
     const createProject = async () => {
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        setError("Initial connection required. Check your internet connection and reload.");
-        return;
+      try {
+        const cacheUsername = getClientUsername();
+        const cachedWorkspace = readWorkspace(cacheUsername);
+        const baseWorkspace: Workspace = cachedWorkspace
+          ? {
+              uid: cachedWorkspace.uid ?? makeUid(),
+              currentProjectId: cachedWorkspace.currentProjectId ?? null,
+              projects: Array.isArray(cachedWorkspace.projects)
+                ? cachedWorkspace.projects
+                : [],
+            }
+          : {
+              uid: makeUid(),
+              currentProjectId: null,
+              projects: [],
+            };
+
+        const existingProjects: Project[] = Array.isArray(baseWorkspace.projects)
+          ? baseWorkspace.projects
+          : [];
+
+        const newProject: Project = {
+          id: makeProjectId(),
+          name: `Untitled project ${existingProjects.length + 1}`,
+          description: "",
+          createdAt: new Date().toISOString(),
+          state: { ...defaultProjectState, code: "" },
+        };
+
+        const workspace: Workspace = {
+          uid: baseWorkspace.uid || makeUid(),
+          currentProjectId: newProject.id,
+          projects: [...existingProjects, newProject],
+        };
+
+        writeWorkspace(workspace, cacheUsername);
+        router.replace(`/student/projects/${newProject.id}`);
+        void syncWorkspace(workspace);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Unable to create project.");
       }
-
-      const remote = await loadWorkspace();
-      if (!remote.success) {
-        setError(remote.message ?? "Unable to connect to the database.");
-        return;
-      }
-
-      const baseWorkspace: Workspace = remote.workspace ?? {
-        uid: makeUid(),
-        currentProjectId: null,
-        projects: [],
-      };
-
-      const existingProjects: Project[] = Array.isArray(baseWorkspace.projects)
-        ? baseWorkspace.projects
-        : [];
-
-      const newProject: Project = {
-        id: makeProjectId(),
-        name: `Untitled project ${existingProjects.length + 1}`,
-        description: "",
-        createdAt: new Date().toISOString(),
-        state: { ...defaultProjectState, code: "" },
-      };
-
-      const workspace: Workspace = {
-        uid: baseWorkspace.uid || makeUid(),
-        currentProjectId: newProject.id,
-        projects: [...existingProjects, newProject],
-      };
-
-      writeWorkspace(workspace);
-      await syncWorkspace(workspace);
-      router.replace(`/student/projects/${newProject.id}`);
     };
 
     void createProject();

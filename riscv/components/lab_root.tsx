@@ -2,16 +2,17 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import CodeEditor from "./code-editor";
 import AssemblyInfo from "./assembly-info";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "@/components/sidebar"; //left sidebar
 import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
 import RegisterEditor from "@/components/register-editor";
+import MemoryEditor from "@/components/memory-editor";
 import HelpModal from "@/components/help-modal";
+import { getClientUsername } from "@/components/client-session";
 import { getStudentLabContext } from "@/app/api/student_lab_context/frontend";
 import type { StudentCourseLab } from "@/app/api/student_course_labs/types";
 import {
@@ -41,6 +42,15 @@ const MdPreview = dynamic(
   () => import("md-editor-rt").then((mod) => mod.MdPreview),
   { ssr: false }
 );
+
+const CodeEditor = dynamic(() => import("./code-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[32rem] items-center justify-center rounded-md border border-zinc-700 bg-zinc-900/60 text-sm text-zinc-400">
+      Loading editor...
+    </div>
+  ),
+});
 // Instructions Panel for Students to Read
 type InstructionsPanelProps = {
   open: boolean;
@@ -67,7 +77,7 @@ const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
       <h3 className="font-semibold text-yellow-800 mb-2">Lab Instructions</h3>
       <ul className="list-disc ml-5 text-sm text-yellow-900">
         <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
-        <li>Register inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
+        <li>Register and memory inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
         <li>Use only allowed instructions and follow lab instructions carefully.</li>
       </ul>
     </div>
@@ -89,6 +99,7 @@ type SavedVersion = {
   stepIndex: number;
   allStates: SubmitResponse["states"];
   registerOverrides: Record<string, string>;
+  memoryOverrides: Record<string, string>;
 };
 
 //BACKEND MUST MATCH THIS
@@ -96,17 +107,79 @@ function makeUid() {
   return "uid-" + Math.random().toString(36).slice(2);
 }
 
-export default function LabRoot() {
+type LabRootProps = {
+  courseIdOverride?: string;
+  labUidOverride?: string;
+};
+
+export default function LabRoot({
+  courseIdOverride,
+  labUidOverride,
+}: LabRootProps = {}) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const courseIdFromQuery = searchParams.get("course_id") ?? "";
-  const labUidFromQuery = searchParams.get("lab") ?? "";
+  const courseIdFromQuery = courseIdOverride ?? searchParams.get("course_id") ?? "";
+  const labUidFromQuery = labUidOverride ?? searchParams.get("lab") ?? "";
+  const studentUsernameFromQuery = searchParams.get("student_username")?.trim() ?? "";
+  const isStaffRoute =
+    pathname.startsWith("/instructor") || pathname.startsWith("/ta");
+  const isStaffReviewMode = isStaffRoute && !!studentUsernameFromQuery;
+  const studentSessionStorageKey = React.useMemo(
+    () =>
+      courseIdFromQuery && labUidFromQuery
+        ? `${LS_KEY}:${courseIdFromQuery}:${labUidFromQuery}`
+        : LS_KEY,
+    [courseIdFromQuery, labUidFromQuery]
+  );
+
   const storageKey = React.useMemo(
     () =>
       courseIdFromQuery && labUidFromQuery
         ? `${LS_KEY}:${courseIdFromQuery}:${labUidFromQuery}`
         : LS_KEY,
     [courseIdFromQuery, labUidFromQuery]
+  );
+  
+  const storageKey = React.useMemo(
+    () =>
+      isStaffReviewMode && courseIdFromQuery && labUidFromQuery && studentUsernameFromQuery
+        ? `${LS_KEY}:review:${studentUsernameFromQuery}:${courseIdFromQuery}:${labUidFromQuery}`
+        : studentSessionStorageKey,
+    [
+      courseIdFromQuery,
+      isStaffReviewMode,
+      labUidFromQuery,
+      studentSessionStorageKey,
+      studentUsernameFromQuery,
+    ]
+  );
+  const reviewBasePath = pathname.startsWith("/instructor")
+    ? "/instructor/student-labs-root"
+    : "/ta/student-labs-root";
+  const backHref = React.useMemo(() => {
+    if (!isStaffReviewMode) {
+      return courseIdFromQuery
+        ? `/student/labs?course_id=${encodeURIComponent(courseIdFromQuery)}`
+        : "/student/labs";
+    }
+
+    const params = new URLSearchParams();
+    if (courseIdFromQuery) params.set("course_id", courseIdFromQuery);
+    if (studentUsernameFromQuery) params.set("student_username", studentUsernameFromQuery);
+    const query = params.toString();
+    return query ? `${reviewBasePath}?${query}` : reviewBasePath;
+  }, [
+    courseIdFromQuery,
+    isStaffReviewMode,
+    reviewBasePath,
+    studentUsernameFromQuery,
+  ]);
+  const backLabel = isStaffReviewMode ? "Student Review" : "Lab Home";
+  const cacheUsername = React.useMemo(() => getClientUsername(), []);
+  const localStorageKey = React.useMemo(
+    () => (cacheUsername ? `${storageKey}:${cacheUsername}` : storageKey),
+    [cacheUsername, storageKey]
   );
   const [uid, setUid] = React.useState<string>("");
   const [code, setCode] = React.useState("");
@@ -117,6 +190,7 @@ export default function LabRoot() {
   const [allStates, setAllStates] = React.useState<SubmitResponse["states"]>([]);
   const [stepIndex, setStepIndex] = React.useState(0);
   const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
+  const [memoryOverrides, setMemoryOverrides] = React.useState<Record<string, string>>({});
   const [initStatus, setInitStatus] = React.useState<"loading" | "ready" | "error">(
     "loading"
   );
@@ -140,7 +214,7 @@ export default function LabRoot() {
 
   // Labs for grading
   const [selectedLab, setSelectedLab] = React.useState<StudentCourseLab | null>(null);
-  const [sidePanelTab, setSidePanelTab] = React.useState<"instructions" | "registers">(
+  const [sidePanelTab, setSidePanelTab] = React.useState<"instructions" | "presets">(
     "instructions"
   );
   const [gradeAttemptsRemaining, setGradeAttemptsRemaining] = React.useState<number | null>(null);
@@ -179,6 +253,7 @@ export default function LabRoot() {
       stepIndex,
       allStates,
       registerOverrides,
+      memoryOverrides,
     };
   }, [
     uid,
@@ -190,6 +265,7 @@ export default function LabRoot() {
     stepIndex,
     allStates,
     registerOverrides,
+    memoryOverrides,
   ]);
 
   const syncLabSessionNow = React.useCallback(
@@ -229,6 +305,7 @@ export default function LabRoot() {
   const prevLabUidRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     const prevKey = prevStorageKeyRef.current;
     const prevLabUid = prevLabUidRef.current;
     if (prevKey && prevKey !== storageKey) {
@@ -236,19 +313,22 @@ export default function LabRoot() {
     }
     prevStorageKeyRef.current = storageKey;
     prevLabUidRef.current = labUidFromQuery || null;
-  }, [labUidFromQuery, storageKey, syncLabSessionNow]);
+  }, [isStaffReviewMode, labUidFromQuery, storageKey, syncLabSessionNow]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     return () => {
       void syncLabSessionNow(true, true);
     };
-  }, [syncLabSessionNow]);
+  }, [isStaffReviewMode, syncLabSessionNow]);
 
   // LOADS LOCAL STORAGE (scoped per course and lab)
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     if (!courseIdFromQuery || !labUidFromQuery) {
-      router.replace("/student/labs");
+      if (!isStaffReviewMode) {
+        router.replace("/student/labs");
+      }
       return;
     }
 
@@ -277,6 +357,11 @@ export default function LabRoot() {
             ? parsed.registerOverrides
             : ({} as Record<string, string>)
         );
+      setMemoryOverrides(
+        parsed.memoryOverrides && typeof parsed.memoryOverrides === "object"
+          ? parsed.memoryOverrides
+          : ({} as Record<string, string>)
+      );
     };
 
     const applyFresh = (): SavedVersion => {
@@ -291,58 +376,90 @@ export default function LabRoot() {
         stepIndex: 0,
         allStates: [],
         registerOverrides: {} as Record<string, string>,
+        memoryOverrides: {} as Record<string, string>,
       };
       applySession(fresh);
       return fresh;
     };
 
     const hydrate = async () => {
-      setInitStatus("loading");
       setInitError(null);
       setSelectedLab(null);
 
+      let cachedSession: SavedVersion | null = null;
+      const rawCachedSession = window.localStorage.getItem(localStorageKey);
+      if (rawCachedSession) {
+        try {
+          cachedSession = JSON.parse(rawCachedSession) as SavedVersion;
+        } catch (error) {
+          console.warn("Failed to parse cached lab session", error);
+        }
+      }
+
+      const hasCachedSession = Boolean(cachedSession);
+      if (cachedSession) {
+        applySession(cachedSession);
+        setInitStatus("ready");
+      } else {
+        setInitStatus("loading");
+      }
+
       if (typeof navigator !== "undefined" && !navigator.onLine) {
-        setInitStatus("error");
-        setInitError("Initial connection required. Check your internet connection and reload.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError("Initial connection required. Check your internet connection and reload.");
+        }
         return;
       }
 
       const contextResponse = await getStudentLabContext(
         courseIdFromQuery,
         labUidFromQuery,
-        storageKey
+        studentSessionStorageKey,
+        isStaffReviewMode ? studentUsernameFromQuery : undefined
       );
       if (cancelled) return;
 
       if (!contextResponse.success) {
-        if (contextResponse.status === 400 || contextResponse.status === 403) {
+        if (!isStaffReviewMode && (contextResponse.status === 400 || contextResponse.status === 403)) {
           router.replace("/student/labs");
           return;
         }
 
-        if (contextResponse.status === 404) {
+        if (!isStaffReviewMode && contextResponse.status === 404) {
           router.replace(
             `/student/labs?course_id=${encodeURIComponent(courseIdFromQuery)}`
           );
           return;
         }
 
-        setInitStatus("error");
-        setInitError(contextResponse.message ?? "Unable to load this lab.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError(contextResponse.message ?? "Unable to load this lab.");
+        }
         return;
       }
 
       if (!contextResponse.lab) {
-        setInitStatus("error");
-        setInitError("Unable to load this lab.");
+        if (!hasCachedSession) {
+          setInitStatus("error");
+          setInitError("Unable to load this lab.");
+        }
         return;
       }
 
       setSelectedLab(contextResponse.lab);
 
+      if (hasCachedSession) {
+        setInitStatus("ready");
+        return;
+      }
+
       if (contextResponse.session) {
         const registerOverrides =
           (contextResponse.session.registerOverrides ?? {}) as Record<string, string>;
+        const memoryOverrides =
+          (contextResponse.session.memoryOverrides ?? {}) as Record<string, string>;
         const parsed: SavedVersion = {
           uid: contextResponse.session.uid ?? makeUid(),
           labUid: contextResponse.session.labUid ?? undefined,
@@ -355,8 +472,9 @@ export default function LabRoot() {
             ? contextResponse.session.allStates
             : [],
           registerOverrides,
+          memoryOverrides,
         };
-        window.localStorage.setItem(storageKey, JSON.stringify(parsed));
+        window.localStorage.setItem(localStorageKey, JSON.stringify(parsed));
         applySession(parsed);
         setInitStatus("ready");
         return;
@@ -364,18 +482,22 @@ export default function LabRoot() {
 
       const fresh = applyFresh();
       window.localStorage.setItem(storageKey, JSON.stringify(fresh));
-      await syncLabSession({
-        storageKey,
-        uid: fresh.uid,
-        labUid: labUidFromQuery || null,
-        version: 1,
-        code: fresh.code,
-        resp: fresh.resp,
-        simState: fresh.simState,
-        stepIndex: fresh.stepIndex,
-        allStates: fresh.allStates,
-        registerOverrides: fresh.registerOverrides,
-      });
+        setInitStatus("ready");
+      if (!isStaffReviewMode) {
+        await syncLabSession({
+          storageKey,
+          uid: fresh.uid,
+          labUid: labUidFromQuery || null,
+          version: 1,
+          code: fresh.code,
+          resp: fresh.resp,
+          simState: fresh.simState,
+          stepIndex: fresh.stepIndex,
+          allStates: fresh.allStates,
+          registerOverrides: fresh.registerOverrides,
+          memoryOverrides: fresh.memoryOverrides,
+        });
+      }
       setInitStatus("ready");
     };
 
@@ -384,7 +506,15 @@ export default function LabRoot() {
     return () => {
       cancelled = true;
     };
-  }, [courseIdFromQuery, labUidFromQuery, router, storageKey]);
+  }, [
+    courseIdFromQuery,
+    isStaffReviewMode,
+    labUidFromQuery,
+    router,
+    storageKey,
+    studentSessionStorageKey,
+    studentUsernameFromQuery,
+  ]);
 
   //HELPER to write everything to local storage
   const persist = React.useCallback(
@@ -401,12 +531,13 @@ export default function LabRoot() {
         stepIndex,
         allStates,
         registerOverrides,
+        memoryOverrides,
         ...next,
       };
 
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      window.localStorage.setItem(localStorageKey, JSON.stringify(payload));
     },
-    [uid, code, resp, simState, stepIndex, allStates, registerOverrides, storageKey, labUidFromQuery]
+    [uid, code, resp, simState, stepIndex, allStates, registerOverrides, memoryOverrides, localStorageKey, labUidFromQuery]
   );
   
 
@@ -414,22 +545,36 @@ export default function LabRoot() {
   React.useEffect(() => {
     if (!uid) return;
     persist();
-  }, [uid, code, resp, simState, registerOverrides, persist]);
+  }, [uid, code, resp, simState, registerOverrides, memoryOverrides, persist]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     if (!uid) return;
     labSessionDirtyRef.current = true;
-  }, [uid, storageKey, code, resp, simState, stepIndex, allStates, registerOverrides]);
+  }, [
+    allStates,
+    code,
+    isStaffReviewMode,
+    registerOverrides,
+    resp,
+    simState,
+    stepIndex,
+    storageKey,
+    uid,
+    memoryOverrides,
+  ]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     if (typeof window === "undefined") return;
     const interval = window.setInterval(() => {
       void syncLabSessionNow();
     }, 90 * 1000);
     return () => window.clearInterval(interval);
-  }, [syncLabSessionNow]);
+  }, [isStaffReviewMode, syncLabSessionNow]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     if (typeof window === "undefined") return;
     const handlePageHide = () => {
       void syncLabSessionNow(true, true);
@@ -450,9 +595,10 @@ export default function LabRoot() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [syncLabSessionNow]);
+  }, [isStaffReviewMode, syncLabSessionNow]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) return;
     if (typeof window === "undefined") return;
     const handleOnline = () => {
       void syncLabSessionNow();
@@ -461,9 +607,14 @@ export default function LabRoot() {
     return () => {
       window.removeEventListener("online", handleOnline);
     };
-  }, [syncLabSessionNow]);
+  }, [isStaffReviewMode, syncLabSessionNow]);
 
   React.useEffect(() => {
+    if (isStaffReviewMode) {
+      setGradeAttemptsRemaining(null);
+      return;
+    }
+
     let cancelled = false;
     async function loadGradeStatus() {
       if (!courseIdFromQuery || !selectedLab) {
@@ -484,7 +635,7 @@ export default function LabRoot() {
     return () => {
       cancelled = true;
     };
-  }, [courseIdFromQuery, selectedLab]);
+  }, [courseIdFromQuery, isStaffReviewMode, selectedLab]);
 
   React.useEffect(() => {
     if (gradeCooldownSeconds <= 0) return;
@@ -575,6 +726,7 @@ export default function LabRoot() {
     allStates,
     runMeta,
     registersForRun: uiRegisters,
+    memoryForRun: memoryOverrides,
     persist: persistRunner,
     setAllStates,
     setStepIndex,
@@ -586,16 +738,17 @@ export default function LabRoot() {
 
   const handleReset = React.useCallback(() => {
     setRegisterOverrides({});
-    resetSession({ registerOverrides: {} });
+    setMemoryOverrides({});
+    resetSession({ registerOverrides: {}, memoryOverrides: {} });
   }, [resetSession]);
 
-  const handleNewProject = React.useCallback(async () => {
-    await syncLabSessionNow(false, true);
+  const handleNewProject = React.useCallback(() => {
+    void syncLabSessionNow(false, true);
     router.push("/student/new-project");
   }, [router, syncLabSessionNow]);
 
-  const handleOpenProjects = React.useCallback(async () => {
-    await syncLabSessionNow(false, true);
+  const handleOpenProjects = React.useCallback(() => {
+    void syncLabSessionNow(false, true);
     router.push("/student/projects");
   }, [router, syncLabSessionNow]);
 
@@ -605,7 +758,11 @@ export default function LabRoot() {
     setSubmissionHistoryLoading(true);
     setSubmissionHistoryError(null);
 
-    const response = await getLabSubmissions(courseIdFromQuery, selectedLab.uid);
+    const response = await getLabSubmissions(
+      courseIdFromQuery,
+      selectedLab.uid,
+      isStaffReviewMode ? studentUsernameFromQuery : undefined
+    );
 
     if (!response.success) {
       setSubmissions([]);
@@ -624,7 +781,7 @@ export default function LabRoot() {
       return nextSubmissions[0]?.gradeSessionId ?? null;
     });
     setSubmissionHistoryLoading(false);
-  }, [courseIdFromQuery, selectedLab]);
+  }, [courseIdFromQuery, isStaffReviewMode, selectedLab, studentUsernameFromQuery]);
 
   React.useEffect(() => {
     if (!submissionHistoryOpen) return;
@@ -657,13 +814,19 @@ export default function LabRoot() {
       code: selectedSubmission.submittedCode,
       simState: null,
       registerOverrides,
+      memoryOverrides,
     });
     setSubmissionHistoryOpen(false);
     toast.info("Submission code restored to the editor.");
-  }, [registerOverrides, resetSession, selectedSubmission, userSettings.warnBeforeReinstate]);
+  }, [memoryOverrides, registerOverrides, resetSession, selectedSubmission, userSettings.warnBeforeReinstate]);
 
   // Grade the current code against all test cases for the selected lab
   async function handleGrade(): Promise<boolean> {
+    if (isStaffReviewMode) {
+      toast.info("Grading is disabled while reviewing a student's work.");
+      return false;
+    }
+
     if (!code.trim()) {
       toast.error("No code to grade!");
       return false;
@@ -743,12 +906,14 @@ export default function LabRoot() {
     gradeAttemptsRemaining !== null && gradeAttemptsRemaining <= 0;
   const isGradeCoolingDown = gradeCooldownSeconds > 0;
   const gradeDisabled =
-    !selectedLab || gradeBlockedByLimit || isGrading || isGradeCoolingDown;
+    isStaffReviewMode || !selectedLab || gradeBlockedByLimit || isGrading || isGradeCoolingDown;
   const gradeLabel = isGrading
     ? "Grading..."
     : isGradeCoolingDown
       ? `Grade (${gradeCooldownSeconds}s)`
-      : "Grade";
+      : isStaffReviewMode
+        ? "Grade Disabled"
+        : "Grade";
   const submissionHistoryModal =
     submissionHistoryOpen && typeof document !== "undefined"
       ? createPortal(
@@ -768,6 +933,9 @@ export default function LabRoot() {
                   <h2 className="text-lg font-semibold">Past Grading Submissions</h2>
                   <p className="text-sm text-zinc-500">
                     {selectedLab?.title ?? "Current Lab"}
+                    {isStaffReviewMode && studentUsernameFromQuery
+                      ? ` - ${studentUsernameFromQuery}`
+                      : ""}
                   </p>
                 </div>
                 <button
@@ -934,32 +1102,37 @@ export default function LabRoot() {
 
   return (
     <>
-      <div className="relative min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex ml-7">
+      <div
+        className={`relative min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex ${
+          isStaffReviewMode ? "" : "ml-7"
+        }`}
+      >
         <ToastContainer position="top-right" autoClose={5000} aria-label="container" />
-        {/* LEFT SIDEBAR */}
-        <Sidebar
-          initialOpen={false}
-          onNewProject={handleNewProject}
-          onOpenProjects={handleOpenProjects}
-          onLogout={async () => {
-            await syncLabSessionNow(true, true);
-            await logout();
-          }}
-        />
-        {userSettings.showHelpBubble && (
+        {!isStaffReviewMode && (
+          <Sidebar
+            initialOpen={false}
+            onNewProject={handleNewProject}
+            onOpenProjects={handleOpenProjects}
+            onLogout={async () => {
+              await syncLabSessionNow(true, true);
+              await logout();
+            }}
+          />
+        )}
+        {!isStaffReviewMode && userSettings.showHelpBubble && (
           <HelpModal title="AI Helper Chatbot">
             <p>Potential Chatgpt??</p>
             <p>Like SensAI to help students find out whats going on?</p>
           </HelpModal>
         )}
-        <div className="w-full max-w-[100rem] mx-auto pl-4 pr-4 sm:px-6 md:px-8 md:pl-20 md:pr-16 pt-4">
+        <div
+          className={`w-full max-w-[100rem] mx-auto pl-4 pr-4 sm:px-6 pt-4 ${
+            isStaffReviewMode ? "md:px-8" : "md:px-8 md:pl-20 md:pr-16"
+          }`}
+        >
           <div className="mb-3 w-full max-w-[44rem] sm:min-w-[26.875rem] min-w-0">
             <Link
-              href={
-                courseIdFromQuery
-                  ? `/student/labs?course_id=${encodeURIComponent(courseIdFromQuery)}`
-                  : "/student/labs"
-              }
+              href={backHref}
               className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <svg
@@ -972,9 +1145,17 @@ export default function LabRoot() {
               >
                 <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.5 7.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z" />
               </svg>
-              Lab Home
+              {backLabel}
             </Link>
           </div>
+          {isStaffReviewMode && studentUsernameFromQuery && (
+            <div className="mb-4 rounded-md border border-blue-400/40 bg-blue-950/30 px-4 py-3 text-sm text-blue-100">
+              Reviewing <span className="font-semibold">{studentUsernameFromQuery}</span>
+              {"'"}s lab workspace. You can inspect history here without syncing over the student
+              {"'"}s saved
+              session.
+            </div>
+          )}
           <div className="flex flex-col xl:flex-row gap-6">
             {/* Editor + controls column */}
             <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
@@ -1043,30 +1224,34 @@ export default function LabRoot() {
                   Reset
                 </button>
 
-                <button
-                  onClick={async () => {
-                    if (gradeDisabled) return;
-                    setIsGrading(true);
-                    const didRequest = await handleGrade();
-                    setIsGrading(false);
-                    if (didRequest) {
-                      setGradeCooldownSeconds(30);
-                    }
-                  }}
-                  className={`rounded px-4 py-2 text-white ${
-                    gradeDisabled
-                      ? isGrading || isGradeCoolingDown
-                        ? "bg-green-400 cursor-not-allowed"
-                        : "bg-gray-400 cursor-not-allowed"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                  disabled={gradeDisabled}
-                >
-                  {gradeLabel}
-                </button>
-                <span className="text-xs text-zinc-300">
-                  Grades left: {gradeAttemptsRemaining ?? gradeAttemptsLimit}/{gradeAttemptsLimit}
-                </span>
+                {!isStaffReviewMode && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        if (gradeDisabled) return;
+                        setIsGrading(true);
+                        const didRequest = await handleGrade();
+                        setIsGrading(false);
+                        if (didRequest) {
+                          setGradeCooldownSeconds(30);
+                        }
+                      }}
+                      className={`rounded px-4 py-2 text-white ${
+                        gradeDisabled
+                          ? isGrading || isGradeCoolingDown
+                            ? "bg-green-400 cursor-not-allowed"
+                            : "bg-gray-400 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700"
+                      }`}
+                      disabled={gradeDisabled}
+                    >
+                      {gradeLabel}
+                    </button>
+                    <span className="text-xs text-zinc-300">
+                      Grades left: {gradeAttemptsRemaining ?? gradeAttemptsLimit}/{gradeAttemptsLimit}
+                    </span>
+                  </>
+                )}
 
                 <button
                   type="button"
@@ -1077,12 +1262,14 @@ export default function LabRoot() {
                   Past Submissions
                 </button>
 
-                <button
-                  onClick={() => void syncLabSessionNow(false, true)}
-                  className="rounded border px-3 py-2 text-xs hover:bg-zinc-100"
-                >
-                  Sync Now
-                </button>
+                {!isStaffReviewMode && (
+                  <button
+                    onClick={() => void syncLabSessionNow(false, true)}
+                    className="rounded border px-3 py-2 text-xs hover:bg-zinc-100"
+                  >
+                    Sync Now
+                  </button>
+                )}
 
                 {/* uid (kept from Version 1) */}
                 <span className="ml-auto text-xs text-zinc-500">
@@ -1098,7 +1285,12 @@ export default function LabRoot() {
               )}
 
               <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <AssemblyInfo response={resp} />
+                <AssemblyInfo
+                  response={resp}
+                  states={allStates}
+                  registerInputs={registerOverrides}
+                  memoryInputs={memoryOverrides}
+                />
                 <div className="flex-shrink-0">
                   <RegisterVisualPanel
                     registers={resp?.registers ?? null}
@@ -1126,14 +1318,14 @@ export default function LabRoot() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSidePanelTab("registers")}
+                    onClick={() => setSidePanelTab("presets")}
                     className={`flex-1 px-3 py-2 text-center font-medium ${
-                      sidePanelTab === "registers"
+                      sidePanelTab === "presets"
                         ? "bg-zinc-800 text-white"
                         : "text-zinc-300 hover:bg-zinc-800/60"
                     }`}
                   >
-                    Register Presets
+                    Input Presets
                   </button>
                 </div>
 
@@ -1165,11 +1357,14 @@ export default function LabRoot() {
                   ) : (
                     <div className="h-full p-4 flex flex-col">
                       <h2 className="font-semibold text-sm uppercase tracking-wide">
-                        Register Presets
+                        Input Presets
                       </h2>
-                      <div className="mt-2 flex-1 overflow-y-auto">
+                      <p className="mt-1 text-xs text-zinc-400">
+                        Add only the register and memory overrides you want for this lab run.
+                      </p>
+                      <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                         <RegisterEditor
-                          registers={uiRegisters}
+                          registers={registerOverrides}
                           disabled={stepsEngaged}
                           onChange={(key, value) =>
                             setRegisterOverrides((prev) => {
@@ -1182,6 +1377,11 @@ export default function LabRoot() {
                               return next;
                             })
                           }
+                        />
+                        <MemoryEditor
+                          memory={memoryOverrides}
+                          disabled={stepsEngaged}
+                          onChange={setMemoryOverrides}
                         />
                       </div>
                     </div>

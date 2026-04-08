@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
+import { parsePersistedInputOverrides } from '@/components/input-overrides';
 import type { LabSession } from '../load_lab_session/types';
 import type { StudentLabContextResponse } from './types';
 
@@ -20,6 +21,47 @@ type StudentLabContextRow = {
   register_overrides: unknown;
 };
 
+async function hasStudentLabAccess(
+  client: DBConnection['client'],
+  username: string,
+  courseId: string,
+  labUid: string
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1
+     FROM course_memberships cm
+     JOIN course_labs cl ON cl.course_id = cm.course_id
+     WHERE cm.username = $1
+       AND cm.course_id = $2
+       AND cm.role = 'student'
+       AND cm.status = 'active'
+       AND cl.lab_uid = $3
+     LIMIT 1`,
+    [username, courseId, labUid]
+  );
+
+  return result.rows.length > 0;
+}
+
+async function hasStaffCourseAccess(
+  client: DBConnection['client'],
+  username: string,
+  courseId: string
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1
+     FROM course_memberships
+     WHERE username = $1
+       AND course_id = $2
+       AND role IN ('ta', 'instructor')
+       AND status = 'active'
+     LIMIT 1`,
+    [username, courseId]
+  );
+
+  return result.rows.length > 0;
+}
+
 function buildSession(
   storageKey: string,
   row: StudentLabContextRow
@@ -27,6 +69,8 @@ function buildSession(
   if (!row.session_uid) {
     return null;
   }
+
+  const overrides = parsePersistedInputOverrides(row.register_overrides);
 
   return {
     storageKey,
@@ -38,11 +82,8 @@ function buildSession(
     simState: (row.sim_state ?? null) as LabSession['simState'],
     stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
     allStates: (Array.isArray(row.all_states) ? row.all_states : []) as LabSession['allStates'],
-    registerOverrides: (
-      row.register_overrides && typeof row.register_overrides === 'object'
-        ? (row.register_overrides as Record<string, string>)
-        : {}
-    ) as LabSession['registerOverrides'],
+    registerOverrides: overrides.registerOverrides,
+    memoryOverrides: overrides.memoryOverrides,
   };
 }
 
@@ -68,22 +109,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (verifyResponse.data.student !== true) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: 'Only students can view student lab context',
-      } satisfies StudentLabContextResponse),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
   const course_id = req.nextUrl.searchParams.get('course_id') ?? '';
   const lab_uid = req.nextUrl.searchParams.get('lab_uid') ?? '';
   const storage_key = req.nextUrl.searchParams.get('storage_key') ?? '';
+  const requestedStudentUsername =
+    req.nextUrl.searchParams.get('student_username')?.trim() ?? '';
 
   if (!/^[0-9]{5}$/.test(course_id) || !lab_uid.trim() || !storage_key.trim()) {
     return new Response(
@@ -102,7 +132,103 @@ export async function GET(req: NextRequest) {
 
   try {
     db = await DBConnection.create();
-    const result = await db.client.query<StudentLabContextRow>(
+    const client = db.client;
+    const viewerUsername = String(verifyResponse.data.username);
+    const isStudent = verifyResponse.data.student === true;
+    const isInstructor = verifyResponse.data.instructor === true;
+    const isTa = verifyResponse.data.ta === true;
+
+    let targetUsername = viewerUsername;
+
+    if (isStudent) {
+      if (requestedStudentUsername && requestedStudentUsername !== viewerUsername) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Students can only view their own lab context',
+          } satisfies StudentLabContextResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const hasAccess = await hasStudentLabAccess(client, viewerUsername, course_id, lab_uid);
+      if (!hasAccess) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'You are not enrolled in this course',
+          } satisfies StudentLabContextResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    } else if (isInstructor || isTa) {
+      if (!requestedStudentUsername) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'student_username is required for TA/instructor lab review',
+          } satisfies StudentLabContextResponse),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const hasStaffAccess = await hasStaffCourseAccess(client, viewerUsername, course_id);
+      if (!hasStaffAccess) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'You do not have access to this course',
+          } satisfies StudentLabContextResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const hasStudentAccess = await hasStudentLabAccess(
+        client,
+        requestedStudentUsername,
+        course_id,
+        lab_uid
+      );
+      if (!hasStudentAccess) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'The selected student does not have access to this lab',
+          } satisfies StudentLabContextResponse),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      targetUsername = requestedStudentUsername;
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'You do not have permission to view student lab context',
+        } satisfies StudentLabContextResponse),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const result = await client.query<StudentLabContextRow>(
       `SELECT l.uid AS lab_uid,
               l.title AS lab_title,
               l.md,
@@ -129,7 +255,7 @@ export async function GET(req: NextRequest) {
          AND cm.role = 'student'
          AND cm.status = 'active'
        LIMIT 1`,
-      [verifyResponse.data.username, course_id, lab_uid, storage_key]
+      [targetUsername, course_id, lab_uid, storage_key]
     );
 
     if (result.rows.length === 0) {

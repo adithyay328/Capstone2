@@ -14,6 +14,7 @@ type UseRunnerParams = {
   allStates: SubmitResponse["states"];
   runMeta: RunMeta;
   registersForRun: Record<string, string>;
+  memoryForRun: Record<string, string>;
   persist: (next?: Partial<ProjectState>) => void;
   setAllStates: React.Dispatch<React.SetStateAction<SubmitResponse["states"]>>;
   setStepIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -28,6 +29,7 @@ const useRunner = ({
   allStates,
   runMeta,
   registersForRun,
+  memoryForRun,
   persist,
   setAllStates,
   setStepIndex,
@@ -45,7 +47,7 @@ const useRunner = ({
       const reqBody: SubmitRequest = {
         code,
         registers: registersForRun,
-        memory: {}, 
+        memory: memoryForRun,
       };
 
       const res = await fetch("/api/run", {
@@ -106,13 +108,14 @@ const useRunner = ({
         hadError: !!json.hadError,
         errorMessage: json.errorMessage ?? "",
       };
-    } catch (e: any) {
-      setFatalError(e?.message ?? "Run failed");
+    } catch (error: unknown) {
+      setFatalError(error instanceof Error ? error.message : "Run failed");
       return null;
     }
   }, [
     code,
     registersForRun,
+    memoryForRun,
     persist,
     setAllStates,
     setStepIndex,
