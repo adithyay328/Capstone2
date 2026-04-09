@@ -1,8 +1,11 @@
 import { NextRequest } from 'next/server';
 import { LoginRequestSchema } from './types';
-import { DBConnection } from '@/app/sql/sql';
+import { DBConnection, type DBClient } from '@/app/sql/sql';
 import { verifyPassword } from '@/app/passwords';
-import { modifyCookieData } from '@/app/verify/modify';
+import {
+  modifyCookieData,
+} from '@/app/verify/modify';
+import { invalidateAuthSessionFromCookie } from '@/app/verify/session';
 
 type LoginUserRow = {
   username: string;
@@ -13,6 +16,11 @@ type LoginUserRow = {
 
 export async function POST(req: NextRequest) {
   let db: DBConnection | null = null;
+  let client: DBClient | null = null;
+  const cookieHeader = req.headers.get('cookie') || '';
+
+  const getModifiedCookie = async (newData: Record<string, unknown>): Promise<string> =>
+    modifyCookieData(newData, client ?? undefined);
   
   try {
     // Parse and validate request body
@@ -21,7 +29,7 @@ export async function POST(req: NextRequest) {
     
     if (!parsedBody.success) {
       // Invalid request format. Use modifyCookieData with empty object to clear cookie
-      const modifiedCookie = await modifyCookieData({});
+      const modifiedCookie = await getModifiedCookie({});
 
       return new Response(
         JSON.stringify({
@@ -43,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     // Get database connection
     db = await DBConnection.create();
-    const client = db.client;
+    client = db.client;
 
     let userResult;
     try {
@@ -75,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     if (userResult.rows.length === 0) {
       // Username not found. Use modifyCookieData with empty object to clear cookie
-      const modifiedCookie = await modifyCookieData({});
+      const modifiedCookie = await getModifiedCookie({});
 
       return new Response(
         JSON.stringify({
@@ -109,7 +117,7 @@ export async function POST(req: NextRequest) {
         (portal === 'admin' && (isInstructor || isTa));
 
       if (!isPortalAllowed) {
-        const modifiedCookie = await modifyCookieData({});
+        const modifiedCookie = await getModifiedCookie({});
         const message =
           portal === 'student'
             ? 'This account must sign in using Admin Login'
@@ -139,8 +147,14 @@ export async function POST(req: NextRequest) {
           ta: isTa,
         };
 
+        await invalidateAuthSessionFromCookie(
+          cookieHeader,
+          'rotated_on_login',
+          client ?? undefined
+        );
+
         // Create a new cookie with the user data
-        const newCookie = await modifyCookieData(userData);
+        const newCookie = await getModifiedCookie(userData);
 
         // Return success response with cookie and student info
         return new Response(
@@ -161,17 +175,12 @@ export async function POST(req: NextRequest) {
         );
       } catch (cookieError) {
         console.error('Error creating auth cookie:', cookieError);
-        // Fall back to basic success response if cookie creation fails
-        // Use modifyCookieData with empty object to clear cookie as fallback
-        const modifiedCookie = await modifyCookieData({});
+        const modifiedCookie = await getModifiedCookie({});
 
         return new Response(
           JSON.stringify({
-            username: user.username,
-            success: true,
-            student: !user.instructor && !hasActiveTaRole,
-            instructor: Boolean(user.instructor),
-            ta: !user.instructor && hasActiveTaRole,
+            success: false,
+            message: 'Authentication session setup is unavailable. Please try again.',
           }),
           {
             status: 200,
@@ -185,7 +194,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Invalid password. Use modify
       // cookie with an empty object to clear
-      const modifiedCookie = await modifyCookieData({});
+      const modifiedCookie = await getModifiedCookie({});
 
       return new Response(
         JSON.stringify({
@@ -210,7 +219,7 @@ export async function POST(req: NextRequest) {
         : 'Unknown error in backend';
 
     // Make an empty cookie to clear any existing cookies
-    const modifiedCookie = await modifyCookieData({});
+    const modifiedCookie = await getModifiedCookie({});
 
     return new Response(
       JSON.stringify({

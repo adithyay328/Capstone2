@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { modifyCookieData } from "@/app/verify/modify";
+import { invalidateUserSessions } from "@/app/verify/session";
 import { DBConnection } from "@/app/sql/sql";
 import {
   ManageRoleRequestSchema,
   ManageRoleResponse,
 } from "./types";
+import { getMissingAsuidMessage, isValidAsuid } from "@/app/lib/asuid";
 
 type AuthData = {
   username?: string;
@@ -14,8 +16,20 @@ type AuthData = {
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get("cookie") || "";
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
   const authData = verifyResponse.data as AuthData | null;
+
+  if (verifyResponse.reason === "reauth_required") {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Please sign in again before managing roles.",
+      } satisfies ManageRoleResponse),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   if (!authData || !authData.username || typeof authData.instructor === "undefined") {
     const modifiedCookie = await modifyCookieData({});
@@ -79,7 +93,7 @@ export async function POST(req: NextRequest) {
     const client = db.client;
 
     const targetUserResult = await client.query(
-      "SELECT instructor FROM users WHERE username = $1",
+      "SELECT instructor, asuid FROM users WHERE username = $1",
       [username]
     );
     if (targetUserResult.rows.length === 0) {
@@ -97,6 +111,17 @@ export async function POST(req: NextRequest) {
         JSON.stringify({
           success: false,
           message: "This page only changes TA/student roles",
+        } satisfies ManageRoleResponse),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const targetUserAsuid = targetUserResult.rows[0]?.asuid;
+    if (!isValidAsuid(typeof targetUserAsuid === "string" ? targetUserAsuid : null)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: getMissingAsuidMessage(username, "be assigned to a course"),
         } satisfies ManageRoleResponse),
         { status: 409, headers: { "Content-Type": "application/json" } }
       );
@@ -155,6 +180,8 @@ export async function POST(req: NextRequest) {
       username: string;
       role: string;
     };
+
+    await invalidateUserSessions(updatedMembership.username, "role_changed", client);
 
     const message = previousRole
       ? `Updated ${updatedMembership.username} in course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`

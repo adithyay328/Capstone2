@@ -1,12 +1,20 @@
-"use client";
-import React from "react";
+import { headers } from "next/headers";
 import Root from "@/components/root";
+import { readVerifiedRequestAuth } from "@/app/verify/request-auth";
 
-export default function StudentProjectPage({
+export default async function StudentProjectPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { projectId } = React.use(params);
-  return <Root initialView="editor" initialProjectId={projectId} />;
+  const auth = readVerifiedRequestAuth(await headers());
+  const { projectId } = await params;
+
+  return (
+    <Root
+      initialView="editor"
+      initialProjectId={projectId}
+      sessionUsername={auth?.username ?? null}
+    />
+  );
 }

@@ -7,7 +7,22 @@ import { modifyCookieData } from '@/app/verify/modify';
 export async function POST(req: NextRequest) {
   // Verify the cookie to ensure user is authenticated
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        error: 'Reauthentication Required',
+        message: 'Please sign in again before updating labs.',
+      }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
   
   // Check that username is set and student boolean exists
   if (!verifyResponse.data || 

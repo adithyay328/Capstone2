@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { createUser } from './api/frontend';
 import { ins } from '@/components/instructor-shell';
 import type { CreateUserRole } from './api/types';
+import {
+  ASUID_INVALID_MESSAGE,
+  isValidAsuid,
+  normalizeAsuidInput,
+} from '@/app/lib/asuid';
 
 const roleOptions: Array<{
   value: CreateUserRole;
@@ -35,14 +40,26 @@ export default function CreateUserPage() {
   const [role, setRole] = useState<CreateUserRole>('student');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(null);
+  const trimmedUsername = username.trim();
+  const normalizedAsuid = normalizeAsuidInput(asuid);
+  const hasValidAsuid = isValidAsuid(normalizedAsuid);
+  const canSubmit =
+    trimmedUsername.length > 0 && password.length > 0 && hasValidAsuid;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) {
+      setMessage({
+        success: false,
+        text: ASUID_INVALID_MESSAGE,
+      });
+      return;
+    }
     setIsSubmitting(true);
     setMessage(null);
 
     try {
-      const result = await createUser(username, asuid, password, role);
+      const result = await createUser(trimmedUsername, normalizedAsuid, password, role);
       setMessage({ success: result.success, text: result.message });
 
       if (result.success) {
@@ -111,13 +128,21 @@ export default function CreateUserPage() {
             type="text"
             id="asuid"
             value={asuid}
-            onChange={(e) => setAsuid(e.target.value)}
+            onChange={(e) => setAsuid(normalizeAsuidInput(e.target.value))}
             inputMode="numeric"
             pattern="[0-9]{10}"
             maxLength={10}
+            placeholder="10-digit ASUID"
             className={ins.input}
             required
           />
+          <p className="mt-2 text-xs text-stone-600">
+            {asuid.length === 0
+              ? 'Every new user account must include a 10-digit ASUID.'
+              : hasValidAsuid
+                ? 'Valid 10-digit ASUID.'
+                : ASUID_INVALID_MESSAGE}
+          </p>
         </div>
 
           <div>
@@ -141,7 +166,11 @@ export default function CreateUserPage() {
             </p>
           </div>
 
-        <button type="submit" disabled={isSubmitting} className={`${ins.btnPrimary} w-full`}>
+        <button
+          type="submit"
+          disabled={isSubmitting || !canSubmit}
+          className={`${ins.btnPrimary} w-full disabled:cursor-not-allowed disabled:opacity-60`}
+        >
           {isSubmitting ? 'Creating...' : 'Submit'}
         </button>
       </form>

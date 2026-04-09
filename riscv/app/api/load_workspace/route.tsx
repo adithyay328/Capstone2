@@ -3,6 +3,7 @@ import { verifyCookieInternal } from '@/app/verify/internal';
 import { modifyCookieData } from '@/app/verify/modify';
 import { DBConnection } from '@/app/sql/sql';
 import { parsePersistedInputOverrides } from '@/components/input-overrides';
+import type { Project } from '@/components/types';
 import type { LoadWorkspaceResponse } from './types';
 
 type WorkspaceProjectRow = {
@@ -77,20 +78,22 @@ export async function POST(req: NextRequest) {
       [username]
     );
 
-    const projects = projectsResult.rows.map((row: WorkspaceProjectRow) => {
+    const projects: Project[] = projectsResult.rows.map((row: WorkspaceProjectRow) => {
       const overrides = parsePersistedInputOverrides(row.register_overrides);
 
       return {
         id: row.id,
-        name: row.name,
+        name: row.name ?? '',
         description: row.description ?? '',
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
         state: {
           code: row.code ?? '',
-          resp: row.resp ?? null,
-          simState: row.sim_state ?? null,
+          resp: (row.resp as Project['state']['resp'] | null) ?? null,
+          simState: (row.sim_state as Project['state']['simState'] | null) ?? null,
           stepIndex: typeof row.step_index === 'number' ? row.step_index : 0,
-          allStates: Array.isArray(row.all_states) ? row.all_states : [],
+          allStates: Array.isArray(row.all_states)
+            ? (row.all_states as Project['state']['allStates'])
+            : [],
           registerOverrides: overrides.registerOverrides,
           memoryOverrides: overrides.memoryOverrides,
         },

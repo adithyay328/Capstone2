@@ -2,10 +2,52 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import {
+  FiBookOpen,
+  FiClipboard,
+  FiEye,
+  FiLayers,
+  FiLogOut,
+  FiMonitor,
+} from 'react-icons/fi';
 import { logout } from '@/app/logout/frontend';
+import StaffGradeRosterPanel from '@/components/staff-grade-roster-panel';
+import { ins } from '@/components/instructor-shell';
+import { useStaffCourseSummaries } from '@/components/use-staff-course-summaries';
+
+const COURSE_ACTIONS = [
+  {
+    label: 'View Roster',
+    buildHref: (courseId: string) =>
+      `/ta/courses/roster?course_id=${encodeURIComponent(courseId)}`,
+    icon: FiBookOpen,
+  },
+  {
+    label: 'View Lab Submissions',
+    buildHref: (courseId: string) =>
+      `/ta/courses/submissions?course_id=${encodeURIComponent(courseId)}`,
+    icon: FiLayers,
+  },
+  {
+    label: 'View Lab Grades',
+    buildHref: (courseId: string) =>
+      `/ta/courses/grades?course_id=${encodeURIComponent(courseId)}`,
+    icon: FiClipboard,
+  },
+  {
+    label: 'Review Lab Submissions',
+    buildHref: (courseId: string) =>
+      `/ta/student-labs-root?course_id=${encodeURIComponent(courseId)}`,
+    icon: FiEye,
+  },
+] as const;
+
+const courseActionClass =
+  'inline-flex w-full items-center gap-3 rounded-[1.6rem] border border-amber-300 bg-white px-4 py-3.5 text-sm font-semibold text-stone-900 shadow-[0_10px_24px_rgba(180,120,20,0.12)] transition hover:-translate-y-px hover:border-amber-400 hover:bg-orange-50/80 hover:shadow-[0_14px_30px_rgba(180,120,20,0.16)]';
 
 export default function TADashboardPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { summaries, loading, message } = useStaffCourseSummaries();
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -18,89 +60,146 @@ export default function TADashboardPage() {
   };
 
   return (
-    <div className="ta-shell min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-6xl p-8 space-y-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Teaching Assistant</p>
-            <h1 className="text-3xl font-bold text-slate-900">TA Dashboard</h1>
-            <p className="text-sm text-slate-600">
-              Overview of TA responsibilities and section assignments.
+    <div className={`${ins.pageWrap} ta-shell`}>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className={ins.kicker}>Teaching Assistant</p>
+          <h1 className={`${ins.h1} mt-2`}>TA Dashboard</h1>
+          <p className={`${ins.subtitle} max-w-3xl`}>
+            Start from one assigned course, then move directly into roster review, lab submissions,
+            lab grades, or student submission review.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Link href="/ta/simulator" className={`${ins.btnNeutral} gap-2 px-4 py-2.5`}>
+            <FiMonitor className="h-4 w-4" aria-hidden />
+            Open sandbox
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={
+              isLoggingOut
+                ? ins.btnDisabled
+                : `${ins.btnSecondary} inline-flex items-center gap-2`
+            }
+          >
+            <FiLogOut className="h-4 w-4" aria-hidden />
+            {isLoggingOut ? 'Logging out...' : 'Log out'}
+          </button>
+        </div>
+      </header>
+
+      {message && <div className={ins.msgErr}>{message}</div>}
+
+      <section aria-labelledby="ta-course-workbench" className={`${ins.card} ${ins.cardPad}`}>
+        <div>
+          <div>
+            <p className={ins.kicker}>Assigned Courses</p>
+            <h2 id="ta-course-workbench" className={`${ins.h2} mt-1`}>
+              Course workbench
+            </h2>
+            <p className={`${ins.subtitleMuted} mt-2 max-w-3xl`}>
+              Use one consistent path for TA work: pick a course, then choose roster, lab
+              submissions, lab grades, or submission review.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium shadow-sm transition ${
-                isLoggingOut
-                  ? 'cursor-not-allowed bg-slate-200 text-slate-500'
-                  : 'bg-slate-900 text-white hover:bg-slate-800'
-              }`}
-            >
-              {isLoggingOut ? 'Logging out...' : 'Log out'}
-            </button>
           </div>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Sections</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">Assigned Sections</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Your assigned course sections will appear here.
-            </p>
-          </article>
-
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Students</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">Student Support</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Quick view of student-facing assistance and grading queues.
-            </p>
-            <div className="mt-4">
-              <a
-                href="/ta/student-labs-root"
-                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                Review student labs
-              </a>
-            </div>
-          </article>
-
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Labs</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">Lab Readiness</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Current lab rollout status and pending checks for your sections.
-            </p>
-            <div className="mt-4">
-              <Link
-                href="/ta/simulator"
-                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                Open simulator sandbox
-              </Link>
-            </div>
-          </article>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Announcements</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            TA-specific announcements and updates can be shown in this panel.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/ta/courses"
-              className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              View Courses
-            </Link>
+        {loading ? (
+          <div className="mt-6 flex flex-col items-center rounded-2xl border border-amber-100 bg-orange-50/50 py-12">
+            <div className={ins.spinner} />
+            <p className="mt-4 text-sm text-stone-600">Loading assigned courses...</p>
           </div>
-        </section>
-      </div>
+        ) : summaries.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-amber-100 bg-orange-50/50 p-6">
+            <p className="text-sm text-stone-600">
+              No active TA course assignments are available yet.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-5 xl:grid-cols-2">
+            {summaries.map((summary) => (
+              <article
+                key={summary.course.course_id}
+                className="rounded-2xl border border-amber-200/90 bg-white p-6 shadow-sm shadow-amber-950/10 ring-1 ring-amber-100/70"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className={ins.h2Card}>{summary.course.code}</h3>
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                        {summary.course.course_id}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-stone-700">{summary.course.title}</p>
+                    {summary.course.term && (
+                      <p className="mt-1 text-xs uppercase tracking-wide text-stone-500">
+                        {summary.course.term}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-xl border border-amber-100 bg-orange-50/70 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                        Students
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-stone-900">
+                        {summary.studentCount}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-amber-100 bg-orange-50/70 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                        Staff
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-stone-900">
+                        {summary.staffCount}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-amber-100 bg-orange-50/70 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                        Labs
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-stone-900">
+                        {summary.labCount}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {COURSE_ACTIONS.map((action) => {
+                    const Icon = action.icon;
+
+                    return (
+                      <Link
+                        key={action.label}
+                        href={action.buildHref(summary.course.course_id)}
+                        className={courseActionClass}
+                      >
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-orange-50 text-amber-800 shadow-sm">
+                          <Icon className="h-5 w-5" aria-hidden />
+                        </span>
+                        <span>{action.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <StaffGradeRosterPanel
+                  portal="ta"
+                  compact
+                  fixedCourse={summary.course}
+                  triggerLabel="Export lab grades"
+                />
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

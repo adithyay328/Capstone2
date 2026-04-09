@@ -4,15 +4,19 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import AssemblyInfo from "./assembly-info";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "@/components/sidebar"; //left sidebar
-import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven
-import RegisterEditor from "@/components/register-editor";
-import MemoryEditor from "@/components/memory-editor";
-import HelpModal from "@/components/help-modal";
 import { getClientUsername } from "@/components/client-session";
+import CompileStatusIndicator from "@/components/compile-status-indicator";
+import EditorSizePicker from "@/components/editor-size-picker";
+import {
+  EDITOR_LAYOUTS,
+  getEditorSizePickerWidthClass,
+  getLabSupportLayoutClass,
+  getLabWorkspaceLayoutClass,
+  useEditorSizePreference,
+} from "@/components/editor-layout";
 import { getStudentLabContext } from "@/app/api/student_lab_context/frontend";
 import type { StudentCourseLab } from "@/app/api/student_course_labs/types";
 import {
@@ -36,6 +40,45 @@ import type {
   SimState,
   SubmitResponse,
 } from "@/components/types";
+
+const useClientLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
+const AssemblyInfo = dynamic(() => import("./assembly-info"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 text-sm text-zinc-400 sm:max-w-[23.125rem] sm:min-w-[16rem]">
+      Loading run details...
+    </div>
+  ),
+});
+
+const RegisterVisualPanel = dynamic(() => import("@/components/RegisterVisualPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400">
+      Loading display...
+    </div>
+  ),
+});
+
+const RegisterEditor = dynamic(() => import("@/components/register-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-400">
+      Loading register presets...
+    </div>
+  ),
+});
+
+const MemoryEditor = dynamic(() => import("@/components/memory-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-400">
+      Loading memory presets...
+    </div>
+  ),
+});
 
 // Dynamically import the markdown preview to avoid SSR issues
 const MdPreview = dynamic(
@@ -110,11 +153,13 @@ function makeUid() {
 type LabRootProps = {
   courseIdOverride?: string;
   labUidOverride?: string;
+  sessionUsername?: string | null;
 };
 
 export default function LabRoot({
   courseIdOverride,
   labUidOverride,
+  sessionUsername,
 }: LabRootProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -133,14 +178,6 @@ export default function LabRoot({
     [courseIdFromQuery, labUidFromQuery]
   );
 
-  const storageKey = React.useMemo(
-    () =>
-      courseIdFromQuery && labUidFromQuery
-        ? `${LS_KEY}:${courseIdFromQuery}:${labUidFromQuery}`
-        : LS_KEY,
-    [courseIdFromQuery, labUidFromQuery]
-  );
-  
   const storageKey = React.useMemo(
     () =>
       isStaffReviewMode && courseIdFromQuery && labUidFromQuery && studentUsernameFromQuery
@@ -176,7 +213,11 @@ export default function LabRoot({
     studentUsernameFromQuery,
   ]);
   const backLabel = isStaffReviewMode ? "Student Review" : "Lab Home";
-  const cacheUsername = React.useMemo(() => getClientUsername(), []);
+  const cacheUsername = React.useMemo(
+    () => sessionUsername?.trim() || getClientUsername(),
+    [sessionUsername]
+  );
+  const [editorSize, setEditorSize] = useEditorSizePreference(cacheUsername);
   const localStorageKey = React.useMemo(
     () => (cacheUsername ? `${storageKey}:${cacheUsername}` : storageKey),
     [cacheUsername, storageKey]
@@ -232,6 +273,18 @@ export default function LabRoot({
   const [instructionsOpen, setInstructionsOpen] = React.useState(
     DEFAULT_USER_SETTINGS.openInstructionsByDefault
   );
+  const editorLayout = EDITOR_LAYOUTS[editorSize];
+  const pickerWidthClass = getEditorSizePickerWidthClass(editorSize);
+  const workspaceLayoutClass = getLabWorkspaceLayoutClass(editorSize);
+  const supportLayoutClass = getLabSupportLayoutClass(editorSize);
+  const editorLayoutVars = {
+    "--lab-shell-max-width": editorLayout.labShellMaxWidth,
+    "--lab-header-max-width": editorLayout.labHeaderMaxWidth,
+    "--lab-editor-column-width": editorLayout.labEditorColumnWidth,
+    "--lab-side-column-width": editorLayout.labSideColumnWidth,
+    "--lab-side-column-width-2xl": editorLayout.labSideColumnWidth2xl,
+    "--lab-side-panel-height": editorLayout.labSidePanelHeight,
+  } as React.CSSProperties;
 
   const [runMeta, setRunMeta] = React.useState<{ hadError: boolean; errorMessage: string }>({
     hadError: false,
@@ -323,7 +376,7 @@ export default function LabRoot({
   }, [isStaffReviewMode, syncLabSessionNow]);
 
   // LOADS LOCAL STORAGE (scoped per course and lab)
-  React.useEffect(() => {
+  useClientLayoutEffect(() => {
     if (typeof window === "undefined") return;
     if (!courseIdFromQuery || !labUidFromQuery) {
       if (!isStaffReviewMode) {
@@ -352,11 +405,11 @@ export default function LabRoot({
       else setAllStates([]);
       if (typeof parsed.stepIndex === "number") setStepIndex(parsed.stepIndex);
       else setStepIndex(0);
-        setRegisterOverrides(
-          parsed.registerOverrides && typeof parsed.registerOverrides === "object"
-            ? parsed.registerOverrides
-            : ({} as Record<string, string>)
-        );
+      setRegisterOverrides(
+        parsed.registerOverrides && typeof parsed.registerOverrides === "object"
+          ? parsed.registerOverrides
+          : ({} as Record<string, string>)
+      );
       setMemoryOverrides(
         parsed.memoryOverrides && typeof parsed.memoryOverrides === "object"
           ? parsed.memoryOverrides
@@ -481,8 +534,7 @@ export default function LabRoot({
       }
 
       const fresh = applyFresh();
-      window.localStorage.setItem(storageKey, JSON.stringify(fresh));
-        setInitStatus("ready");
+      window.localStorage.setItem(localStorageKey, JSON.stringify(fresh));
       if (!isStaffReviewMode) {
         await syncLabSession({
           storageKey,
@@ -510,6 +562,7 @@ export default function LabRoot({
     courseIdFromQuery,
     isStaffReviewMode,
     labUidFromQuery,
+    localStorageKey,
     router,
     storageKey,
     studentSessionStorageKey,
@@ -696,7 +749,6 @@ export default function LabRoot({
 
   //when code changes in editor we update current version (or create one)
   const handleCodeChange = (nextCode: string) => {
-
     setCode(nextCode);
     persist({ code: nextCode });
   };
@@ -715,12 +767,14 @@ export default function LabRoot({
   );
 
   const {
+    compileStatus,
     handleRun,
     handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
     resetSession,
+    resetCompileStatus,
   } = useRunner({
     code,
     allStates,
@@ -736,16 +790,20 @@ export default function LabRoot({
     setStepsEngaged,
   });
 
+  const previousCodeRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (previousCodeRef.current !== null && previousCodeRef.current !== code) {
+      resetCompileStatus();
+    }
+    previousCodeRef.current = code;
+  }, [code, resetCompileStatus]);
+
   const handleReset = React.useCallback(() => {
     setRegisterOverrides({});
     setMemoryOverrides({});
     resetSession({ registerOverrides: {}, memoryOverrides: {} });
   }, [resetSession]);
-
-  const handleNewProject = React.useCallback(() => {
-    void syncLabSessionNow(false, true);
-    router.push("/student/new-project");
-  }, [router, syncLabSessionNow]);
 
   const handleOpenProjects = React.useCallback(() => {
     void syncLabSessionNow(false, true);
@@ -1103,15 +1161,12 @@ export default function LabRoot({
   return (
     <>
       <div
-        className={`relative min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex ${
-          isStaffReviewMode ? "" : "ml-7"
-        }`}
+        className="relative flex min-h-screen overflow-x-clip bg-[rgb(82,82,82)] text-zinc-100"
       >
         <ToastContainer position="top-right" autoClose={5000} aria-label="container" />
         {!isStaffReviewMode && (
           <Sidebar
             initialOpen={false}
-            onNewProject={handleNewProject}
             onOpenProjects={handleOpenProjects}
             onLogout={async () => {
               await syncLabSessionNow(true, true);
@@ -1119,18 +1174,13 @@ export default function LabRoot({
             }}
           />
         )}
-        {!isStaffReviewMode && userSettings.showHelpBubble && (
-          <HelpModal title="AI Helper Chatbot">
-            <p>Potential Chatgpt??</p>
-            <p>Like SensAI to help students find out whats going on?</p>
-          </HelpModal>
-        )}
         <div
-          className={`w-full max-w-[100rem] mx-auto pl-4 pr-4 sm:px-6 pt-4 ${
-            isStaffReviewMode ? "md:px-8" : "md:px-8 md:pl-20 md:pr-16"
+          className={`mx-auto w-full max-w-[var(--lab-shell-max-width)] px-4 pb-8 pt-4 sm:px-6 lg:px-8 ${
+            isStaffReviewMode ? "" : "pl-20 sm:pl-24 lg:pl-24"
           }`}
+          style={editorLayoutVars}
         >
-          <div className="mb-3 w-full max-w-[44rem] sm:min-w-[26.875rem] min-w-0">
+          <div className="mb-3 w-full min-w-0 max-w-[44rem]">
             <Link
               href={backHref}
               className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -1156,9 +1206,24 @@ export default function LabRoot({
               session.
             </div>
           )}
-          <div className="flex flex-col xl:flex-row gap-6">
+          <div className="mb-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
+            <div className="w-full min-w-0 max-w-[var(--lab-header-max-width)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                Workspace
+              </p>
+              <h1 className="mt-1 text-lg font-semibold text-zinc-100">
+                {selectedLab?.title ?? (isStaffReviewMode ? "Lab Review" : "Active Lab")}
+              </h1>
+            </div>
+            <EditorSizePicker
+              value={editorSize}
+              onChange={setEditorSize}
+              className={`${pickerWidthClass} 2xl:justify-self-end`}
+            />
+          </div>
+          <div className={`grid items-start gap-6 ${workspaceLayoutClass}`}>
             {/* Editor + controls column */}
-            <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
+            <div className="min-w-0">
               <InstructionsPanel
                 open={instructionsOpen}
                 onClose={() => setInstructionsOpen(false)}
@@ -1168,23 +1233,27 @@ export default function LabRoot({
                 code={code}
                 onChange={handleCodeChange}
                 fontSize={userSettings.editorFontSize}
+                height={editorLayout.editorHeight}
                 //currentLine={simState?.currentLine ?? null}
               />
 
               {/* CONTROLS under editor */}
-              <div className="flex flex-wrap gap-3 items-center mt-5">
+              <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-700/80 bg-zinc-950/35 p-3">
                 {/* keep all 5 of your buttons */}
                 <button
                   onClick={handleRun}
                   className="rounded bg-black px-4 py-2 text-white hover:bg-zinc-900 disabled:opacity-50"
-                  //disabled={stepsEngaged}
+                  disabled={compileStatus.state === "compiling"}
                 >
-                  Run
+                  {compileStatus.state === "compiling" ? "Compiling..." : "Run"}
                 </button>
+
+                <CompileStatusIndicator status={compileStatus} />
 
                 {stepsEngaged ? (
                   <button
                     onClick={() => handleStop()}
+                    disabled={compileStatus.state === "compiling"}
                     className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     Stop
@@ -1192,6 +1261,7 @@ export default function LabRoot({
                 ) : (
                   <button
                     onClick={() => handleStart()}
+                    disabled={compileStatus.state === "compiling"}
                     className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
                   >
                     Start
@@ -1202,7 +1272,10 @@ export default function LabRoot({
                   onClick={() => handleStepForward()}
                   className="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 disabled:opacity-50"
                   disabled={
-                    !stepsEngaged || allStates.length === 0 || stepIndex >= allStates.length - 1
+                    compileStatus.state === "compiling" ||
+                    !stepsEngaged ||
+                    allStates.length === 0 ||
+                    stepIndex >= allStates.length - 1
                   }
                 >
                   Step
@@ -1210,16 +1283,21 @@ export default function LabRoot({
 
                 <button
                   onClick={() => handleStepBack()}
-                  className="rounded border px-4 py-2 hover:bg-zinc-100 disabled:opacity-50"
-                  disabled={!stepsEngaged || stepIndex === 0 || allStates.length === 0}
+                  className="rounded border border-zinc-600 bg-zinc-950/20 px-4 py-2 text-zinc-100 transition-colors hover:border-zinc-400 hover:bg-zinc-700/55 hover:text-white disabled:opacity-50"
+                  disabled={
+                    compileStatus.state === "compiling" ||
+                    !stepsEngaged ||
+                    stepIndex === 0 ||
+                    allStates.length === 0
+                  }
                 >
                   Back Step
                 </button>
 
                 <button
                   onClick={() => handleReset()}
-                  className="rounded border px-4 py-2 hover:bg-zinc-100 disabled:opacity-50"
-                  //disabled={stepsEngaged}
+                  className="rounded border border-zinc-600 bg-zinc-950/20 px-4 py-2 text-zinc-100 transition-colors hover:border-zinc-400 hover:bg-zinc-700/55 hover:text-white disabled:opacity-50"
+                  disabled={compileStatus.state === "compiling"}
                 >
                   Reset
                 </button>
@@ -1265,14 +1343,15 @@ export default function LabRoot({
                 {!isStaffReviewMode && (
                   <button
                     onClick={() => void syncLabSessionNow(false, true)}
-                    className="rounded border px-3 py-2 text-xs hover:bg-zinc-100"
+                    className="rounded border border-zinc-600 bg-zinc-950/20 px-3 py-2 text-xs text-zinc-100 transition-colors hover:border-zinc-400 hover:bg-zinc-700/55 hover:text-white"
+                    disabled={compileStatus.state === "compiling"}
                   >
                     Sync Now
                   </button>
                 )}
 
                 {/* uid (kept from Version 1) */}
-                <span className="ml-auto text-xs text-zinc-500">
+                <span className="w-full text-xs text-zinc-500 sm:ml-auto sm:w-auto sm:text-right">
                   {uid}
                 </span>
               </div>
@@ -1284,14 +1363,16 @@ export default function LabRoot({
                 </div>
               )}
 
-              <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <AssemblyInfo
-                  response={resp}
-                  states={allStates}
-                  registerInputs={registerOverrides}
-                  memoryInputs={memoryOverrides}
-                />
-                <div className="flex-shrink-0">
+              <div className={`mt-6 grid items-start gap-4 ${supportLayoutClass}`}>
+                <div className="min-w-0">
+                  <AssemblyInfo
+                    response={resp}
+                    states={allStates}
+                    registerInputs={registerOverrides}
+                    memoryInputs={memoryOverrides}
+                  />
+                </div>
+                <div className="min-w-0">
                   <RegisterVisualPanel
                     registers={resp?.registers ?? null}
                     track="x1"
@@ -1302,8 +1383,12 @@ export default function LabRoot({
             </div>
 
             {/* Right column (tabbed lab panel) */}
-            <div className="w-full xl:w-[32rem] 2xl:w-[42.5rem] min-w-0 mt-5 xl:mt-0">
-              <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[48.65rem] flex flex-col overflow-hidden">
+            <div
+              className={`min-w-0 self-start ${
+                editorSize === "large" ? "" : "xl:sticky xl:top-4"
+              }`}
+            >
+              <div className="flex h-[var(--lab-side-panel-height)] min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-900/40 shadow-xl shadow-black/10">
                 <div className="flex border-b border-zinc-700 text-sm">
                   <button
                     type="button"

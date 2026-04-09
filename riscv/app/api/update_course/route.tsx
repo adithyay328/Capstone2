@@ -5,7 +5,19 @@ import { UpdateCourseRequestSchema } from './types';
 
 export async function PATCH(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Please sign in again before updating courses',
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
@@ -68,10 +80,13 @@ export async function PATCH(req: NextRequest) {
       JSON.stringify({ success: true, message: 'Course updated' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update course error:', error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message || 'Failed to update course' }),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to update course',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   } finally {

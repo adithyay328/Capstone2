@@ -1,11 +1,25 @@
 import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
+import { invalidateUserSessions } from '@/app/verify/session';
 import { DBConnection } from '@/app/sql/sql';
 import { AddCourseMemberRequestSchema } from './types';
+import { getMissingAsuidMessage, isValidAsuid } from '@/app/lib/asuid';
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Please sign in again before adding users to courses',
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
@@ -47,11 +61,18 @@ export async function POST(req: NextRequest) {
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const userCheck = await client.query('SELECT 1 FROM users WHERE username = $1', [username]);
+    const userCheck = await client.query('SELECT asuid FROM users WHERE username = $1', [username]);
     if (userCheck.rows.length === 0) {
       return new Response(
         JSON.stringify({ success: false, message: 'User not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const userAsuid = userCheck.rows[0]?.asuid;
+    if (!isValidAsuid(typeof userAsuid === 'string' ? userAsuid : null)) {
+      return new Response(
+        JSON.stringify({ success: false, message: getMissingAsuidMessage(username) }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -61,15 +82,19 @@ export async function POST(req: NextRequest) {
        ON CONFLICT (course_id, username) DO UPDATE SET role = $3, status = 'active'`,
       [course_id, username, role, addedBy]
     );
+    await invalidateUserSessions(username, 'course_membership_changed', client);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Member added' }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Add course member error:', error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message || 'Failed to add member' }),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to add member',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   } finally {

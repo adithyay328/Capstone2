@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import StudentLabRoutePage from "@/components/student-lab-route-page";
+import { readVerifiedRequestAuth } from "@/app/verify/request-auth";
 
 type StudentLabDetailPageProps = {
   params: Promise<{ uid: string }>;
@@ -19,6 +21,7 @@ export default async function StudentLabDetailPage({
   params,
   searchParams,
 }: StudentLabDetailPageProps) {
+  const auth = readVerifiedRequestAuth(await headers());
   const resolvedParams = await params;
   const resolvedSearchParams = await (
     searchParams ?? Promise.resolve({} as { course_id?: string | string[] | undefined })
@@ -29,6 +32,7 @@ export default async function StudentLabDetailPage({
     <StudentLabRoutePage
       courseId={courseId}
       labUid={resolvedParams.uid}
+      sessionUsername={auth?.username ?? null}
     />
   );
 }

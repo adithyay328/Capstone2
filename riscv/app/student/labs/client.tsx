@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/sidebar';
+import { getStudentCourseLabs } from '@/app/api/student_course_labs/frontend';
 import type { StudentCourse } from '@/app/api/student_courses/types';
 import type { StudentCourseLab } from '@/app/api/student_course_labs/types';
 
@@ -23,22 +24,105 @@ export default function StudentLabsClient({
   labsError,
 }: StudentLabsClientProps) {
   const router = useRouter();
+  const prefetchedRoutesRef = useRef<Set<string>>(new Set());
+  const warmedCoursesRef = useRef<Set<string>>(new Set());
+  const warmedWorkspaceRef = useRef(false);
   const selectedCourse =
     courses.find((course) => course.course_id === selectedCourseId) ?? null;
-
-  const handleNewProject = useCallback(() => {
-    router.push('/student/new-project');
-  }, [router]);
 
   const handleOpenProjects = useCallback(() => {
     router.push('/student/projects');
   }, [router]);
 
+  const prefetchRoute = useCallback(
+    (href: string) => {
+      if (prefetchedRoutesRef.current.has(href)) return;
+      prefetchedRoutesRef.current.add(href);
+      router.prefetch(href);
+    },
+    [router]
+  );
+
+  const prefetchLabRoutes = useCallback(
+    (courseId: string, nextLabs: StudentCourseLab[]) => {
+      for (const lab of nextLabs) {
+        prefetchRoute(
+          `/student/labs/${encodeURIComponent(lab.uid)}?course_id=${encodeURIComponent(courseId)}`
+        );
+      }
+    },
+    [prefetchRoute]
+  );
+
+  useEffect(() => {
+    for (const course of courses) {
+      prefetchRoute(`/student/labs?course_id=${encodeURIComponent(course.course_id)}`);
+    }
+  }, [courses, prefetchRoute]);
+
+  useEffect(() => {
+    if (warmedWorkspaceRef.current) return;
+    warmedWorkspaceRef.current = true;
+
+    void Promise.allSettled([
+      import('@/components/lab_root'),
+      import('@/components/code-editor'),
+      import('md-editor-rt'),
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (selectedCourse && labs.length > 0) {
+      warmedCoursesRef.current.add(selectedCourse.course_id);
+      prefetchLabRoutes(selectedCourse.course_id, labs);
+    }
+  }, [labs, prefetchLabRoutes, selectedCourse]);
+
+  useEffect(() => {
+    if (courses.length === 0) return;
+
+    let cancelled = false;
+    const seedLabsByCourse = new Map<string, StudentCourseLab[]>();
+    if (selectedCourse && labs.length > 0) {
+      seedLabsByCourse.set(selectedCourse.course_id, labs);
+    }
+
+    const warmLabs = async () => {
+      await Promise.allSettled(
+        courses.map(async (course) => {
+          if (cancelled || warmedCoursesRef.current.has(course.course_id)) {
+            return;
+          }
+
+          const seededLabs = seedLabsByCourse.get(course.course_id);
+          if (seededLabs) {
+            warmedCoursesRef.current.add(course.course_id);
+            prefetchLabRoutes(course.course_id, seededLabs);
+            return;
+          }
+
+          const response = await getStudentCourseLabs(course.course_id);
+          if (cancelled || !response.success || !Array.isArray(response.labs)) {
+            return;
+          }
+
+          warmedCoursesRef.current.add(course.course_id);
+          prefetchLabRoutes(course.course_id, response.labs);
+        })
+      );
+    };
+
+    void warmLabs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courses, labs, prefetchLabRoutes, selectedCourse]);
+
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100 flex">
       <Sidebar
         initialOpen={false}
-        onNewProject={handleNewProject}
         onOpenProjects={handleOpenProjects}
       />
       <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
@@ -158,7 +242,6 @@ export default function StudentLabsClient({
                     <li key={lab.uid}>
                       <Link
                         href={`/student/labs/${encodeURIComponent(lab.uid)}?course_id=${encodeURIComponent(selectedCourse.course_id)}`}
-                        prefetch={false}
                         className="block hover:bg-gray-50"
                       >
                         <div className="px-4 py-4 sm:px-6">

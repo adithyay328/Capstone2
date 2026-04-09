@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   DocsIcon,
   HelpIcon,
@@ -10,7 +9,6 @@ import {
   LabsIcon,
   LogoutIcon,
   MenuIcon,
-  NewProjectIcon,
   ProfileIcon,
   ProjectsIcon,
   SettingsIcon,
@@ -18,37 +16,18 @@ import {
 
 type SidebarProps = {
   initialOpen?: boolean;
-  onNewProject?: () => void;
   onOpenProjects?: () => void;
   onLogout?: () => void | Promise<void>;
 };
 
-const STUDENT_PREFETCH_ROUTES = [
-  "/student",
-  "/student/projects",
-  "/student/labs",
-  "/student/profile",
-  "/student/settings",
-  "/student/help",
-  "/student/docs",
-];
-
 const Sidebar: React.FC<SidebarProps> = ({
   initialOpen = false,
-  onNewProject,
   onOpenProjects,
   onLogout,
 }) => {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const asideRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    for (const route of STUDENT_PREFETCH_ROUTES) {
-      router.prefetch(route);
-    }
-  }, [router]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -76,21 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const primaryItems: SidebarItem[] = [
-    {
-      id: "new-project",
-      label: "New Project",
-      icon: NewProjectIcon,
-      onClick: onNewProject,
-      href: "/student/new-project",
-    },
+    { id: "labs", label: "Labs", icon: LabsIcon, href: "/student/labs" },
     {
       id: "projects",
-      label: "My Projects",
+      label: "Personal Projects",
       icon: ProjectsIcon,
       onClick: onOpenProjects,
       href: "/student/projects",
     },
-    { id: "labs", label: "Labs", icon: LabsIcon, href: "/student/labs" },
   ];
 
   const secondaryItems: SidebarItem[] = [

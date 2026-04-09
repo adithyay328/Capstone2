@@ -1,11 +1,20 @@
 import { z } from 'zod';
+import {
+  ASUID_INVALID_MESSAGE,
+  ASUID_REGEX,
+  ASUID_REQUIRED_MESSAGE,
+} from '@/app/lib/asuid';
 
 export const CreateUserRoleSchema = z.enum(["student", "ta", "instructor"]);
 
 // Request schema
 export const CreateUserRequestSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  asuid: z.string().regex(/^[0-9]{10}$/, "ASU ID must be exactly 10 digits"),
+  username: z.string().trim().min(1, "Username is required"),
+  asuid: z
+    .string()
+    .trim()
+    .min(1, ASUID_REQUIRED_MESSAGE)
+    .regex(ASUID_REGEX, ASUID_INVALID_MESSAGE),
   password: z.string().min(1, "Password is required"),
   role: CreateUserRoleSchema,
 });

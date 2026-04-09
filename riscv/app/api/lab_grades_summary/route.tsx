@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { DBConnection } from "@/app/sql/sql";
+import { hasStaffCourseAccess } from "@/app/api/course_lab_roster_grades/data";
 import { z } from "zod";
 import { type LabGradesSummaryResponse } from "./types";
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     return new Response(
       JSON.stringify({
         success: false,
-        message: "Only instructors can view lab grades",
+        message: "Only course staff can view lab grades",
       }),
       { status: 403, headers: { "Content-Type": "application/json" } }
     );
@@ -50,6 +51,18 @@ export async function GET(req: NextRequest) {
   try {
     db = await DBConnection.create();
     const client = db.client;
+    const viewerUsername = String(verifyResponse.data.username);
+
+    const hasAccess = await hasStaffCourseAccess(client, viewerUsername, courseId);
+    if (!hasAccess) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "You are not assigned to this course",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Ensure this lab is assigned to the course.
     const assignedRes = await client.query(
@@ -91,8 +104,8 @@ export async function GET(req: NextRequest) {
        FROM course_memberships
        WHERE course_id = $1
          AND status = 'active'
-         AND role IN ('student','ta')
-       ORDER BY role, username`,
+         AND role = 'student'
+       ORDER BY username`,
       [courseId]
     );
 
@@ -184,11 +197,11 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("lab_grades_summary error:", error);
     const response = {
       success: false,
-      message: error?.message || "Failed to load lab grades",
+      message: error instanceof Error ? error.message : "Failed to load lab grades",
     };
     return new Response(JSON.stringify(response), {
       status: 500,
@@ -204,4 +217,3 @@ export async function GET(req: NextRequest) {
     }
   }
 }
-

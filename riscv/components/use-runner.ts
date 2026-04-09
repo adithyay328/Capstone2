@@ -2,6 +2,7 @@
 import React from "react";
 import type {
   AssemblyInfoData,
+  CompileStatus,
   ProjectState,
   SubmitRequest,
   SubmitResponse,
@@ -24,6 +25,32 @@ type UseRunnerParams = {
   setStepsEngaged: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+type SuccessfulRunBackendResult = {
+  ok: true;
+  states: SubmitResponse["states"];
+  hadError: boolean;
+  errorMessage: string;
+};
+
+type FailedRunBackendResult = {
+  ok: false;
+  errorMessage: string;
+};
+
+type RunBackendResult = SuccessfulRunBackendResult | FailedRunBackendResult;
+
+const MIN_RUN_FEEDBACK_MS = 2000;
+const IDLE_COMPILE_STATUS: CompileStatus = {
+  state: "idle",
+  message: "",
+};
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 const useRunner = ({
   code,
   allStates,
@@ -38,11 +65,14 @@ const useRunner = ({
   setFatalError,
   setStepsEngaged,
 }: UseRunnerParams) => {
-  const runBackend = React.useCallback(async (): Promise<{
-    states: SubmitResponse["states"];
-    hadError: boolean;
-    errorMessage: string;
-  } | null> => {
+  const [compileStatus, setCompileStatus] =
+    React.useState<CompileStatus>(IDLE_COMPILE_STATUS);
+
+  const resetCompileStatus = React.useCallback(() => {
+    setCompileStatus(IDLE_COMPILE_STATUS);
+  }, []);
+
+  const runBackend = React.useCallback(async (): Promise<RunBackendResult> => {
     try {
       const reqBody: SubmitRequest = {
         code,
@@ -60,94 +90,171 @@ const useRunner = ({
 
       const json = (await res.json()) as Partial<SubmitResponse>;
 
-      // 1. Guard: make sure states is a non-empty array
-      if (!Array.isArray(json.states) || json.states.length === 0) {
-        setAllStates([]);
-        setStepIndex(0);
-
-        const assemblyData: AssemblyInfoData = {
-          hadError: !!json.hadError,
-          errorMessage: json.errorMessage ?? "Backend returned no states",
-          registers: {},
-          memory: {},
-        };
-
-        setRunMeta({
-          hadError: assemblyData.hadError,
-          errorMessage: assemblyData.errorMessage,
-        });
-        setResp(assemblyData);
-
-        persist({
-          allStates: [],
-          stepIndex: 0,
-          resp: assemblyData,
-        });
-
-        return null;
-      }
-
-      // 2. Normal case: we have at least one state
-      const states = json.states;
-
-      setAllStates(states);
-      setStepIndex(0);
-      setRunMeta({
-        hadError: !!json.hadError,
-        errorMessage: json.errorMessage ?? "",
-      });
-
-      // persist step-related stuff
-      persist({
-        allStates: states,
-        stepIndex: 0,
-      });
-
       return {
-        states,
+        ok: true,
+        states: Array.isArray(json.states) ? json.states : [],
         hadError: !!json.hadError,
         errorMessage: json.errorMessage ?? "",
       };
     } catch (error: unknown) {
-      setFatalError(error instanceof Error ? error.message : "Run failed");
-      return null;
+      return {
+        ok: false,
+        errorMessage: error instanceof Error ? error.message : "Run failed",
+      };
     }
   }, [
     code,
     registersForRun,
     memoryForRun,
-    persist,
-    setAllStates,
-    setStepIndex,
-    setResp,
-    setRunMeta,
-    setFatalError,
   ]);
 
+  const applyCompileFailure = React.useCallback(
+    (message: string): CompileStatus => {
+      const errorMessage = message.trim() || "Run failed";
+      const errorResp: AssemblyInfoData = {
+        hadError: true,
+        errorMessage,
+        registers: {},
+        memory: {},
+      };
+
+      setAllStates([]);
+      setStepIndex(0);
+      setRunMeta({
+        hadError: true,
+        errorMessage,
+      });
+      setResp(errorResp);
+      setFatalError(errorMessage);
+      setStepsEngaged(false);
+
+      persist({
+        allStates: [],
+        stepIndex: 0,
+        resp: errorResp,
+      });
+
+      return {
+        state: "error",
+        message: errorMessage,
+      };
+    },
+    [
+      persist,
+      setAllStates,
+      setFatalError,
+      setResp,
+      setRunMeta,
+      setStepIndex,
+      setStepsEngaged,
+    ]
+  );
+
+  const applyRunResult = React.useCallback(
+    (
+      result: SuccessfulRunBackendResult,
+      mode: "run" | "start"
+    ): CompileStatus => {
+      const normalizedErrorMessage = result.errorMessage.trim();
+
+      if (result.states.length === 0) {
+        const errorMessage = normalizedErrorMessage || "Backend returned no states";
+        const errorResp: AssemblyInfoData = {
+          hadError: true,
+          errorMessage,
+          registers: {},
+          memory: {},
+        };
+
+        setAllStates([]);
+        setStepIndex(0);
+        setRunMeta({
+          hadError: true,
+          errorMessage,
+        });
+        setResp(errorResp);
+        setFatalError(null);
+        setStepsEngaged(false);
+
+        persist({
+          allStates: [],
+          stepIndex: 0,
+          resp: errorResp,
+        });
+
+        return {
+          state: "error",
+          message: errorMessage,
+        };
+      }
+
+      const displayState =
+        mode === "run"
+          ? result.states[result.states.length - 1]!
+          : result.states[0]!;
+
+      const assemblyData: AssemblyInfoData = {
+        hadError: result.hadError,
+        errorMessage: normalizedErrorMessage,
+        registers: displayState.registers,
+        memory: displayState.memory,
+      };
+
+      setAllStates(result.states);
+      setStepIndex(0);
+      setRunMeta({
+        hadError: result.hadError,
+        errorMessage: normalizedErrorMessage,
+      });
+      setResp(assemblyData);
+      setFatalError(null);
+      setStepsEngaged(mode === "start");
+
+      persist({
+        allStates: result.states,
+        stepIndex: 0,
+        resp: assemblyData,
+      });
+
+      if (result.hadError) {
+        return {
+          state: "error",
+          message: normalizedErrorMessage || "Compilation failed",
+        };
+      }
+
+      return {
+        state: "success",
+        message: "Code compiled successfully",
+      };
+    },
+    [
+      persist,
+      setAllStates,
+      setFatalError,
+      setResp,
+      setRunMeta,
+      setStepIndex,
+      setStepsEngaged,
+    ]
+  );
+
   const handleRun = React.useCallback(async () => {
-    const result = await runBackend();
-    if (!result) return;
-
-    const { states, hadError, errorMessage } = result;
-
-    // show the final state (same as before)
-    const finalState = states[states.length - 1]!;
-
-    const assemblyData: AssemblyInfoData = {
-      hadError,
-      errorMessage,
-      registers: finalState.registers,
-      memory: finalState.memory,
-    };
-
-    setResp(assemblyData);
-    setStepsEngaged(false);
-
-    // persist current view (states + stepIndex already persisted in runBackend)
-    persist({
-      resp: assemblyData,
+    setFatalError(null);
+    setCompileStatus({
+      state: "compiling",
+      message: "Compiling code...",
     });
-  }, [persist, runBackend, setResp, setStepsEngaged]);
+
+    const [result] = await Promise.all([runBackend(), wait(MIN_RUN_FEEDBACK_MS)]);
+
+    if (!result.ok) {
+      setCompileStatus(applyCompileFailure(result.errorMessage));
+      return;
+    }
+
+    setCompileStatus(applyRunResult(result, "run"));
+  }, [applyCompileFailure, applyRunResult, runBackend, setFatalError]);
 
   const handleStop = React.useCallback(() => {
     setStepsEngaged(false);
@@ -157,14 +264,16 @@ const useRunner = ({
     setAllStates([]);
     setStepIndex(0);
     setResp(null);
+    setFatalError(null);
     setStepsEngaged(false);
+    setCompileStatus(IDLE_COMPILE_STATUS);
     persist({
       allStates: [],
       stepIndex: 0,
       resp: null,
       ...next,
     });
-  }, [persist, setAllStates, setResp, setStepIndex, setStepsEngaged]);
+  }, [persist, setAllStates, setFatalError, setResp, setStepIndex, setStepsEngaged]);
 
   const handleStepForward = React.useCallback(() => {
     setStepIndex((idx) => {
@@ -205,41 +314,30 @@ const useRunner = ({
   }, [allStates, persist, runMeta, setResp, setStepIndex]);
 
   const handleStart = React.useCallback(async () => {
+    setFatalError(null);
+    setCompileStatus({
+      state: "compiling",
+      message: "Compiling code...",
+    });
+
     const result = await runBackend();
-    if (!result) return;
+    if (!result.ok) {
+      setCompileStatus(applyCompileFailure(result.errorMessage));
+      return;
+    }
 
-    const { states: statesToUse, hadError, errorMessage } = result;
-    if (statesToUse.length === 0) return;
-
-    const firstState = statesToUse[0];
-
-    const newResp: AssemblyInfoData = {
-      hadError,
-      errorMessage,
-      registers: firstState.registers,
-      memory: firstState.memory,
-    };
-
-    setStepIndex(0);
-    setResp(newResp);
-    setStepsEngaged(true);
-
-    persist({ resp: newResp, stepIndex: 0 });
-  }, [
-    persist,
-    runBackend,
-    setResp,
-    setStepIndex,
-    setStepsEngaged,
-  ]);
+    setCompileStatus(applyRunResult(result, "start"));
+  }, [applyCompileFailure, applyRunResult, runBackend, setFatalError]);
 
   return {
+    compileStatus,
     handleRun,
     handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
     resetSession,
+    resetCompileStatus,
   };
 };
 

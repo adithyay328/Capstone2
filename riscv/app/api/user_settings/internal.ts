@@ -69,6 +69,30 @@ export async function getUserSettingsForUsername(
   }
 }
 
+export async function loadUserSettingsForUsername(
+  username: string
+): Promise<UserSettingsLoadResult> {
+  try {
+    const settings = await getUserSettingsForUsername(username);
+    return {
+      authenticated: true,
+      success: true,
+      settings,
+      username,
+    };
+  } catch (error: unknown) {
+    console.error("loadUserSettingsForUsername:", error);
+    return {
+      authenticated: true,
+      success: false,
+      settings: DEFAULT_USER_SETTINGS,
+      username,
+      message:
+        error instanceof Error ? error.message : "Failed to load user settings",
+    };
+  }
+}
+
 export async function loadUserSettingsForCookie(
   cookieHeader: string
 ): Promise<UserSettingsLoadResult> {
@@ -84,24 +108,5 @@ export async function loadUserSettingsForCookie(
   }
 
   const username = String(verifyResponse.data.username);
-
-  try {
-    const settings = await getUserSettingsForUsername(username);
-    return {
-      authenticated: true,
-      success: true,
-      settings,
-      username,
-    };
-  } catch (error: unknown) {
-    console.error("loadUserSettingsForCookie:", error);
-    return {
-      authenticated: true,
-      success: false,
-      settings: DEFAULT_USER_SETTINGS,
-      username,
-      message:
-        error instanceof Error ? error.message : "Failed to load user settings",
-    };
-  }
+  return loadUserSettingsForUsername(username);
 }

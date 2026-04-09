@@ -1,19 +1,15 @@
-"use client";
-
-import React from "react";
+import type { ReactNode } from "react";
 import IdleTimeoutGate from "@/components/IdleTimeoutGate";
 import { InstructorStudioBackground } from "@/components/instructor-shell";
 
-export default function InstructorLayout({ children }: { children: React.ReactNode }) {
+export default function InstructorLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
-    <IdleTimeoutGate
-      timeoutMs={30 * 60 * 1000}
-      redirectTo="/instructor/login"
-    >
-      <InstructorStudioBackground>
-        <div className="min-h-screen">{children}</div>
-      </InstructorStudioBackground>
-      <div className="instructor-shell min-h-screen">{children}</div>
+    <IdleTimeoutGate timeoutMs={30 * 60 * 1000} redirectTo="/login">
+      <InstructorStudioBackground>{children}</InstructorStudioBackground>
     </IdleTimeoutGate>
   );
 }

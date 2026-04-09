@@ -85,6 +85,7 @@ type CodeEditorProps = {
   currentLine?: number | null;
   className?: string;
   fontSize?: number;
+  height?: string;
   onRun?: () => void; // optional (Ctrl+Enter)
 };
 
@@ -95,6 +96,7 @@ export default function CodeEditor({
   currentLine,
   className,
   fontSize = 14,
+  height = "28rem",
   onRun,
 }: CodeEditorProps) {
   const editorRef = React.useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
@@ -266,7 +268,10 @@ export default function CodeEditor({
   }, [code]);
 
   return (
-    <div className="relative" style={{ width: "100%", height: "28rem" }}>
+    <div
+      className={`relative ${className ?? ""}`.trim()}
+      style={{ width: "100%", height }}
+    >
       {!isReady && (
         <div className="absolute inset-0 z-10 animate-pulse rounded-xl border-2 border-orange-300 bg-zinc-900/60">
           <div className="p-4">
@@ -280,7 +285,7 @@ export default function CodeEditor({
         </div>
       )}
       <Editor
-        height="28rem"
+        height={height}
         language="riscv"
         theme="riscv-dark"
         value={code}

@@ -13,11 +13,13 @@ const LabRoot = dynamic(() => import("@/components/lab_root"), {
 type StudentLabRoutePageProps = {
   courseId: string;
   labUid: string;
+  sessionUsername?: string | null;
 };
 
 export default function StudentLabRoutePage({
   courseId,
   labUid,
+  sessionUsername,
 }: StudentLabRoutePageProps) {
   const router = useRouter();
 
@@ -30,5 +32,11 @@ export default function StudentLabRoutePage({
     return <StudentLabLoadingShell label="Returning to labs..." />;
   }
 
-  return <LabRoot courseIdOverride={courseId} labUidOverride={labUid} />;
+  return (
+    <LabRoot
+      courseIdOverride={courseId}
+      labUidOverride={labUid}
+      sessionUsername={sessionUsername}
+    />
+  );
 }

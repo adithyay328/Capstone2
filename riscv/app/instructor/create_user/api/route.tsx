@@ -13,7 +13,19 @@ export async function POST(req: Request) {
   try {
     // Verify the cookie to ensure user is authenticated
     const cookieHeader = req.headers.get('cookie') || '';
-    const verifyResponse = await verifyCookieInternal(cookieHeader);
+    const verifyResponse = await verifyCookieInternal(cookieHeader, {
+      requireRecentAuth: true,
+    });
+
+    if (verifyResponse.reason === 'reauth_required') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Please sign in again before creating users.",
+        },
+        { status: 401 }
+      );
+    }
 
     // Check that username is set and student boolean exists
     if (!verifyResponse.data || 

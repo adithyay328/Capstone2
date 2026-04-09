@@ -3,11 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { listCourses } from "@/app/api/list_courses/frontend";
+import { listStaffCourses } from "@/app/api/staff_courses/frontend";
 import { getCourseMembers } from "@/app/api/course_members/frontend";
 import { getCourseLabs, type CourseLab } from "@/app/api/course_labs/frontend";
 import type { Course } from "@/app/api/list_courses/types";
 import type { CourseMember } from "@/app/api/course_members/types";
+import { ins } from "./instructor-shell";
 import LabRoot from "./lab_root";
 
 type StaffLabReviewPageProps = {
@@ -36,7 +37,7 @@ export default function StaffLabReviewPage({
 
     async function loadCourses() {
       setCoursesLoading(true);
-      const response = await listCourses();
+      const response = await listStaffCourses();
       if (cancelled) return;
 
       if (!response.success || !response.courses) {
@@ -147,107 +148,120 @@ export default function StaffLabReviewPage({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-4xl p-8">
-        <Link
-          href={portal === "instructor" ? "/instructor" : "/ta"}
-          className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-        >
-          Back to Dashboard
-        </Link>
+    <div className={ins.pageWrapWide}>
+      <Link
+        href={portal === "instructor" ? "/instructor" : "/ta"}
+        className={ins.backLink}
+      >
+        ← Back to dashboard
+      </Link>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className={ins.kicker}>
             {portal === "instructor" ? "Instructor" : "Teaching Assistant"}
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            Student Lab Review
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Choose a course, student, and lab to open the reused lab workspace and inspect past submissions.
+          <h1 className={`${ins.h1} mt-2`}>Student lab review</h1>
+          <p className={ins.subtitle}>
+            Choose an assigned course, student, and lab to open the reused lab workspace and
+            inspect submissions without touching course administration.
           </p>
-
-          {error && (
-            <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-              Course
-              <select
-                value={courseId}
-                onChange={(event) =>
-                  updateParams({
-                    course_id: event.target.value,
-                    student_username: "",
-                    lab: "",
-                  })
-                }
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-                disabled={coursesLoading}
-              >
-                <option value="">Select a course</option>
-                {courses.map((course) => (
-                  <option key={course.course_id} value={course.course_id}>
-                    {course.code} - {course.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-              Student
-              <select
-                value={studentUsername}
-                onChange={(event) =>
-                  updateParams({
-                    student_username: event.target.value,
-                    lab: "",
-                  })
-                }
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-                disabled={!courseId || detailsLoading}
-              >
-                <option value="">Select a student</option>
-                {activeStudents.map((student) => (
-                  <option key={student.username} value={student.username}>
-                    {student.username}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-              Lab
-              <select
-                value={labUid}
-                onChange={(event) => updateParams({ lab: event.target.value })}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-                disabled={!courseId || !studentUsername || detailsLoading}
-              >
-                <option value="">Select a lab</option>
-                {labs.map((lab) => (
-                  <option key={lab.lab_uid} value={lab.lab_uid}>
-                    {lab.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            {coursesLoading
-              ? "Loading courses..."
-              : detailsLoading
-                ? "Loading students and labs for the selected course..."
-                : selectedCourse
-                  ? `Selected course: ${selectedCourse.code} - ${selectedCourse.title}`
-                  : "Start by selecting a course."}
-          </div>
         </div>
-      </div>
+        {courseId && (
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/${portal}/courses/roster?course_id=${encodeURIComponent(courseId)}`}
+              className={ins.btnSecondary}
+            >
+              Open roster
+            </Link>
+            <Link
+              href={`/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`}
+              className={ins.btnNeutral}
+            >
+              Course labs
+            </Link>
+          </div>
+        )}
+      </header>
+
+      <section className={`${ins.card} ${ins.cardPad}`}>
+        {error && <div className={ins.msgErr}>{error}</div>}
+
+        <div className="mt-0 grid gap-4 md:grid-cols-3">
+          <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+            Course
+            <select
+              value={courseId}
+              onChange={(event) =>
+                updateParams({
+                  course_id: event.target.value,
+                  student_username: "",
+                  lab: "",
+                })
+              }
+              className={ins.select}
+              disabled={coursesLoading}
+            >
+              <option value="">Select a course</option>
+              {courses.map((course) => (
+                <option key={course.course_id} value={course.course_id}>
+                  {course.code} - {course.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+            Student
+            <select
+              value={studentUsername}
+              onChange={(event) =>
+                updateParams({
+                  student_username: event.target.value,
+                  lab: "",
+                })
+              }
+              className={ins.select}
+              disabled={!courseId || detailsLoading}
+            >
+              <option value="">Select a student</option>
+              {activeStudents.map((student) => (
+                <option key={student.username} value={student.username}>
+                  {student.username}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+            Lab
+            <select
+              value={labUid}
+              onChange={(event) => updateParams({ lab: event.target.value })}
+              className={ins.select}
+              disabled={!courseId || !studentUsername || detailsLoading}
+            >
+              <option value="">Select a lab</option>
+              {labs.map((lab) => (
+                <option key={lab.lab_uid} value={lab.lab_uid}>
+                  {lab.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className={`${ins.cardFlat} mt-6 px-4 py-3 text-sm text-stone-700`}>
+          {coursesLoading
+            ? "Loading courses..."
+            : detailsLoading
+              ? "Loading students and labs for the selected course..."
+              : selectedCourse
+                ? `Selected course: ${selectedCourse.code} - ${selectedCourse.title}`
+                : "Start by selecting a course."}
+        </div>
+      </section>
     </div>
   );
 }
