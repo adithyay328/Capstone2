@@ -9,6 +9,7 @@ import { addCourseMember } from '@/app/api/add_course_member/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { UserSearchResult } from '@/app/instructor/user_search/api/types';
 import { ins } from '@/components/instructor-shell';
+import { getMissingAsuidMessage, isValidAsuid } from '@/app/lib/asuid';
 
 type Role = 'student' | 'instructor' | 'ta';
 
@@ -46,15 +47,19 @@ function AddMemberPageContent() {
     }
   };
 
-  const handleAdd = async (username: string) => {
+  const handleAdd = async (user: UserSearchResult) => {
     if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
       setMessage({ success: false, text: 'Select a course first' });
       return;
     }
+    if (!isValidAsuid(user.asuid)) {
+      setMessage({ success: false, text: getMissingAsuidMessage(user.username) });
+      return;
+    }
     setMessage(null);
-    setAdding(username);
+    setAdding(user.username);
     try {
-      const result = await addCourseMember({ course_id: courseId, username, role });
+      const result = await addCourseMember({ course_id: courseId, username: user.username, role });
       setMessage({ success: result.success, text: result.message || (result.success ? 'Added.' : 'Failed.') });
     } catch (err) {
       setMessage({ success: false, text: err instanceof Error ? err.message : 'Error' });
@@ -126,15 +131,26 @@ function AddMemberPageContent() {
             <ul className="mt-2 space-y-2">
               {users.map((u) => (
                 <li key={u.username} className={ins.listRow}>
-                  <span className="font-medium text-stone-900">{u.username}</span>
-                  <span className="text-xs text-stone-600">{u.instructor ? 'Instructor' : 'Student'}</span>
+                  <div className="min-w-0">
+                    <span className="font-medium text-stone-900">{u.username}</span>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-600">
+                      <span>{u.instructor ? 'Instructor' : 'Student'}</span>
+                      <span>
+                        {isValidAsuid(u.asuid) ? `ASUID ${u.asuid}` : 'Missing valid ASUID'}
+                      </span>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handleAdd(u.username)}
-                    disabled={adding === u.username}
-                    className={`${ins.btnPrimary} shrink-0 text-xs py-2 px-3`}
+                    onClick={() => handleAdd(u)}
+                    disabled={adding === u.username || !isValidAsuid(u.asuid)}
+                    className={`${ins.btnPrimary} shrink-0 px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60`}
                   >
-                    {adding === u.username ? 'Adding...' : 'Add'}
+                    {adding === u.username
+                      ? 'Adding...'
+                      : isValidAsuid(u.asuid)
+                        ? 'Add'
+                        : 'Needs ASUID'}
                   </button>
                 </li>
               ))}

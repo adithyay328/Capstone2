@@ -1,6 +1,10 @@
 'use client';
 
 import { LoginPortal, LoginRequest, LoginResponse } from './types';
+import {
+  clearClientSessionData,
+  setClientSessionData,
+} from '@/components/client-session';
 
 /**
  * Attempts to log in a user
@@ -24,9 +28,20 @@ export async function login(
     });
 
     const result = await response.json();
+    if (result.success) {
+      setClientSessionData({
+        username: result.username,
+        student: result.student === true,
+        instructor: result.instructor === true,
+        ta: result.ta === true,
+      });
+    } else {
+      clearClientSessionData();
+    }
     return result;
   } catch (error) {
     console.error('Login failed:', error);
+    clearClientSessionData();
     return {
       success: false,
       username: ''

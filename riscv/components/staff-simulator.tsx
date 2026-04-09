@@ -5,7 +5,6 @@ import React from "react";
 import AssemblyInfo from "./assembly-info";
 import EditorControls from "./editor-controls";
 import EditorPanel from "./editor-panel";
-import HelpModal from "./help-modal";
 import RegisterEditor from "./register-editor";
 import MemoryEditor from "./memory-editor";
 import RegisterVisualPanel from "./RegisterVisualPanel";
@@ -30,6 +29,7 @@ type StaffRole = "instructor" | "ta";
 
 type StaffSimulatorProps = {
   role: StaffRole;
+  sessionUsername?: string | null;
 };
 
 const STAFF_SANDBOX_CACHE_PREFIX = "riscv-staff-sandbox-cache";
@@ -90,10 +90,16 @@ function InstructionsPanel({ open, onClose }: InstructionsPanelProps) {
   );
 }
 
-export default function StaffSimulator({ role }: StaffSimulatorProps) {
+export default function StaffSimulator({
+  role,
+  sessionUsername,
+}: StaffSimulatorProps) {
   const copy = ROLE_COPY[role];
   const storageKey = React.useMemo(() => `staff-sandbox:${role}`, [role]);
-  const cacheUsername = React.useMemo(() => getClientUsername(), []);
+  const cacheUsername = React.useMemo(
+    () => sessionUsername?.trim() || getClientUsername(),
+    [sessionUsername]
+  );
   const cacheStorageKey = React.useMemo(
     () =>
       cacheUsername
@@ -214,12 +220,14 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
   const persistSandbox = React.useCallback(() => {}, []);
 
   const {
+    compileStatus,
     handleRun,
     handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
     resetSession,
+    resetCompileStatus,
   } = useRunner({
     code,
     allStates,
@@ -257,6 +265,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
 
       const hasCachedSession = Boolean(cachedSession);
       if (cachedSession) {
+        resetCompileStatus();
         applySandboxSession(cachedSession);
         setInitStatus("ready");
       } else {
@@ -284,6 +293,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
 
       const session = response.session;
       if (!hasCachedSession) {
+        resetCompileStatus();
         applySandboxSession(session ?? null);
         setInitStatus("ready");
       }
@@ -305,7 +315,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
     return () => {
       cancelled = true;
     };
-  }, [applySandboxSession, cacheStorageKey, storageKey]);
+  }, [applySandboxSession, cacheStorageKey, resetCompileStatus, storageKey]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || initStatus !== "ready") return;
@@ -387,6 +397,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
   }, [resetSession]);
 
   const handleClearSandbox = React.useCallback(() => {
+    resetCompileStatus();
     setCode("");
     handleReset();
     void syncSandboxNow(false, true, {
@@ -398,7 +409,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
       memoryOverrides: {},
       simState: null,
     });
-  }, [handleReset, syncSandboxNow]);
+  }, [handleReset, resetCompileStatus, syncSandboxNow]);
 
   const handleLogout = React.useCallback(async () => {
     if (isLoggingOut) return;
@@ -432,13 +443,6 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
 
   return (
     <div className="min-h-screen bg-[rgb(82,82,82)] text-zinc-100">
-      {userSettings.showHelpBubble && (
-        <HelpModal title="Sandbox Tips">
-          <p>Use register and memory presets to seed inputs before a run.</p>
-          <p>This sandbox auto-saves one persistent session for your account.</p>
-        </HelpModal>
-      )}
-
       <main className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -494,7 +498,10 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
               projectName={copy.title}
               projectDescription="Local-only simulator session"
               code={code}
-              onCodeChange={setCode}
+              onCodeChange={(nextCode) => {
+                resetCompileStatus();
+                setCode(nextCode);
+              }}
               showHeader={false}
               editorFontSize={userSettings.editorFontSize}
             />
@@ -511,6 +518,7 @@ export default function StaffSimulator({ role }: StaffSimulatorProps) {
               stepsEngaged={stepsEngaged}
               stepIndex={stepIndex}
               allStatesLength={allStates.length}
+              compileStatus={compileStatus}
             />
 
             {fatalError && (

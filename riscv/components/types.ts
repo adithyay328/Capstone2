@@ -53,6 +53,11 @@ export type AssemblyInfoData = {
   memory: Record<string, string>;
 };
 
+export type CompileStatus = {
+  state: "idle" | "compiling" | "success" | "error";
+  message: string;
+};
+
 // State shape returned by /api/sim
 export type SimState = {
   currentLine: number;

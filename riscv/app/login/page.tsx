@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Libre_Baskerville, Plus_Jakarta_Sans, Outfit } from 'next/font/google';
 import { login } from './api/frontend';
@@ -29,24 +30,48 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [portal, setPortal] = useState<'student' | 'admin'>('student');
-  const [isLoading, setIsLoading] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<'idle' | 'authenticating' | 'redirecting'>(
+    'idle'
+  );
   const [error, setError] = useState('');
+  const [registrationMessage, setRegistrationMessage] = useState('');
+  const [isPending, startTransition] = useTransition();
 
   const isAdminPortal = portal === 'admin';
+  const isLoading = submitPhase !== 'idle' || isPending;
+  const loadingTitle =
+    submitPhase === 'redirecting'
+      ? isAdminPortal
+        ? 'Signed in. Opening staff dashboard...'
+        : 'Signed in. Opening your workspace...'
+      : 'Signing you in...';
 
   useEffect(() => {
-    if (portal === 'student') {
-      router.prefetch('/student');
+    router.prefetch('/register');
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const registered = params.get('registered') === '1';
+    const registeredUsername = params.get('username')?.trim() ?? '';
+
+    if (!registered) {
+      setRegistrationMessage('');
       return;
     }
 
-    router.prefetch('/instructor');
-    router.prefetch('/ta');
-  }, [portal, router]);
+    setRegistrationMessage(
+      registeredUsername
+        ? `Account created for ${registeredUsername}. Sign in through Student Login.`
+        : 'Account created. Sign in through Student Login.'
+    );
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setSubmitPhase('authenticating');
     setError('');
 
     try {
@@ -63,20 +88,23 @@ export default function LoginPage() {
         }
 
         if (redirectPath) {
-          setUsername('');
-          setPassword('');
-          router.push(redirectPath);
+          setSubmitPhase('redirecting');
+          startTransition(() => {
+            router.push(redirectPath);
+          });
+          return;
         } else {
+          setSubmitPhase('idle');
           setError('Unable to determine account role for sign-in.');
         }
       } else {
+        setSubmitPhase('idle');
         setError(result.message || 'Login failed');
       }
     } catch (err) {
+      setSubmitPhase('idle');
       setError('An error occurred during login');
       console.error('Login error:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -247,6 +275,50 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {registrationMessage && (
+                <div
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-900"
+                  role="status"
+                >
+                  {registrationMessage}
+                </div>
+              )}
+
+              {isLoading && (
+                <div
+                  className="rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-amber-700"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-950">{loadingTitle}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div
                   className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-900"
@@ -290,11 +362,22 @@ export default function LoginPage() {
                     ? 'Sign in as staff'
                     : 'Sign in'}
               </button>
+
+              <Link
+                href="/register"
+                aria-disabled={isLoading}
+                tabIndex={isLoading ? -1 : undefined}
+                className={`flex w-full items-center justify-center rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-stone-900 ${
+                  isLoading ? 'pointer-events-none opacity-60' : ''
+                }`}
+              >
+                Register new student account
+              </Link>
             </form>
           </div>
 
           <p className="mt-8 text-center text-xs text-stone-600 sm:text-sm">
-            Use the portal that matches your account type.
+            Use the portal that matches your account type. Student self-registration is available here.
           </p>
         </div>
       </main>

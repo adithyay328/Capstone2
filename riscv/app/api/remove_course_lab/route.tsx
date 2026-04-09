@@ -4,7 +4,18 @@ import { DBConnection } from '@/app/sql/sql';
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Please sign in again before updating course labs',
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
       JSON.stringify({ success: false, message: 'Only instructors can remove labs from courses' }),
@@ -39,13 +50,16 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ success: true, message: result.rowCount ? 'Lab removed from course' : 'Lab was not in course' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (e: any) {
-    console.error('remove_course_lab:', e);
+  } catch (error: unknown) {
+    console.error('remove_course_lab:', error);
     return new Response(
-      JSON.stringify({ success: false, message: e?.message || 'Failed' }),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   } finally {
-    if (db) try { await db.client.end(); } catch (_) {}
+    if (db) try { await db.client.end(); } catch {}
   }
 }

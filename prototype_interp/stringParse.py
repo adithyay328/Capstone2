@@ -306,30 +306,6 @@ def preprocessAssemblyForEmulator(source: str) -> Tuple[str, List[Tuple[int, int
       out_lines.append(f"addi {rd}, zero, {addr}")
       continue
 
-    # Rewrite lw rd, imm(rs) -> lw rd, rs, imm
-    m_lw = regex.match(
-      r"(?is)^lw\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?(?:0x[0-9a-fA-F]+|\d+))\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
-      line,
-    )
-    if m_lw:
-      rd = m_lw.group(1)
-      imm = m_lw.group(2)
-      rs = m_lw.group(3)
-      out_lines.append(f"lw {rd}, {rs}, {imm}")
-      continue
-
-    # Rewrite sw rs, imm(rs1) -> sw rs, rs1, imm
-    m_sw = regex.match(
-      r"(?is)^sw\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?(?:0x[0-9a-fA-F]+|\d+))\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
-      line,
-    )
-    if m_sw:
-      rs2 = m_sw.group(1)
-      imm = m_sw.group(2)
-      rs1 = m_sw.group(3)
-      out_lines.append(f"sw {rs2}, {rs1}, {imm}")
-      continue
-
     # Keep everything else unchanged (existing emulator supports a limited ISA).
     out_lines.append(line)
 

@@ -67,7 +67,7 @@ export default function RegisterVisualPanel({
   }, [inputValue]);
 
   return (
-    <div className="rounded-2xl p-4 bg-neutral-900 border border-neutral-800">
+    <div className="w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-neutral-100">Display & LEDs</h3>

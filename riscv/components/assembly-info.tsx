@@ -107,7 +107,7 @@ export default function AssemblyInfo({
       });
 
   return (
-    <div className="w-full max-w-[23.125rem] min-w-[16rem] bg-zinc-900/60 border border-zinc-700 rounded-xl shadow-sm p-4 space-y-3">
+    <div className="w-full min-w-0 bg-zinc-900/60 border border-zinc-700 rounded-xl shadow-sm p-4 space-y-3 sm:max-w-[23.125rem] sm:min-w-[16rem]">
       <div className="flex items-center justify-between text-xs uppercase tracking-wide text-zinc-300">
         <span>Assembly Info</span>
         <span

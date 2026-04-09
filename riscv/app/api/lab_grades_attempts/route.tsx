@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { DBConnection } from "@/app/sql/sql";
+import { hasStaffCourseAccess } from "@/app/api/course_lab_roster_grades/data";
 import { z } from "zod";
 import { type LabGradesAttemptsResponse } from "./types";
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
-      JSON.stringify({ success: false, message: "Only instructors can view lab attempts" }),
+      JSON.stringify({ success: false, message: "Only course staff can view lab attempts" }),
       { status: 403, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -44,6 +45,15 @@ export async function GET(req: NextRequest) {
   try {
     db = await DBConnection.create();
     const client = db.client;
+    const viewerUsername = String(verifyResponse.data.username);
+
+    const hasAccess = await hasStaffCourseAccess(client, viewerUsername, courseId);
+    if (!hasAccess) {
+      return new Response(
+        JSON.stringify({ success: false, message: "You are not assigned to this course" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Ensure lab assigned to this course
     const assignedRes = await client.query(
@@ -138,15 +148,24 @@ export async function GET(req: NextRequest) {
         [labUid, studentUsername]
       );
 
-      attempts = attemptsRes.rows.map((r: any) => ({
-        attemptNumber: r.attempt_number,
-        gradeSessionId: r.grade_session_id,
-        gradedAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
-        passedTests: r.passed_tests,
-        score: r.score,
-        maxScore,
-        totalTests: r.total_tests,
-      }));
+      attempts = attemptsRes.rows.map(
+        (r: {
+          attempt_number: number;
+          grade_session_id: string;
+          created_at: Date | string;
+          passed_tests: number;
+          score: number;
+          total_tests: number;
+        }) => ({
+          attemptNumber: r.attempt_number,
+          gradeSessionId: r.grade_session_id,
+          gradedAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+          passedTests: r.passed_tests,
+          score: r.score,
+          maxScore,
+          totalTests: r.total_tests,
+        })
+      );
     }
 
     const response: LabGradesAttemptsResponse = {
@@ -162,12 +181,12 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("lab_grades_attempts error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        message: error?.message || "Failed to load attempts history",
+        message: error instanceof Error ? error.message : "Failed to load attempts history",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
@@ -181,4 +200,3 @@ export async function GET(req: NextRequest) {
     }
   }
 }
-

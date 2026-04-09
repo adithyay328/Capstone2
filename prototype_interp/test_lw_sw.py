@@ -2,7 +2,7 @@ import pytest
 
 from instructions import LED_ADDR, SEVENSEG_ADDR, LW, SW
 from machine import MachineState
-from stringParse import sourceToInstructions
+from stringParse import preprocessAssemblyForEmulator, sourceToInstructions
 
 
 def test_source_parser_accepts_canonical_lw_sw_syntax():
@@ -42,9 +42,16 @@ def test_sw_parses_canonical_operand():
     (SW, ["sw", "x7", "x3", "-8"]),
   ],
 )
-def test_lw_sw_reject_legacy_three_operand_syntax(instruction_cls, tokens):
+def test_lw_sw_reject_legacy_four_token_syntax(instruction_cls, tokens):
   with pytest.raises(ValueError, match="expects 3 tokens"):
     instruction_cls.parseFromSourceTokens(tokens)
+
+
+def test_preprocess_preserves_canonical_lw_sw_syntax():
+  processed, data_words = preprocessAssemblyForEmulator("lw x5, 12(x2)\nsw x7, -8(x3)")
+
+  assert processed == "lw x5, 12(x2)\nsw x7, -8(x3)"
+  assert data_words == []
 
 
 @pytest.mark.parametrize(

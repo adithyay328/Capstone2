@@ -1,12 +1,18 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import StudentSettingsPanel from "@/components/student-settings-panel";
-import { loadUserSettingsForCookie } from "@/app/api/user_settings/internal";
+import { loadUserSettingsForUsername } from "@/app/api/user_settings/internal";
+import { readVerifiedRequestAuth } from "@/app/verify/request-auth";
 
 export default async function StudentSettingsPage() {
   const headerStore = await headers();
-  const cookieHeader = headerStore.get("cookie") ?? "";
-  const result = await loadUserSettingsForCookie(cookieHeader);
+  const auth = readVerifiedRequestAuth(headerStore);
+
+  if (!auth || auth.student !== true) {
+    redirect("/login");
+  }
+
+  const result = await loadUserSettingsForUsername(auth.username);
 
   if (!result.authenticated) {
     redirect("/login");

@@ -1,12 +1,10 @@
-"use client";
-import React from "react";
-import Root from "../../../components/root";
+import { redirect } from "next/navigation";
 
-export default function ProjectPage({
+export default async function ProjectPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { projectId } = React.use(params);
-  return <Root initialView="editor" initialProjectId={projectId} />;
+  const { projectId } = await params;
+  redirect(`/student/projects/${encodeURIComponent(projectId)}`);
 }

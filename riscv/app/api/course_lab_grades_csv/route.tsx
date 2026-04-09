@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
 
     const lines = [
       ['username', 'grade', 'passed_tests', 'total_tests', 'passed', 'submitted_at'].join(','),
-      ...rowsResult.rows.map((row) =>
+      ...rowsResult.rows.map((row: CsvRow) =>
         [
           escapeCsvCell(row.username),
           row.grade === null ? '' : String(row.grade),

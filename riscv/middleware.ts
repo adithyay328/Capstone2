@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
 import type { VerifyResponse } from '@/app/verify/types';
 import { modifyCookieData } from './app/verify/modify';
+import { setVerifiedRequestAuthHeaders } from '@/app/verify/request-auth';
 
 // Define which routes should be protected by middleware
 export const config = {
@@ -67,4 +68,16 @@ export async function middleware(request: NextRequest) {
   if (isOnWrongProtectedRoute) {
     return NextResponse.redirect(new URL(homePath, request.url));
   }
+
+  const requestHeaders = new Headers(request.headers);
+  setVerifiedRequestAuthHeaders(
+    requestHeaders,
+    verifyResponse.data as Record<string, unknown>
+  );
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }

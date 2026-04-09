@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
 import { DBConnection } from '@/app/sql/sql';
-import { verifyCookieInternal } from '@/app/verify/internal';
 import type { StudentCourse } from '@/app/api/student_courses/types';
 import type { StudentCourseLab } from '@/app/api/student_course_labs/types';
+import { readVerifiedRequestAuth } from '@/app/verify/request-auth';
 import StudentLabsClient from './client';
 
 type StudentLabsPageProps = {
@@ -53,10 +53,9 @@ export default async function StudentLabsPage({
   let labsError: string | null = null;
 
   const headerStore = await headers();
-  const cookieHeader = headerStore.get('cookie') ?? '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const auth = readVerifiedRequestAuth(headerStore);
 
-  if (!verifyResponse.data || !verifyResponse.data.username) {
+  if (!auth?.username) {
     coursesError = 'Invalid or missing authentication';
 
     return (
@@ -70,7 +69,7 @@ export default async function StudentLabsPage({
     );
   }
 
-  if (verifyResponse.data.student !== true) {
+  if (auth.student !== true) {
     coursesError = 'Only students can view labs';
 
     return (
@@ -88,7 +87,7 @@ export default async function StudentLabsPage({
 
   try {
     db = await DBConnection.create();
-    const username = String(verifyResponse.data.username);
+    const username = auth.username;
 
     const coursesResult = await db.client.query<StudentCourseRow>(
       `SELECT c.course_id, c.code, c.title, c.term
@@ -101,7 +100,7 @@ export default async function StudentLabsPage({
       [username]
     );
 
-    courses = coursesResult.rows.map((row) => ({
+    courses = coursesResult.rows.map((row: StudentCourseRow) => ({
       course_id: row.course_id,
       code: row.code,
       title: row.title,
@@ -127,7 +126,7 @@ export default async function StudentLabsPage({
         [username, selectedCourseId]
       );
 
-      labs = labsResult.rows.map((row) => ({
+      labs = labsResult.rows.map((row: StudentCourseLabRow) => ({
         uid: row.uid,
         title: row.title,
         md: row.md,

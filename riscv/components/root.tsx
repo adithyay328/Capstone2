@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import AssemblyInfo from "./assembly-info";
+import dynamic from "next/dynamic";
 import Sidebar from "./sidebar";
 import ProjectsGrid from "./projects-grid";
 import EditorPanel from "./editor-panel";
@@ -8,11 +8,16 @@ import EditorControls from "./editor-controls";
 import useRunner from "./use-runner";
 import { readWorkspace, writeWorkspace } from "./workspace-store";
 import { defaultProjectState, makeProjectId, makeUid } from "./project-helpers";
-import RegisterVisualPanel from "@/components/RegisterVisualPanel"; //seven-segment display
-import RegisterEditor from "./register-editor";
-import MemoryEditor from "./memory-editor";
-import HelpModal from "@/components/help-modal";
 import { getClientUsername } from "./client-session";
+import EditorSizePicker from "@/components/editor-size-picker";
+import {
+  EDITOR_LAYOUTS,
+  getEditorSizePickerWidthClass,
+  getRootSupportLayoutClass,
+  getRootWorkspaceLayoutClass,
+  type EditorSize,
+  useEditorSizePreference,
+} from "@/components/editor-layout";
 import { syncWorkspace } from "@/app/api/sync_workspace/frontend";
 import { loadWorkspace } from "@/app/api/load_workspace/frontend";
 import { logout } from "@/app/logout/frontend";
@@ -28,8 +33,48 @@ import type {
   Workspace,
   SubmitResponse,
   AssemblyInfoData,
+  CompileStatus,
   SimState,
 } from "./types";
+
+const useClientLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
+const AssemblyInfo = dynamic(() => import("./assembly-info"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 text-sm text-zinc-400 sm:max-w-[23.125rem] sm:min-w-[16rem]">
+      Loading run details...
+    </div>
+  ),
+});
+
+const RegisterVisualPanel = dynamic(() => import("@/components/RegisterVisualPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400">
+      Loading display...
+    </div>
+  ),
+});
+
+const RegisterEditor = dynamic(() => import("./register-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-400">
+      Loading register presets...
+    </div>
+  ),
+});
+
+const MemoryEditor = dynamic(() => import("./memory-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-400">
+      Loading memory presets...
+    </div>
+  ),
+});
 
 type ProjectsViewProps = {
   projects: Project[];
@@ -38,36 +83,6 @@ type ProjectsViewProps = {
   onUpdateProject: (id: string, next: { name?: string; description?: string }) => void;
 };
 
-type InstructionsPanelProps = {
-  open: boolean;
-  onClose: () => void;
-};
-
-const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
-  open,
-  onClose,
-}) => {
-  if (!open) return null;
-
-  return (
-    <div className="relative mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-2 right-2 text-yellow-800 font-bold hover:text-yellow-900"
-        aria-label="Close instructions"
-      >
-        ✕
-      </button>
-
-      <h3 className="font-semibold text-yellow-800 mb-2">Instructions for Use</h3>
-      <ul className="list-disc ml-5 text-sm text-yellow-900">
-        <li>The simulation automatically terminates at the <strong>end of the file</strong>.</li>
-        <li>Register and memory inputs are <strong>for testing only</strong> and do <strong>not affect your grade</strong>.</li>
-      </ul>
-    </div>
-  );
-};
 const ProjectsView: React.FC<ProjectsViewProps> = ({
   projects,
   onOpenProject,
@@ -100,15 +115,16 @@ type EditorViewProps = {
   stepsEngaged: boolean;
   stepIndex: number;
   allStatesLength: number;
+  compileStatus: CompileStatus;
   fatalError: string | null;
   resp: AssemblyInfoData | null;
   assemblyStates: SubmitResponse["states"];
   registerInputs: Record<string, string>;
   memoryInputs: Record<string, string>;
   registerPanel: React.ReactNode;
-  instructionsOpen: boolean;
-  onCloseInstructions: () => void;
   editorFontSize: number;
+  editorSize: EditorSize;
+  onEditorSizeChange: (nextSize: EditorSize) => void;
 };
 
 const EditorView: React.FC<EditorViewProps> = ({
@@ -127,97 +143,123 @@ const EditorView: React.FC<EditorViewProps> = ({
   stepsEngaged,
   stepIndex,
   allStatesLength,
+  compileStatus,
   fatalError,
   resp,
   assemblyStates,
   registerInputs,
   memoryInputs,
   registerPanel,
-  instructionsOpen,
-  onCloseInstructions,
   editorFontSize,
-}) => (
-  <div className="relative">
-    <div className="pt-4 w-full max-w-[90rem] mx-auto">
-      <div className="mb-3 w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0">
-        <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
-        {projectDescription && (
-          <div className="text-[11px] text-zinc-400 truncate">
-            {projectDescription}
+  editorSize,
+  onEditorSizeChange,
+}) => {
+  const editorLayout = EDITOR_LAYOUTS[editorSize];
+  const pickerWidthClass = getEditorSizePickerWidthClass(editorSize);
+  const workspaceLayoutClass = getRootWorkspaceLayoutClass(editorSize);
+  const supportLayoutClass = getRootSupportLayoutClass(editorSize);
+  const layoutVars = {
+    "--root-shell-max-width": editorLayout.rootShellMaxWidth,
+    "--root-header-max-width": editorLayout.rootHeaderMaxWidth,
+    "--root-editor-column-width": editorLayout.rootEditorColumnWidth,
+    "--root-side-column-width": editorLayout.rootSideColumnWidth,
+    "--root-side-panel-height": editorLayout.rootSidePanelHeight,
+  } as React.CSSProperties;
+
+  return (
+    <div className="relative">
+      <div
+        className="mx-auto w-full max-w-[var(--root-shell-max-width)] pb-8 pt-4"
+        style={layoutVars}
+      >
+        <div className="mb-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
+          <div className="w-full min-w-0 max-w-[var(--root-header-max-width)]">
+            <div className="text-xs font-semibold text-zinc-200">{projectName}</div>
+            {projectDescription && (
+              <div className="text-[11px] text-zinc-400 truncate">
+                {projectDescription}
+              </div>
+            )}
           </div>
-        )}
-        {/* Instructions for students */}
-        <InstructionsPanel
-          open={instructionsOpen}
-          onClose={onCloseInstructions}
-        />
-      </div>
-      <div className="flex flex-col xl:flex-row gap-6">
-        {/* Editor + controls column */}
-        <div className="w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0 flex flex-col">
-          <EditorPanel
-            projectName={projectName}
-            projectDescription={projectDescription}
-            code={code}
-            onCodeChange={onCodeChange}
-            showHeader={false}
-            editorFontSize={editorFontSize}
+          <EditorSizePicker
+            value={editorSize}
+            onChange={onEditorSizeChange}
+            className={`${pickerWidthClass} 2xl:justify-self-end`}
           />
-
-        <EditorControls
-          onRun={onRun}
-          onStart={onStart}
-          onStop={onStop}
-          onStepForward={onStepForward}
-          onStepBack={onStepBack}
-          onReset={onReset}
-          onSyncNow={onSyncNow}
-          uid={uid}
-          stepsEngaged={stepsEngaged}
-          stepIndex={stepIndex}
-          allStatesLength={allStatesLength}
-        />
-
-        {/* fatal error box */}
-        {fatalError && (
-          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-            {fatalError}
-          </div>
-        )}
-
-        <div className="mt-6 flex flex-col sm:flex-row gap-4">
-          <AssemblyInfo
-            response={resp}
-            states={assemblyStates}
-            registerInputs={registerInputs}
-            memoryInputs={memoryInputs}
-          />
-
-          {/* Seven-segment + LEDs */}
-          <div className="flex-shrink-0">
-            <RegisterVisualPanel
-              registers={resp?.registers ?? null}
-              track="x1"
-              digits={4}
-            />
-          </div>
         </div>
-      </div>
+        <div className={`grid items-start gap-6 ${workspaceLayoutClass}`}>
+          <div className="min-w-0">
+            <EditorPanel
+              projectName={projectName}
+              projectDescription={projectDescription}
+              code={code}
+              onCodeChange={onCodeChange}
+              showHeader={false}
+              editorFontSize={editorFontSize}
+              editorHeight={editorLayout.editorHeight}
+            />
 
-        <div className="w-full xl:w-[28rem] min-w-0 mt-5 xl:mt-0">
-          {registerPanel}
+            <EditorControls
+              onRun={onRun}
+              onStart={onStart}
+              onStop={onStop}
+              onStepForward={onStepForward}
+              onStepBack={onStepBack}
+              onReset={onReset}
+              onSyncNow={onSyncNow}
+              uid={uid}
+              stepsEngaged={stepsEngaged}
+              stepIndex={stepIndex}
+              allStatesLength={allStatesLength}
+              compileStatus={compileStatus}
+            />
+
+            {fatalError && (
+              <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                {fatalError}
+              </div>
+            )}
+
+            <div className={`mt-6 grid items-start gap-4 ${supportLayoutClass}`}>
+              <div className="min-w-0">
+                <AssemblyInfo
+                  response={resp}
+                  states={assemblyStates}
+                  registerInputs={registerInputs}
+                  memoryInputs={memoryInputs}
+                />
+              </div>
+              <div className="min-w-0">
+                <RegisterVisualPanel
+                  registers={resp?.registers ?? null}
+                  track="x1"
+                  digits={4}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`min-w-0 self-start ${
+              editorSize === "large" ? "" : "xl:sticky xl:top-4"
+            }`}
+          >
+            {registerPanel}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function Root({
   initialView,
   initialProjectId,
+  sessionUsername,
 }: {
   initialView?: "editor" | "projects";
   initialProjectId?: string;
+  sessionUsername?: string | null;
 }) {
   //starts empty-- Later when a register is changed we will populate this
   const [registerOverrides, setRegisterOverrides] = React.useState<Record<string, string>>({});
@@ -242,10 +284,11 @@ export default function Root({
   const [userSettings, setUserSettings] = React.useState<UserSettings>(
     DEFAULT_USER_SETTINGS
   );
-  const [instructionsOpen, setInstructionsOpen] = React.useState(
-    DEFAULT_USER_SETTINGS.openInstructionsByDefault
+  const cacheUsername = React.useMemo(
+    () => sessionUsername?.trim() || getClientUsername(),
+    [sessionUsername]
   );
-  const cacheUsername = React.useMemo(() => getClientUsername(), []);
+  const [editorSize, setEditorSize] = useEditorSizePreference(cacheUsername);
 
   // we make an object to store defualt 0x0 values for all 32 registers
   //this is what we load into uiRegisters when start up the app 
@@ -373,12 +416,14 @@ const persist = React.useCallback(
 );
 
   const {
+    compileStatus,
     handleRun,
     handleStop,
     handleStart,
     handleStepForward,
     handleStepBack,
     resetSession,
+    resetCompileStatus,
   } = useRunner({
     code,
     allStates,
@@ -395,6 +440,7 @@ const persist = React.useCallback(
   });
 
     const loadProjectIntoState = React.useCallback((project: Project | null) => {
+      resetCompileStatus();
       if (!project) {
         // blank editor
         setCode("");
@@ -427,7 +473,7 @@ const persist = React.useCallback(
           ? state.memoryOverrides
           : ({} as Record<string, string>)
       );
-    }, []);
+    }, [resetCompileStatus]);
 
   React.useEffect(() => {
     if (!initialProjectId) return;
@@ -509,7 +555,7 @@ const persist = React.useCallback(
   );
 
 
-React.useEffect(() => {
+useClientLayoutEffect(() => {
   if (typeof window === "undefined") return;
   let cancelled = false;
 
@@ -719,7 +765,6 @@ React.useEffect(() => {
       if (cancelled || !response.success || !response.settings) return;
 
       setUserSettings(response.settings);
-      setInstructionsOpen(response.settings.openInstructionsByDefault);
     }
 
     void loadSettings();
@@ -735,50 +780,6 @@ React.useEffect(() => {
     if (!uid) return;
     persist();
   }, [uid, code, resp, simState, registerOverrides, memoryOverrides, persist]);
-
-  function handleNewProject() {
-    let workspaceUid = uid;
-    if (!workspaceUid) {
-      workspaceUid = makeUid();
-      setUid(workspaceUid);
-    }
-
-    const newProject: Project = {
-      id: makeProjectId(),
-      name: `Untitled project ${projects.length + 1}`,
-      description: "",
-      createdAt: new Date().toISOString(),
-      state: { ...defaultProjectState, code: "" },
-    };
-
-    const updatedProjects = [...projects, newProject];
-    setProjects(updatedProjects);
-    setCurrentProjectId(newProject.id);
-    loadProjectIntoState(newProject);
-    setView("editor");
-
-    // Clear editor / state for the new project
-    setCode("");
-    setResp(null);
-    setSimState(null);
-    setAllStates([]);
-    setStepIndex(0);
-    setStepsEngaged(false);
-    setFatalError(null);
-    setRegisterOverrides({});
-    setMemoryOverrides({});
-
-    if (typeof window !== "undefined" && workspaceUid) {
-      const workspace: Workspace = {
-        uid: workspaceUid,
-        currentProjectId: newProject.id,
-        projects: updatedProjects,
-      };
-      writeWorkspace(workspace, cacheUsername);
-      void syncWorkspace(workspace);
-    }
-  }
-
 
 function handleSelectProject(projectId: string) {
   if (projectId === currentProjectId) {
@@ -806,6 +807,7 @@ function handleSelectProject(projectId: string) {
 
   //when code changes in editor we update current version (or create one)
   const handleCodeChange = (nextCode: string) => {
+    resetCompileStatus();
     setCode(nextCode);
     persist({ code: nextCode });
   };
@@ -845,22 +847,15 @@ function handleSelectProject(projectId: string) {
       {/* LEFT SIDEBAR */}
       <Sidebar
         initialOpen={false}
-        onNewProject={handleNewProject}
         onOpenProjects={handleOpenProjects}
         onLogout={async () => {
           await syncWorkspaceNow(true, true);
           await logout();
         }}
       />
-      {userSettings.showHelpBubble && (
-        <HelpModal title="AI Helper Chatbot">
-          <p>Potential Chatgpt??</p>
-          <p>Like SensAI to help students find out whats going on?</p>
-        </HelpModal>
-      )}
 
       {/* MAIN AREA */}
-      <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
+      <main className="relative flex-1 min-w-0 overflow-x-clip px-4 pb-8 pl-20 pt-2 sm:px-6 sm:pl-24 lg:px-8 lg:pl-24">
         {view === "projects" ? (
           <ProjectsView
             projects={projects}
@@ -869,8 +864,6 @@ function handleSelectProject(projectId: string) {
             onUpdateProject={updateProjectById}
           />
         ) : (
-          <>
-          <div className="ml-10">
           <EditorView
             projectName={currentProject?.name || "Untitled project"}
             projectDescription={currentProject?.description}
@@ -887,16 +880,17 @@ function handleSelectProject(projectId: string) {
             stepsEngaged={stepsEngaged}
             stepIndex={stepIndex}
             allStatesLength={allStates.length}
+            compileStatus={compileStatus}
             fatalError={fatalError}
             resp={resp}
             assemblyStates={allStates}
             registerInputs={registerOverrides}
             memoryInputs={memoryOverrides}
-            instructionsOpen={instructionsOpen}
-            onCloseInstructions={() => setInstructionsOpen(false)}
             editorFontSize={userSettings.editorFontSize}
+            editorSize={editorSize}
+            onEditorSizeChange={setEditorSize}
             registerPanel={
-              <div className="rounded-md border border-zinc-700 bg-zinc-900/40 h-[46rem] p-4 flex flex-col">
+              <div className="flex h-[var(--root-side-panel-height)] min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-900/40 p-4 shadow-xl shadow-black/10">
                 <h2 className="font-semibold text-sm uppercase tracking-wide">
                   Input Presets
                 </h2>
@@ -928,8 +922,6 @@ function handleSelectProject(projectId: string) {
               </div>
             }
           />
-          </div>
-          </>
         )}
       </main>
     </div>

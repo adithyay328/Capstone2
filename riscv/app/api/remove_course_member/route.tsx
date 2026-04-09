@@ -1,11 +1,24 @@
 import { NextRequest } from 'next/server';
 import { verifyCookieInternal } from '@/app/verify/internal';
+import { invalidateUserSessions } from '@/app/verify/session';
 import { DBConnection } from '@/app/sql/sql';
 import { RemoveCourseMemberRequestSchema } from './types';
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Please sign in again before removing users from courses',
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
@@ -47,14 +60,18 @@ export async function POST(req: NextRequest) {
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    await invalidateUserSessions(username, 'course_membership_removed', db.client);
     return new Response(
       JSON.stringify({ success: true, message: 'Member removed' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Remove course member error:', error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message || 'Failed to remove member' }),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove member',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   } finally {

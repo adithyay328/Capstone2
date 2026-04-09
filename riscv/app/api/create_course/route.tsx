@@ -5,7 +5,19 @@ import { CreateCourseRequestSchema } from './types';
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
-  const verifyResponse = await verifyCookieInternal(cookieHeader);
+  const verifyResponse = await verifyCookieInternal(cookieHeader, {
+    requireRecentAuth: true,
+  });
+
+  if (verifyResponse.reason === 'reauth_required') {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Please sign in again before creating courses',
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
     return new Response(
@@ -54,8 +66,13 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ success: true, message: 'Course created' }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
       return new Response(
         JSON.stringify({ success: false, message: 'Course ID or code+term already exists' }),
         { status: 409, headers: { 'Content-Type': 'application/json' } }
@@ -63,7 +80,10 @@ export async function POST(req: NextRequest) {
     }
     console.error('Create course error:', error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message || 'Failed to create course' }),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create course',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   } finally {

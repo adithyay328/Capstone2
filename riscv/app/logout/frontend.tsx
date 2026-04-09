@@ -1,5 +1,7 @@
 'use client';
 
+import { clearClientSessionData } from '@/components/client-session';
+
 export async function logout(): Promise<boolean> {
   try {
     const response = await fetch('/logout/api', {
@@ -14,8 +16,9 @@ export async function logout(): Promise<boolean> {
       return false;
     }
 
+    clearClientSessionData();
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

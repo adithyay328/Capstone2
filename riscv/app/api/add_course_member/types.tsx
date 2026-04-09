@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const AddCourseMemberRequestSchema = z.object({
-  course_id: z.string().length(5).regex(/^[0-9]{5}$/),
-  username: z.string().min(1),
+  course_id: z.string().trim().length(5).regex(/^[0-9]{5}$/),
+  username: z.string().trim().min(1),
   role: z.enum(['student', 'instructor', 'ta']),
 });
 

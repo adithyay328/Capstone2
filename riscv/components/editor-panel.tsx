@@ -18,6 +18,7 @@ type EditorPanelProps = {
   onCodeChange: (nextCode: string) => void;
   showHeader?: boolean;
   editorFontSize?: number;
+  editorHeight?: string;
 };
 
 const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -27,6 +28,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   onCodeChange,
   showHeader = true,
   editorFontSize,
+  editorHeight,
 }) => {
   return (
     <>
@@ -42,7 +44,12 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
       )}
 
       {/* EDITOR */}
-      <CodeEditor code={code} onChange={onCodeChange} fontSize={editorFontSize} />
+      <CodeEditor
+        code={code}
+        onChange={onCodeChange}
+        fontSize={editorFontSize}
+        height={editorHeight}
+      />
     </>
   );
 };

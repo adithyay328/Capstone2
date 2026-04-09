@@ -17,6 +17,5 @@ export default function InstructorLabsRootPage() {
 
   if (!labUid) return null;
 
-  return <LabRoot view="teacher" />;
+  return <LabRoot />;
 }
-

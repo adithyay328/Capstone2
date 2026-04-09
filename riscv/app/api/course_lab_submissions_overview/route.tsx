@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
       JSON.stringify({
         success: true,
         labTitle: String(labResult.rows[0].title ?? ''),
-        students: result.rows.map((row) => ({
+        students: result.rows.map((row: OverviewRow) => ({
           username: row.username,
           totalSubmissions: Number(row.total_submissions ?? 0),
           submissions:

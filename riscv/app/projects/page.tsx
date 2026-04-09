@@ -1,6 +1,5 @@
-"use client";
-import Root from "../../components/root";
+import { redirect } from "next/navigation";
 
 export default function ProjectsPage() {
-  return <Root initialView="projects" />;
+  redirect("/student/projects");
 }

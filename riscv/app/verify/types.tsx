@@ -19,6 +19,9 @@ export type VerifyRequest = z.infer<typeof VerifyRequestSchema>;
 export const VerifyResponseSchema = z.object({
   cookie: z.string(),
   data: z.record(z.string(), z.unknown()).nullable(),
+  reason: z
+    .enum(['missing', 'invalid', 'expired', 'reauth_required'])
+    .optional(),
 });
 
 export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;

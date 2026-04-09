@@ -113,13 +113,6 @@ export default function StudentSettingsPanel({
           </div>
 
           <SettingToggle
-            title="Show Help Bubble"
-            description="Display the help button in the lower-right corner of lab pages."
-            checked={settings.showHelpBubble}
-            onChange={(checked) => updateSetting("showHelpBubble", checked)}
-          />
-
-          <SettingToggle
             title="Open Lab Instructions By Default"
             description="Keep the yellow instructions panel open when a lab first loads."
             checked={settings.openInstructionsByDefault}

@@ -5,6 +5,7 @@ import {
   CreateUserResponseSchema,
   type CreateUserRole,
 } from './types';
+import { normalizeAsuidInput } from '@/app/lib/asuid';
 
 export async function createUser(
   username: string,
@@ -15,8 +16,8 @@ export async function createUser(
   try {
     // Build the request object
     const requestBody: CreateUserRequest = {
-      username,
-      asuid,
+      username: username.trim(),
+      asuid: normalizeAsuidInput(asuid),
       password,
       role,
     };
