@@ -2,48 +2,14 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import {
-  FiBookOpen,
-  FiClipboard,
-  FiEye,
-  FiLayers,
-  FiLogOut,
-  FiMonitor,
-} from 'react-icons/fi';
+import { FiLogOut, FiMonitor } from 'react-icons/fi';
 import { logout } from '@/app/logout/frontend';
 import StaffGradeRosterPanel from '@/components/staff-grade-roster-panel';
 import { ins } from '@/components/instructor-shell';
 import { useStaffCourseSummaries } from '@/components/use-staff-course-summaries';
 
-const COURSE_ACTIONS = [
-  {
-    label: 'View Roster',
-    buildHref: (courseId: string) =>
-      `/ta/courses/roster?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiBookOpen,
-  },
-  {
-    label: 'View Lab Submissions',
-    buildHref: (courseId: string) =>
-      `/ta/courses/submissions?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiLayers,
-  },
-  {
-    label: 'View Lab Grades',
-    buildHref: (courseId: string) =>
-      `/ta/courses/grades?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiClipboard,
-  },
-  {
-    label: 'Review Lab Submissions',
-    buildHref: (courseId: string) =>
-      `/ta/student-labs-root?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiEye,
-  },
-] as const;
-
 const courseActionClass =
-  'inline-flex w-full items-center gap-3 rounded-[1.6rem] border border-amber-300 bg-white px-4 py-3.5 text-sm font-semibold text-stone-900 shadow-[0_10px_24px_rgba(180,120,20,0.12)] transition hover:-translate-y-px hover:border-amber-400 hover:bg-orange-50/80 hover:shadow-[0_14px_30px_rgba(180,120,20,0.16)]';
+  'inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 shadow-[0_10px_24px_rgba(180,120,20,0.12)] transition hover:-translate-y-px hover:border-amber-400 hover:bg-orange-50/80 hover:shadow-[0_14px_30px_rgba(180,120,20,0.16)]';
 
 export default function TADashboardPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -60,15 +26,13 @@ export default function TADashboardPage() {
   };
 
   return (
-    <div className={`${ins.pageWrap} ta-shell`}>
+    <div className={`${ins.pageWrap} relative ta-shell`}>
+      <div aria-hidden className="fixed inset-0 -z-10 bg-[#fff4e0]" />
+
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className={ins.kicker}>Teaching Assistant</p>
           <h1 className={`${ins.h1} mt-2`}>TA Dashboard</h1>
-          <p className={`${ins.subtitle} max-w-3xl`}>
-            Start from one assigned course, then move directly into roster review, lab submissions,
-            lab grades, or student submission review.
-          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -101,10 +65,6 @@ export default function TADashboardPage() {
             <h2 id="ta-course-workbench" className={`${ins.h2} mt-1`}>
               Course workbench
             </h2>
-            <p className={`${ins.subtitleMuted} mt-2 max-w-3xl`}>
-              Use one consistent path for TA work: pick a course, then choose roster, lab
-              submissions, lab grades, or submission review.
-            </p>
           </div>
         </div>
 
@@ -170,23 +130,13 @@ export default function TADashboardPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {COURSE_ACTIONS.map((action) => {
-                    const Icon = action.icon;
-
-                    return (
-                      <Link
-                        key={action.label}
-                        href={action.buildHref(summary.course.course_id)}
-                        className={courseActionClass}
-                      >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-orange-50 text-amber-800 shadow-sm">
-                          <Icon className="h-5 w-5" aria-hidden />
-                        </span>
-                        <span>{action.label}</span>
-                      </Link>
-                    );
-                  })}
+                <div className="mt-6">
+                  <Link
+                    href={`/ta/courses/labs?course_id=${encodeURIComponent(summary.course.course_id)}`}
+                    className={courseActionClass}
+                  >
+                    Open
+                  </Link>
                 </div>
 
                 <StaffGradeRosterPanel

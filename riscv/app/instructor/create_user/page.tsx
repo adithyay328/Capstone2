@@ -99,8 +99,10 @@ export default function CreateUserPage() {
           <input
             type="text"
             id="username"
+            name="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
             className={ins.input}
             required
           />
@@ -113,8 +115,10 @@ export default function CreateUserPage() {
           <input
             type="password"
             id="password"
+            name="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
             className={ins.input}
             required
           />
@@ -127,12 +131,14 @@ export default function CreateUserPage() {
           <input
             type="text"
             id="asuid"
+            name="asuid"
             value={asuid}
             onChange={(e) => setAsuid(normalizeAsuidInput(e.target.value))}
             inputMode="numeric"
             pattern="[0-9]{10}"
             maxLength={10}
             placeholder="10-digit ASUID"
+            autoComplete="off"
             className={ins.input}
             required
           />

@@ -108,7 +108,7 @@ export default function StudentSettingsPanel({
               onChange={(event) =>
                 updateSetting("editorFontSize", Number(event.target.value))
               }
-              className="mt-4 w-full accent-blue-500"
+              className="mt-4 w-full accent-[#460808]"
             />
           </div>
 
@@ -137,7 +137,7 @@ export default function StudentSettingsPanel({
           type="button"
           onClick={handleSave}
           disabled={saveState === "saving"}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+          className="rounded-md bg-[#ffb86a] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
         >
           {saveState === "saving" ? "Saving..." : "Save Settings"}
         </button>
@@ -177,7 +177,7 @@ function SettingToggle({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-5 w-5 rounded border-zinc-500 bg-zinc-900 accent-blue-500"
+        className="mt-1 h-5 w-5 rounded border-zinc-500 bg-zinc-900 accent-[#460808]"
       />
     </label>
   );

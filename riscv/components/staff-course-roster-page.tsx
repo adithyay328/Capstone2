@@ -3,10 +3,12 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { getCourseLabs, type CourseLab } from "@/app/api/course_labs/frontend";
 import { getCourseMembers } from "@/app/api/course_members/frontend";
 import type { CourseMember } from "@/app/api/course_members/types";
 import { listStaffCourses } from "@/app/api/staff_courses/frontend";
 import type { Course } from "@/app/api/list_courses/types";
+import CourseRosterReviewLauncher from "@/components/course-roster-review-launcher";
 import { ins } from "@/components/instructor-shell";
 
 type StaffCourseRosterPageProps = {
@@ -16,18 +18,21 @@ type StaffCourseRosterPageProps = {
 function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course_id") ?? "";
-  const backHref = `/${portal}/courses`;
-  const reviewBaseHref = `/${portal}/student-labs-root`;
+  const hasValidCourseId = /^[0-9]{5}$/.test(courseId);
+  const backHref = hasValidCourseId
+    ? `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
+    : `/${portal}/courses`;
 
   const [course, setCourse] = useState<Course | null>(null);
   const [members, setMembers] = useState<CourseMember[]>([]);
+  const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(
     null
   );
 
   useEffect(() => {
-    if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+    if (!courseId || !hasValidCourseId) {
       setLoading(false);
       return;
     }
@@ -39,9 +44,10 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
         setLoading(true);
         setMessage(null);
 
-        const [coursesResponse, membersResponse] = await Promise.all([
+        const [coursesResponse, membersResponse, labsResponse] = await Promise.all([
           listStaffCourses(),
           getCourseMembers(courseId),
+          getCourseLabs(courseId),
         ]);
 
         if (cancelled) return;
@@ -65,6 +71,15 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
             setMessage({ success: false, text: membersResponse.message });
           }
         }
+
+        if (labsResponse.success && labsResponse.labs) {
+          setCourseLabs(labsResponse.labs);
+        } else {
+          setCourseLabs([]);
+          if (labsResponse.message) {
+            setMessage({ success: false, text: labsResponse.message });
+          }
+        }
       } catch (error) {
         if (cancelled) return;
         setMessage({
@@ -79,7 +94,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, hasValidCourseId]);
 
   const activeMembers = useMemo(
     () =>
@@ -97,7 +112,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
     [activeMembers]
   );
 
-  if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+  if (!courseId || !hasValidCourseId) {
     return (
       <div className={`${ins.pageWrapMd} max-w-3xl`}>
         <Link href={backHref} className={ins.backLink}>
@@ -111,7 +126,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
   return (
     <div className={ins.pageWrapWide}>
       <Link href={backHref} className={ins.backLink}>
-        ← Back to courses
+        ← Back to course labs
       </Link>
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -123,36 +138,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
           </p>
           {course?.term && <p className="mt-1 text-sm text-stone-600">{course.term}</p>}
         </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href={`/${portal}/courses/grades?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnSecondary}
-          >
-            View grades
-          </Link>
-          <Link
-            href={`/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnNeutral}
-          >
-            Course labs
-          </Link>
-          <Link
-            href={`${reviewBaseHref}?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnNeutral}
-          >
-            Review student labs
-          </Link>
-        </div>
       </header>
-
-      <section className={`${ins.card} ${ins.cardPad}`}>
-        <p className="text-sm text-stone-700">
-          This roster is read-only for teaching assistants. You can inspect enrollment,
-          review student labs, and open grade tools, but you cannot add, remove, or
-          reassign members here.
-        </p>
-      </section>
 
       {message && (
         <div className={message.success ? ins.msgOk : ins.msgErr}>{message.text}</div>
@@ -226,12 +212,12 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
 
                     <div className="flex flex-wrap gap-2">
                       {member.role === "student" && (
-                        <Link
-                          href={`${reviewBaseHref}?course_id=${encodeURIComponent(courseId)}&student_username=${encodeURIComponent(member.username)}`}
-                          className={ins.btnNeutral}
-                        >
-                          Review labs
-                        </Link>
+                        <CourseRosterReviewLauncher
+                          courseId={courseId}
+                          courseLabs={courseLabs}
+                          portal={portal}
+                          studentUsername={member.username}
+                        />
                       )}
                     </div>
                   </li>

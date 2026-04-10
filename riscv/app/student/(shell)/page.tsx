@@ -9,11 +9,6 @@ type DashboardCard = {
   title: string;
   description: string;
   cardClassName: string;
-  patternStyle: {
-    backgroundImage: string;
-    backgroundSize: string;
-    backgroundPosition?: string;
-  };
 };
 
 const DASHBOARD_CARDS: DashboardCard[] = [
@@ -22,43 +17,18 @@ const DASHBOARD_CARDS: DashboardCard[] = [
     title: "Projects",
     description: "Open saved workspaces and jump back into your code.",
     cardClassName: "bg-zinc-900",
-    patternStyle: {
-      backgroundImage: `
-        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.09) 1.25px, transparent 0),
-        linear-gradient(135deg, rgba(255,255,255,0.08), transparent 48%)
-      `,
-      backgroundSize: "22px 22px, 100% 100%",
-      backgroundPosition: "0 0, 0 0",
-    },
   },
   {
     href: "/student/labs",
     title: "Labs",
     description: "Browse assigned labs and launch the simulator workspace.",
     cardClassName: "bg-blue-950",
-    patternStyle: {
-      backgroundImage: `
-        linear-gradient(135deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.08) 75%, transparent 75%, transparent),
-        radial-gradient(circle at 85% 18%, rgba(125,211,252,0.16), transparent 32%)
-      `,
-      backgroundSize: "28px 28px, 100% 100%",
-      backgroundPosition: "0 0, 0 0",
-    },
   },
   {
     href: "/student/new-project",
     title: "New Project",
     description: "Create a clean project and head straight into the editor.",
     cardClassName: "bg-[#3a1218]",
-    patternStyle: {
-      backgroundImage: `
-        linear-gradient(0deg, rgba(255,255,255,0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
-        radial-gradient(circle at 82% 16%, rgba(251,191,36,0.16), transparent 30%)
-      `,
-      backgroundSize: "20px 20px, 20px 20px, 100% 100%",
-      backgroundPosition: "0 0, 0 0, 0 0",
-    },
   },
 ];
 
@@ -105,15 +75,6 @@ export default async function StudentDashboardPage() {
             href={card.href}
             className={`group relative overflow-hidden rounded-[1.75rem] border border-zinc-700/80 p-7 shadow-xl transition duration-200 hover:-translate-y-1 hover:border-zinc-300 ${card.cardClassName}`}
           >
-            <div
-              className="pointer-events-none absolute inset-0 opacity-55"
-              style={card.patternStyle}
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_38%,rgba(0,0,0,0.14)_100%)]"
-              aria-hidden
-            />
             <div className="relative flex min-h-[21rem] flex-col justify-between">
               <div>
                 <h2 className="mt-4 text-4xl font-black tracking-tight text-white">

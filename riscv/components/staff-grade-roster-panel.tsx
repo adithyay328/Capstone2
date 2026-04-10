@@ -259,7 +259,7 @@ export default function StaffGradeRosterPanel({
                   {selectedCourse?.code ?? 'Course'} lab roster export
                 </h4>
                 <p className="mt-1 text-sm text-stone-600">
-                  Select a lab and download `asuid`, `name`, `lab`, and `grade_received`.
+                  Select a lab and download the grade CSV with score, ASUID, name, lab, and timestamp details.
                 </p>
               </div>
               {csvHref ? (
@@ -409,7 +409,7 @@ export default function StaffGradeRosterPanel({
             <div>
               <h2 className={ins.h2}>Course lab grade export</h2>
               <p className={`${ins.subtitleMuted} mt-2 max-w-2xl`}>
-                Download `asuid`, `name`, `lab`, and `grade_received` for the selected course lab.
+                Download the selected course lab grade CSV with score, ASUID, name, lab, and timestamp details.
               </p>
             </div>
             {csvHref ? (

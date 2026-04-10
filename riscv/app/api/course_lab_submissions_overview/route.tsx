@@ -8,6 +8,7 @@ import type { CourseLabSubmissionsOverviewResponse } from './types';
 type OverviewRow = {
   username: string;
   total_submissions: number;
+  highest_percent: number | string | null;
   submissions: LabSubmission[] | string | null;
 };
 
@@ -104,7 +105,8 @@ export async function GET(req: NextRequest) {
 
     const result = await client.query<OverviewRow>(
       `SELECT cm.username,
-              COALESCE(total_counts.total_submissions, 0)::int AS total_submissions,
+              COALESCE(stats.total_submissions, 0)::int AS total_submissions,
+              stats.highest_percent,
               COALESCE(
                 json_agg(
                   json_build_object(
@@ -123,12 +125,13 @@ export async function GET(req: NextRequest) {
               ) AS submissions
        FROM course_memberships cm
        LEFT JOIN LATERAL (
-         SELECT COUNT(*)::int AS total_submissions
-         FROM course_lab_submissions cls_count
-         WHERE cls_count.username = cm.username
-           AND cls_count.course_id = $1
-           AND cls_count.lab_uid = $2
-       ) total_counts ON TRUE
+         SELECT COUNT(*)::int AS total_submissions,
+                MAX(cls_all.grade)::numeric(5,2) AS highest_percent
+         FROM course_lab_submissions cls_all
+         WHERE cls_all.username = cm.username
+           AND cls_all.course_id = $1
+           AND cls_all.lab_uid = $2
+       ) stats ON TRUE
        LEFT JOIN LATERAL (
          SELECT grade_session_id,
                 grade,
@@ -148,23 +151,41 @@ export async function GET(req: NextRequest) {
        WHERE cm.course_id = $1
          AND cm.role = 'student'
          AND cm.status = 'active'
-       GROUP BY cm.username, total_counts.total_submissions
+       GROUP BY cm.username, stats.total_submissions, stats.highest_percent
        ORDER BY cm.username`,
       [course_id, lab_uid]
     );
+
+    const students = result.rows.map((row: OverviewRow) => ({
+      username: row.username,
+      highestPercent:
+        row.highest_percent === null ? null : Number(row.highest_percent),
+      totalSubmissions: Number(row.total_submissions ?? 0),
+      submissions:
+        typeof row.submissions === 'string'
+          ? (JSON.parse(row.submissions) as LabSubmission[])
+          : ((row.submissions ?? []) as LabSubmission[]),
+    }));
+    const gradedStudents = students.filter((student) => student.highestPercent !== null);
+    const averageHighestPercent =
+      gradedStudents.length > 0
+        ? Number(
+            (
+              gradedStudents.reduce(
+                (sum, student) => sum + Number(student.highestPercent ?? 0),
+                0
+              ) / gradedStudents.length
+            ).toFixed(2)
+          )
+        : null;
 
     return new Response(
       JSON.stringify({
         success: true,
         labTitle: String(labResult.rows[0].title ?? ''),
-        students: result.rows.map((row: OverviewRow) => ({
-          username: row.username,
-          totalSubmissions: Number(row.total_submissions ?? 0),
-          submissions:
-            typeof row.submissions === 'string'
-              ? (JSON.parse(row.submissions) as LabSubmission[])
-              : ((row.submissions ?? []) as LabSubmission[]),
-        })),
+        averageHighestPercent,
+        gradedStudentCount: gradedStudents.length,
+        students,
       } satisfies CourseLabSubmissionsOverviewResponse),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

@@ -43,6 +43,12 @@ const DASHBOARD_CARDS: DashboardCard[] = [
 
 export default function InstructorPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const solidAccentBadgeClass =
+    'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-sm';
+  const solidAccentBadgeSmallClass =
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-sm';
+  const solidPrimaryButtonClass =
+    'inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-900/15 hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-50';
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -89,7 +95,7 @@ export default function InstructorPage() {
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
         <article className={`${ins.card} ${ins.cardPad}`}>
           <div className="flex items-start gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+            <span className={solidAccentBadgeClass}>
               <FiLayers className="h-5 w-5" aria-hidden />
             </span>
             <div>
@@ -131,7 +137,7 @@ export default function InstructorPage() {
 
         <article className={`${ins.card} ${ins.cardPad}`}>
           <div className="flex items-start gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-600 to-orange-700 text-white shadow-sm">
+            <span className={solidAccentBadgeClass}>
               <FiShield className="h-5 w-5" aria-hidden />
             </span>
             <div>
@@ -144,7 +150,7 @@ export default function InstructorPage() {
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
-            <Link href="/instructor/manage_roles" className={ins.btnPrimary}>
+            <Link href="/instructor/manage_roles" className={solidPrimaryButtonClass}>
               Manage roles
             </Link>
             <Link href="/instructor/user_search" className={ins.btnSecondary}>
@@ -172,7 +178,7 @@ export default function InstructorPage() {
                 className={`${ins.card} ${ins.cardPad} flex flex-col transition hover:border-amber-300 hover:shadow-md`}
               >
                 <div className="flex items-start gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+                  <span className={solidAccentBadgeSmallClass}>
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">

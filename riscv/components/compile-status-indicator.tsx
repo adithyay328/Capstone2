@@ -23,16 +23,11 @@ export default function CompileStatusIndicator({
         ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
         : "border-red-500/40 bg-red-500/10 text-red-100";
 
-  const label =
-    status.state === "compiling"
-      ? "Compiling code..."
-      : status.state === "success"
-        ? "Valid"
-        : "Errors found";
+
 
   return (
     <div
-      title={status.message || label}
+      title={status.message}
       className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium ${styles} ${className}`.trim()}
     >
       {status.state === "compiling" ? (
@@ -46,7 +41,6 @@ export default function CompileStatusIndicator({
           ✕
         </span>
       )}
-      <span>{label}</span>
     </div>
   );
 }

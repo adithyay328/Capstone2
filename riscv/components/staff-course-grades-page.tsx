@@ -1,13 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { CourseLab } from "@/app/api/course_labs/frontend";
 import { getCourseLabs } from "@/app/api/course_labs/frontend";
-import { getCourseMembers } from "@/app/api/course_members/frontend";
-import type { CourseMember } from "@/app/api/course_members/types";
-import type { LabGradesAttemptsResponse } from "@/app/api/lab_grades_attempts/types";
 import type { LabGradesSummaryResponse } from "@/app/api/lab_grades_summary/types";
 import { ins } from "@/components/instructor-shell";
 
@@ -15,42 +12,16 @@ type StaffCourseGradesPageProps = {
   portal: "instructor" | "ta";
 };
 
-function csvEscape(value: unknown) {
-  const normalized = value === null || value === undefined ? "" : String(value);
-  if (/[",\n]/.test(normalized)) return `"${normalized.replace(/"/g, '""')}"`;
-  return normalized;
-}
-
-function downloadCsv(
-  filename: string,
-  headers: string[],
-  rows: Array<Array<unknown>>
-) {
-  const lines = [
-    headers.map(csvEscape).join(","),
-    ...rows.map((row) => row.map(csvEscape).join(",")),
-  ];
-  const blob = new Blob([lines.join("\n")], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course_id") ?? "";
   const labUidFromQuery = searchParams.get("lab_uid") ?? "";
-  const backHref = `/${portal}/courses`;
+  const hasValidCourseId = /^[0-9]{5}$/.test(courseId);
+  const backHref = hasValidCourseId
+    ? `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
+    : `/${portal}/courses`;
 
   const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
-  const [members, setMembers] = useState<CourseMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(
     null
@@ -60,15 +31,13 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
     null
   );
   const [gradesLoading, setGradesLoading] = useState(false);
-  const [selectedStudentUsername, setSelectedStudentUsername] = useState("");
-
-  const membersInCourse = useMemo(
-    () => (members ?? []).filter((member) => member.role === "student"),
-    [members]
-  );
+  const csvHref =
+    selectedLabUid && hasValidCourseId
+      ? `/api/course_lab_roster_grades_csv?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(selectedLabUid)}`
+      : '';
 
   useEffect(() => {
-    if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+    if (!courseId || !hasValidCourseId) {
       setLoading(false);
       return;
     }
@@ -80,22 +49,15 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
         setLoading(true);
         setMessage(null);
 
-        const [labsResponse, membersResponse] = await Promise.all([
-          getCourseLabs(courseId),
-          getCourseMembers(courseId),
-        ]);
+        const labsResponse = await getCourseLabs(courseId);
 
         if (cancelled) return;
 
         const nextLabs = (labsResponse.success && labsResponse.labs
           ? labsResponse.labs
           : []) as CourseLab[];
-        const nextMembers = (membersResponse.success && membersResponse.members
-          ? membersResponse.members
-          : []) as CourseMember[];
 
         setCourseLabs(nextLabs);
-        setMembers(nextMembers);
 
         const defaultLab =
           nextLabs.find((lab) => lab.lab_uid === "lab0-intro-addition") ??
@@ -112,13 +74,6 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
             : defaultLab?.lab_uid ?? "";
 
         setSelectedLabUid(desiredLabUid);
-
-        const nextSelectableMembers = nextMembers.filter((member) => member.role === "student");
-        if (nextSelectableMembers.length > 0) {
-          setSelectedStudentUsername(nextSelectableMembers[0].username);
-        } else {
-          setSelectedStudentUsername("");
-        }
       } catch (error) {
         if (cancelled) return;
         setMessage({
@@ -133,10 +88,10 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [courseId, labUidFromQuery]);
+  }, [courseId, hasValidCourseId, labUidFromQuery]);
 
   useEffect(() => {
-    if (!courseId || !/^[0-9]{5}$/.test(courseId) || !selectedLabUid) return;
+    if (!courseId || !hasValidCourseId || !selectedLabUid) return;
 
     let cancelled = false;
 
@@ -175,125 +130,9 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [courseId, selectedLabUid]);
+  }, [courseId, hasValidCourseId, selectedLabUid]);
 
-  const handleDownloadFinalGrades = () => {
-    if (!gradesSummary?.members) return;
-
-    downloadCsv(
-      `lab_grades_${courseId}_${selectedLabUid}.csv`,
-      ["username", "role", "attemptsUsed", "bestScore", "maxScore"],
-      gradesSummary.members.map((member) => [
-        member.username,
-        member.role,
-        member.attemptsUsed,
-        member.bestScore ?? "",
-        gradesSummary.maxScore,
-      ])
-    );
-  };
-
-  const handleDownloadStudentAttempts = async (username: string) => {
-    try {
-      const response = await fetch(
-        `/api/lab_grades_attempts?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(selectedLabUid)}&username=${encodeURIComponent(username)}`
-      );
-      const data = (await response.json()) as LabGradesAttemptsResponse;
-
-      if (!response.ok || !data.success) {
-        setMessage({
-          success: false,
-          text: data.message ?? "Failed to load attempts.",
-        });
-        return;
-      }
-
-      downloadCsv(
-        `lab_attempts_${courseId}_${selectedLabUid}_${username}.csv`,
-        [
-          "attemptNumber",
-          "gradeSessionId",
-          "gradedAt",
-          "passedTests",
-          "score",
-          "maxScore",
-          "totalTests",
-        ],
-        (data.attempts ?? []).map((attempt) => [
-          attempt.attemptNumber,
-          attempt.gradeSessionId,
-          attempt.gradedAt,
-          attempt.passedTests,
-          attempt.score,
-          attempt.maxScore,
-          attempt.totalTests,
-        ])
-      );
-      setMessage({ success: true, text: "Downloaded attempts CSV." });
-    } catch (error) {
-      setMessage({
-        success: false,
-        text: error instanceof Error ? error.message : "Download failed.",
-      });
-    }
-  };
-
-  const handleDownloadClassAttempts = async () => {
-    if (!selectedLabUid || membersInCourse.length === 0) return;
-
-    setMessage(null);
-
-    try {
-      const allRows: Array<Array<unknown>> = [];
-
-      for (const member of membersInCourse) {
-        const response = await fetch(
-          `/api/lab_grades_attempts?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(selectedLabUid)}&username=${encodeURIComponent(member.username)}`
-        );
-        const data = (await response.json()) as LabGradesAttemptsResponse;
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.message ?? `Failed to load attempts for ${member.username}`);
-        }
-
-        for (const attempt of data.attempts ?? []) {
-          allRows.push([
-            member.username,
-            attempt.attemptNumber,
-            attempt.gradeSessionId,
-            attempt.gradedAt,
-            attempt.passedTests,
-            attempt.score,
-            attempt.maxScore,
-            attempt.totalTests,
-          ]);
-        }
-      }
-
-      downloadCsv(
-        `lab_attempts_class_${courseId}_${selectedLabUid}.csv`,
-        [
-          "studentUsername",
-          "attemptNumber",
-          "gradeSessionId",
-          "gradedAt",
-          "passedTests",
-          "score",
-          "maxScore",
-          "totalTests",
-        ],
-        allRows
-      );
-      setMessage({ success: true, text: "Downloaded class attempts CSV." });
-    } catch (error) {
-      setMessage({
-        success: false,
-        text: error instanceof Error ? error.message : "Download failed.",
-      });
-    }
-  };
-
-  if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+  if (!courseId || !hasValidCourseId) {
     return (
       <div className={ins.pageWrapMd}>
         <Link href={backHref} className={ins.backLink}>
@@ -307,14 +146,12 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
   return (
     <div className={ins.pageWrapMd}>
       <Link href={backHref} className={ins.backLink}>
-        ← Back to courses
+        ← Back to course labs
       </Link>
       <div className="mt-4">
         <p className={ins.kicker}>Course Grades</p>
-        <h1 className={`${ins.h1} mt-2`}>Lab grades and attempts</h1>
-        <p className={ins.subtitle}>
-          Review best scores for the selected lab and export attempt history without changing course setup.
-        </p>
+        <h1 className={`${ins.h1} mt-2`}>View all grades</h1>
+        <p className={ins.subtitle}>Review best scores for the selected lab.</p>
       </div>
 
       {message && (
@@ -330,32 +167,31 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
         </div>
       ) : (
         <>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-[12rem] flex-1">
-              <label className={ins.label}>Lab</label>
-              <select
-                value={selectedLabUid}
-                onChange={(event) => setSelectedLabUid(event.target.value)}
-                className={ins.select}
-                disabled={gradesLoading}
-              >
-                {courseLabs.map((lab) => (
-                  <option key={lab.lab_uid} value={lab.lab_uid}>
-                    {lab.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-[12rem] flex-1">
+                <label className={ins.label}>Lab</label>
+                <select
+                  value={selectedLabUid}
+                  onChange={(event) => setSelectedLabUid(event.target.value)}
+                  className={ins.select}
+                  disabled={gradesLoading}
+                >
+                  {courseLabs.map((lab) => (
+                    <option key={lab.lab_uid} value={lab.lab_uid}>
+                      {lab.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadFinalGrades}
-                disabled={!gradesSummary?.members?.length}
-                className={ins.btnPrimary}
+              <a
+                href={csvHref || undefined}
+                aria-disabled={!csvHref}
+                className={!csvHref ? ins.btnDisabled : ins.btnPrimary}
               >
-                Download final grades (CSV)
-              </button>
+                Download grades CSV
+              </a>
             </div>
           </div>
 
@@ -407,46 +243,6 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
                   </tbody>
                 </table>
               )}
-            </div>
-          </div>
-
-          <div className={`${ins.card} ${ins.cardPad} mt-8`}>
-            <h2 className={ins.h2Card}>Attempts history (download)</h2>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="w-full sm:w-[22rem]">
-                <label className={ins.label}>Student</label>
-                <select
-                  value={selectedStudentUsername}
-                  onChange={(event) => setSelectedStudentUsername(event.target.value)}
-                  className={ins.select}
-                  disabled={gradesLoading}
-                >
-                  {membersInCourse.map((member) => (
-                    <option key={member.username} value={member.username}>
-                      {member.username} ({member.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleDownloadClassAttempts()}
-                  disabled={gradesLoading || membersInCourse.length === 0}
-                  className={ins.btnPrimary}
-                  title="Download attempts history for every student in this course"
-                >
-                  Download class attempts CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDownloadStudentAttempts(selectedStudentUsername)}
-                  disabled={!selectedStudentUsername}
-                  className={ins.btnSecondary}
-                >
-                  Download attempts history (CSV)
-                </button>
-              </div>
             </div>
           </div>
         </>

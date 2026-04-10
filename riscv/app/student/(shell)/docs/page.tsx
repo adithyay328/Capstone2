@@ -18,7 +18,7 @@ const resources = [
 export default function StudentDocsPage() {
   return (
     <div className="px-4 py-6 md:px-6">
-      <div className="rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-900/70 via-zinc-900/40 to-zinc-800/40 p-6 shadow-lg">
+      <div className="rounded-xl border border-zinc-700 bg-zinc-900/70 p-6 shadow-lg">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-widest text-zinc-400">
             Resources
@@ -63,10 +63,10 @@ export default function StudentDocsPage() {
         </h3>
         <div className="mt-3 grid gap-2 text-sm text-zinc-300 md:grid-cols-2">
           <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/60 p-3">
-            Use the Green Card for quick opcode and format checks.
+            Use the ISA Manual when you need precise behavior details.
           </div>
           <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/60 p-3">
-            Use the ISA Manual when you need precise behavior details.
+            Use the Green Card for quick opcode and format checks.
           </div>
         </div>
       </div>

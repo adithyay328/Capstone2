@@ -23,13 +23,23 @@ export default function StaffLabSubmissionsPage({
   const [course, setCourse] = React.useState<Course | null>(null);
   const [labTitle, setLabTitle] = React.useState('');
   const [students, setStudents] = React.useState<StudentSubmissionOverview[]>([]);
+  const [averageHighestPercent, setAverageHighestPercent] = React.useState<number | null>(null);
+  const [gradedStudentCount, setGradedStudentCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = React.useState<LabSubmission | null>(null);
   const backHref = `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`;
   const reviewHrefBase = `/${portal}/student-labs-root`;
-  const csvHref = `/api/course_lab_grades_csv?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`;
+  const csvHref = `/api/course_lab_roster_grades_csv?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`;
+
+  const formatPercent = React.useCallback((value: number | null) => {
+    if (value === null) {
+      return '—';
+    }
+
+    return `${Number.isInteger(value) ? value : value.toFixed(2)}%`;
+  }, []);
 
   React.useEffect(() => {
     if (!courseId || !labUid) {
@@ -60,6 +70,8 @@ export default function StaffLabSubmissionsPage({
         setError(overviewResponse.message ?? 'Unable to load lab submissions.');
         setStudents([]);
         setLabTitle('');
+        setAverageHighestPercent(null);
+        setGradedStudentCount(0);
         setSelectedStudent(null);
         setSelectedSubmission(null);
         setLoading(false);
@@ -69,6 +81,8 @@ export default function StaffLabSubmissionsPage({
       const nextStudents = overviewResponse.students ?? [];
       setStudents(nextStudents);
       setLabTitle(overviewResponse.labTitle ?? '');
+      setAverageHighestPercent(overviewResponse.averageHighestPercent ?? null);
+      setGradedStudentCount(overviewResponse.gradedStudentCount ?? 0);
       setSelectedStudent(nextStudents[0]?.username ?? null);
       setSelectedSubmission(nextStudents[0]?.submissions[0] ?? null);
       setLoading(false);
@@ -117,7 +131,7 @@ export default function StaffLabSubmissionsPage({
           )}
           {labTitle && <p className="mt-1 text-sm text-stone-600">Lab: {labTitle}</p>}
         </div>
-        <a href={csvHref} className={ins.btnPrimary}>
+        <a href={csvHref} className={ins.btnSecondary}>
           Download grades CSV
         </a>
       </header>
@@ -131,9 +145,27 @@ export default function StaffLabSubmissionsPage({
         <div className={ins.msgErr}>{error}</div>
       ) : (
         <>
+          <section className={`${ins.card} ${ins.cardPad}`}>
+            <p className={ins.labelCaps}>Average score</p>
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <p className="text-3xl font-bold tracking-tight text-stone-900">
+                {formatPercent(averageHighestPercent)}
+              </p>
+              <p className="pb-1 text-sm text-stone-600">
+                {gradedStudentCount > 0
+                  ? `Across ${gradedStudentCount} student${gradedStudentCount === 1 ? '' : 's'} with graded attempts`
+                  : 'No graded attempts yet for this lab'}
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-stone-600">
+              The student table shows each person&apos;s highest graded percent for this lab.
+            </p>
+          </section>
+
           <section className={`${ins.card} overflow-hidden`}>
-            <div className="grid grid-cols-[minmax(12rem,1fr)_10rem_minmax(22rem,2fr)] gap-4 border-b border-amber-100 bg-orange-50/70 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+            <div className="grid grid-cols-[minmax(12rem,1fr)_8rem_10rem_minmax(22rem,2fr)] gap-4 border-b border-amber-100 bg-orange-50/70 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
               <span>Student</span>
+              <span>Highest</span>
               <span>Total</span>
               <span>Recent submissions</span>
             </div>
@@ -146,7 +178,7 @@ export default function StaffLabSubmissionsPage({
                 {students.map((student) => (
                   <div
                     key={student.username}
-                    className="grid grid-cols-[minmax(12rem,1fr)_10rem_minmax(22rem,2fr)] items-center gap-4 px-5 py-4"
+                    className="grid grid-cols-[minmax(12rem,1fr)_8rem_10rem_minmax(22rem,2fr)] items-center gap-4 px-5 py-4"
                   >
                     <div>
                       <div className="font-semibold text-stone-900">{student.username}</div>
@@ -156,6 +188,9 @@ export default function StaffLabSubmissionsPage({
                       >
                         Open lab review
                       </Link>
+                    </div>
+                    <div className="text-sm font-medium text-stone-800">
+                      {formatPercent(student.highestPercent)}
                     </div>
                     <div className="text-sm text-stone-600">{student.totalSubmissions}</div>
                     <div className="flex flex-wrap gap-2">

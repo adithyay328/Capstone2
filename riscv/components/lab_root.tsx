@@ -167,6 +167,7 @@ export default function LabRoot({
   const courseIdFromQuery = courseIdOverride ?? searchParams.get("course_id") ?? "";
   const labUidFromQuery = labUidOverride ?? searchParams.get("lab") ?? "";
   const studentUsernameFromQuery = searchParams.get("student_username")?.trim() ?? "";
+  const requestedGradeSessionId = searchParams.get("grade_session_id")?.trim() ?? "";
   const isStaffRoute =
     pathname.startsWith("/instructor") || pathname.startsWith("/ta");
   const isStaffReviewMode = isStaffRoute && !!studentUsernameFromQuery;
@@ -204,15 +205,19 @@ export default function LabRoot({
     const params = new URLSearchParams();
     if (courseIdFromQuery) params.set("course_id", courseIdFromQuery);
     if (studentUsernameFromQuery) params.set("student_username", studentUsernameFromQuery);
+    if (labUidFromQuery) params.set("lab", labUidFromQuery);
+    if (requestedGradeSessionId) params.set("grade_session_id", requestedGradeSessionId);
     const query = params.toString();
     return query ? `${reviewBasePath}?${query}` : reviewBasePath;
   }, [
     courseIdFromQuery,
     isStaffReviewMode,
+    labUidFromQuery,
+    requestedGradeSessionId,
     reviewBasePath,
     studentUsernameFromQuery,
   ]);
-  const backLabel = isStaffReviewMode ? "Student Review" : "Lab Home";
+  const backLabel = isStaffReviewMode ? "Review options" : "Lab Home";
   const cacheUsername = React.useMemo(
     () => sessionUsername?.trim() || getClientUsername(),
     [sessionUsername]
@@ -292,6 +297,7 @@ export default function LabRoot({
   });
 
   const labSessionDirtyRef = React.useRef(false);
+  const requestedReviewSelectionRef = React.useRef<string | null>(null);
 
   const buildLabSessionPayload = React.useCallback((overrides?: { storageKey?: string; labUid?: string | null }) => {
     if (!uid) return null;
@@ -853,6 +859,111 @@ export default function LabRoot({
       null,
     [selectedSubmissionId, submissions]
   );
+
+  const applySubmissionToWorkspace = React.useCallback(
+    (submission: LabSubmission) => {
+      setCode(submission.submittedCode);
+      setSimState(null);
+      setRunMeta({ hadError: false, errorMessage: "" });
+      resetSession({
+        code: submission.submittedCode,
+        simState: null,
+        registerOverrides,
+        memoryOverrides,
+      });
+    },
+    [memoryOverrides, registerOverrides, resetSession]
+  );
+
+  const requestedReviewSelectionKey = React.useMemo(() => {
+    if (
+      !isStaffReviewMode ||
+      !courseIdFromQuery ||
+      !labUidFromQuery ||
+      !studentUsernameFromQuery ||
+      !requestedGradeSessionId
+    ) {
+      return "";
+    }
+
+    return [
+      courseIdFromQuery,
+      labUidFromQuery,
+      studentUsernameFromQuery,
+      requestedGradeSessionId,
+    ].join(":");
+  }, [
+    courseIdFromQuery,
+    isStaffReviewMode,
+    labUidFromQuery,
+    requestedGradeSessionId,
+    studentUsernameFromQuery,
+  ]);
+
+  React.useEffect(() => {
+    if (!requestedReviewSelectionKey) {
+      requestedReviewSelectionRef.current = null;
+      return;
+    }
+
+    if (!selectedLab || initStatus !== "ready") return;
+    if (requestedReviewSelectionRef.current === requestedReviewSelectionKey) return;
+
+    let cancelled = false;
+    const currentLab = selectedLab;
+    requestedReviewSelectionRef.current = requestedReviewSelectionKey;
+
+    async function loadRequestedSubmission() {
+      const response = await getLabSubmissions(
+        courseIdFromQuery,
+        currentLab.uid,
+        studentUsernameFromQuery
+      );
+
+      if (cancelled) return;
+
+      if (!response.success) {
+        toast.warn(
+          response.message ??
+            "The requested attempt could not be loaded. Showing the current workspace instead."
+        );
+        return;
+      }
+
+      const nextSubmissions = response.submissions ?? [];
+      setSubmissions(nextSubmissions);
+
+      const requestedSubmission =
+        nextSubmissions.find(
+          (submission) => submission.gradeSessionId === requestedGradeSessionId
+        ) ?? null;
+
+      if (!requestedSubmission) {
+        setSelectedSubmissionId(nextSubmissions[0]?.gradeSessionId ?? null);
+        toast.warn(
+          "The requested attempt could not be found. Showing the current workspace instead."
+        );
+        return;
+      }
+
+      setSelectedSubmissionId(requestedSubmission.gradeSessionId);
+      applySubmissionToWorkspace(requestedSubmission);
+    }
+
+    void loadRequestedSubmission();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    applySubmissionToWorkspace,
+    courseIdFromQuery,
+    initStatus,
+    requestedGradeSessionId,
+    requestedReviewSelectionKey,
+    selectedLab,
+    studentUsernameFromQuery,
+  ]);
 
   const handleReinstateSubmission = React.useCallback(() => {
     if (!selectedSubmission) return;

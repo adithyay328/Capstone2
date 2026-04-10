@@ -55,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const primaryItems: SidebarItem[] = [
+    { id: "home", label: "Home", icon: HomeIcon, href: "/student" },
     { id: "labs", label: "Labs", icon: LabsIcon, href: "/student/labs" },
     {
       id: "projects",
@@ -66,7 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const secondaryItems: SidebarItem[] = [
-    { id: "home", label: "Home", icon: HomeIcon, href: "/student" },
     { id: "profile", label: "Profile", icon: ProfileIcon, href: "/student/profile" },
     { id: "settings", label: "Settings", icon: SettingsIcon, href: "/student/settings" },
     { id: "help-feedback", label: "Help & Feedback", icon: HelpIcon, href: "/student/help" },

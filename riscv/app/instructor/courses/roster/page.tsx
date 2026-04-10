@@ -3,24 +3,31 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { getCourseLabs, type CourseLab } from '@/app/api/course_labs/frontend';
 import { getCourseMembers } from '@/app/api/course_members/frontend';
 import { listCourses } from '@/app/api/list_courses/frontend';
 import { removeCourseMember } from '@/app/api/remove_course_member/frontend';
 import type { CourseMember } from '@/app/api/course_members/types';
 import type { Course } from '@/app/api/list_courses/types';
+import CourseRosterReviewLauncher from '@/components/course-roster-review-launcher';
 import { ins } from '@/components/instructor-shell';
 
 function CourseRosterContent() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('course_id') ?? '';
+  const hasValidCourseId = /^[0-9]{5}$/.test(courseId);
+  const backHref = hasValidCourseId
+    ? `/instructor/courses/labs?course_id=${encodeURIComponent(courseId)}`
+    : '/instructor/courses';
   const [course, setCourse] = useState<Course | null>(null);
   const [members, setMembers] = useState<CourseMember[]>([]);
+  const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+    if (!courseId || !hasValidCourseId) {
       setLoading(false);
       return;
     }
@@ -31,9 +38,10 @@ function CourseRosterContent() {
       try {
         setLoading(true);
 
-        const [coursesRes, membersRes] = await Promise.all([
+        const [coursesRes, membersRes, labsRes] = await Promise.all([
           listCourses(),
           getCourseMembers(courseId),
+          getCourseLabs(courseId),
         ]);
 
         if (cancelled) return;
@@ -52,6 +60,15 @@ function CourseRosterContent() {
             setMessage({ success: false, text: membersRes.message });
           }
         }
+
+        if (labsRes.success && labsRes.labs) {
+          setCourseLabs(labsRes.labs);
+        } else {
+          setCourseLabs([]);
+          if (labsRes.message) {
+            setMessage({ success: false, text: labsRes.message });
+          }
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -62,7 +79,7 @@ function CourseRosterContent() {
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, hasValidCourseId]);
 
   const studentCount = useMemo(
     () => members.filter((member) => member.role === 'student').length,
@@ -95,10 +112,10 @@ function CourseRosterContent() {
     }
   };
 
-  if (!courseId || !/^[0-9]{5}$/.test(courseId)) {
+  if (!courseId || !hasValidCourseId) {
     return (
       <div className={`${ins.pageWrapMd} max-w-3xl`}>
-        <Link href="/instructor/courses" className={ins.backLink}>
+        <Link href={backHref} className={ins.backLink}>
           ← Back to courses
         </Link>
         <p className="mt-4 text-stone-600">Invalid course.</p>
@@ -108,8 +125,8 @@ function CourseRosterContent() {
 
   return (
     <div className={ins.pageWrapWide}>
-      <Link href="/instructor/courses" className={ins.backLink}>
-        ← Back to courses
+      <Link href={backHref} className={ins.backLink}>
+        ← Back to course labs
       </Link>
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -212,12 +229,12 @@ function CourseRosterContent() {
 
                     <div className="flex flex-wrap gap-2">
                       {member.role === 'student' && (
-                        <Link
-                          href={`/instructor/student-labs-root?course_id=${encodeURIComponent(courseId)}&student_username=${encodeURIComponent(member.username)}`}
-                          className={ins.btnNeutral}
-                        >
-                          Review labs
-                        </Link>
+                        <CourseRosterReviewLauncher
+                          courseId={courseId}
+                          courseLabs={courseLabs}
+                          portal="instructor"
+                          studentUsername={member.username}
+                        />
                       )}
                       <button
                         type="button"

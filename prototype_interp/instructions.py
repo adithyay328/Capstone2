@@ -18,7 +18,7 @@ LED_ADDR      = 0x3F0
 SEVENSEG_ADDR = 0x3F4
 LOAD_STORE_IMM_MIN = -2048
 LOAD_STORE_IMM_MAX = 2047
-LOAD_STORE_OPERAND_PATTERN = re.compile(r"^(-?\d+|0[xX][0-9a-fA-F]+)\((x\d+)\)$")
+LOAD_STORE_OPERAND_PATTERN = re.compile(r"^(-?\d+|0[xX][0-9a-fA-F]+)\(([A-Za-z0-9]+)\)$")
 
 def checkRegister(token: str) -> int:
   """
@@ -101,12 +101,12 @@ def checkImmediate(token: str) -> int:
 
 def parseLoadStoreOperand(token: str) -> tuple[int, int]:
   """
-  Parse a canonical RV32I load/store operand like '12(x2)'.
+  Parse an RV32I load/store operand like '12(x2)' or '12(t0)'.
   """
   match = LOAD_STORE_OPERAND_PATTERN.fullmatch(token)
   if match is None:
     raise ValueError(
-      f"Invalid load/store operand: '{token}'. Expected format: '<offset>(x<register>)'"
+      f"Invalid load/store operand: '{token}'. Expected format: '<offset>(<register>)'"
     )
 
   imm = checkImmediate(match.group(1))
@@ -115,9 +115,38 @@ def parseLoadStoreOperand(token: str) -> tuple[int, int]:
       f"Load/store immediate out of RV32I 12-bit signed range: {imm}. "
       f"Valid range: {LOAD_STORE_IMM_MIN} to {LOAD_STORE_IMM_MAX}"
     )
-
   aIdx = checkRegister(match.group(2))
   return aIdx, imm
+
+def checkLoadStoreImmediate(token: str) -> int:
+  """
+  Validate a load/store immediate using the RV32I 12-bit signed range.
+  """
+  imm = checkImmediate(token)
+  if imm < LOAD_STORE_IMM_MIN or imm > LOAD_STORE_IMM_MAX:
+    raise ValueError(
+      f"Load/store immediate out of RV32I 12-bit signed range: {imm}. "
+      f"Valid range: {LOAD_STORE_IMM_MIN} to {LOAD_STORE_IMM_MAX}"
+    )
+  return imm
+
+def parseLoadStoreAddressTokens(tokens: List[str]) -> tuple[int, int]:
+  """
+  Parse either canonical `offset(base)` addressing or the legacy `base, offset`
+  form used by older course examples.
+  """
+  if len(tokens) == 1:
+    return parseLoadStoreOperand(tokens[0])
+
+  if len(tokens) == 2:
+    aIdx = checkRegister(tokens[0])
+    imm = checkLoadStoreImmediate(tokens[1])
+    return aIdx, imm
+
+  raise ValueError(
+    f"Invalid load/store operands: {tokens}. Expected either '<offset>(<register>)' "
+    f"or '<register>, <offset>'"
+  )
 
 class Instruction(ABC):
   KNOWN_INSTRUCTIONS = set()
@@ -1219,16 +1248,18 @@ class LW(Instruction):
   def parseFromSourceTokens(tokens: List[str]) -> 'LW':
     """
     Parse LW instruction from tokens.
-    Expected format: ['lw', 'x0', '10(x1)']
+    Expected format: ['lw', 'x0', '10(x1)'] or ['lw', 'x0', 'x1', '10']
     """
-    if len(tokens) != 3:
-      raise ValueError(f"LW instruction expects 3 tokens, got {len(tokens)}: {tokens}")
+    if len(tokens) not in (3, 4):
+      raise ValueError(
+        f"LW instruction expects 3 or 4 tokens, got {len(tokens)}: {tokens}"
+      )
     
     if tokens[0].lower() != 'lw':
       raise ValueError(f"Expected 'lw' instruction, got '{tokens[0]}'")
     
     dIdx = checkRegister(tokens[1])
-    aIdx, imm = parseLoadStoreOperand(tokens[2])
+    aIdx, imm = parseLoadStoreAddressTokens(tokens[2:])
     
     return LW(dIdx, aIdx, imm)
 
@@ -1300,6 +1331,8 @@ class BLTU(Instruction):
       state.isJumping = True
       state.jumpOffset = self.imm
 
+    return state
+
 class BGEU(Instruction):
   def __init__(self, aIdx, bIdx, imm):
     self.aIdx = aIdx
@@ -1322,15 +1355,11 @@ class BGEU(Instruction):
     if tokens[0].lower() != 'bgeu':
       raise ValueError(f"Expected 'bgeu' instruction, got '{tokens[0]}'")
     
-    #aIdx = checkRegister(tokens[1])
-    #bIdx = checkRegister(tokens[2])
-    #imm = checkImmediate(tokens[3])
+    aIdx = checkRegister(tokens[1])
+    bIdx = checkRegister(tokens[2])
+    imm = checkImmediate(tokens[3])
 
-    dIdx = checkRegister(tokens[1]) #rd (destination)
-    imm = checkImmediate(tokens[2]) #immediate
-    
-    #return BGEU(aIdx, bIdx, imm)
-    return AUIPC(dIdx, imm)
+    return BGEU(aIdx, bIdx, imm)
 
   def forward(self, state : MachineState) -> MachineState:
 
@@ -1363,17 +1392,19 @@ class SW(Instruction):
   def parseFromSourceTokens(tokens: List[str]) -> 'SW':
     """
     Parse SW instruction from tokens.
-    Expected format: ['sw', 'x2', '10(x1)']
+    Expected format: ['sw', 'x2', '10(x1)'] or ['sw', 'x2', 'x1', '10']
     Stores word from x2 to memory[x1 + 10].
     """
-    if len(tokens) != 3:
-      raise ValueError(f"SW instruction expects 3 tokens, got {len(tokens)}: {tokens}")
+    if len(tokens) not in (3, 4):
+      raise ValueError(
+        f"SW instruction expects 3 or 4 tokens, got {len(tokens)}: {tokens}"
+      )
     
     if tokens[0].lower() != 'sw':
       raise ValueError(f"Expected 'sw' instruction, got '{tokens[0]}'")
     
     sIdx = checkRegister(tokens[1])
-    aIdx, imm = parseLoadStoreOperand(tokens[2])
+    aIdx, imm = parseLoadStoreAddressTokens(tokens[2:])
     
     return SW(sIdx, aIdx, imm)
 

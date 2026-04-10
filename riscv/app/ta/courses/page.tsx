@@ -1,39 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { FiBookOpen, FiClipboard, FiEye, FiLayers, FiMonitor } from 'react-icons/fi';
+import { FiMonitor } from 'react-icons/fi';
 import { ins } from '@/components/instructor-shell';
 import { useStaffCourseSummaries } from '@/components/use-staff-course-summaries';
 
-const COURSE_ACTIONS = [
-  {
-    label: 'View Roster',
-    buildHref: (courseId: string) =>
-      `/ta/courses/roster?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiBookOpen,
-  },
-  {
-    label: 'View Lab Submissions',
-    buildHref: (courseId: string) =>
-      `/ta/courses/submissions?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiLayers,
-  },
-  {
-    label: 'View Lab Grades',
-    buildHref: (courseId: string) =>
-      `/ta/courses/grades?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiClipboard,
-  },
-  {
-    label: 'Review Lab Submissions',
-    buildHref: (courseId: string) =>
-      `/ta/student-labs-root?course_id=${encodeURIComponent(courseId)}`,
-    icon: FiEye,
-  },
-] as const;
-
 const courseActionClass =
-  'inline-flex w-full items-center gap-3 rounded-[1.6rem] border border-amber-300 bg-white px-4 py-3.5 text-sm font-semibold text-stone-900 shadow-[0_10px_24px_rgba(180,120,20,0.12)] transition hover:-translate-y-px hover:border-amber-400 hover:bg-orange-50/80 hover:shadow-[0_14px_30px_rgba(180,120,20,0.16)]';
+  'inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 shadow-[0_10px_24px_rgba(180,120,20,0.12)] transition hover:-translate-y-px hover:border-amber-400 hover:bg-orange-50/80 hover:shadow-[0_14px_30px_rgba(180,120,20,0.16)]';
 
 export default function TACoursesPage() {
   const { summaries, loading, message } = useStaffCourseSummaries();
@@ -42,7 +15,9 @@ export default function TACoursesPage() {
   const totalLabs = summaries.reduce((sum, summary) => sum + summary.labCount, 0);
 
   return (
-    <div className={ins.pageWrapWide}>
+    <div className={`${ins.pageWrapWide} relative`}>
+      <div aria-hidden className="fixed inset-0 -z-10 bg-[#fff4e0]" />
+
       <Link href="/ta" className={ins.backLink}>
         ← Back to dashboard
       </Link>
@@ -51,10 +26,7 @@ export default function TACoursesPage() {
         <div>
           <p className={ins.kicker}>Teaching Assistant</p>
           <h1 className={`${ins.h1} mt-2`}>Assigned courses</h1>
-          <p className={ins.subtitle}>
-            The same workbench flow as the dashboard, with all of your assigned courses in one
-            place.
-          </p>
+          <p className={ins.subtitle}>Open a course to review labs, roster, grades, and submissions.</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -160,23 +132,13 @@ export default function TACoursesPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {COURSE_ACTIONS.map((action) => {
-                    const Icon = action.icon;
-
-                    return (
-                      <Link
-                        key={action.label}
-                        href={action.buildHref(summary.course.course_id)}
-                        className={courseActionClass}
-                      >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-orange-50 text-amber-800 shadow-sm">
-                          <Icon className="h-5 w-5" aria-hidden />
-                        </span>
-                        <span>{action.label}</span>
-                      </Link>
-                    );
-                  })}
+                <div className="mt-6">
+                  <Link
+                    href={`/ta/courses/labs?course_id=${encodeURIComponent(summary.course.course_id)}`}
+                    className={courseActionClass}
+                  >
+                    Open
+                  </Link>
                 </div>
               </article>
             ))}

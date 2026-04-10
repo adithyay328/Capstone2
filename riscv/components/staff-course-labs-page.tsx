@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { addCourseLab } from '@/app/api/add_course_lab/frontend';
 import { getCourseLabs, type CourseLab } from '@/app/api/course_labs/frontend';
+import { getCourseMembers } from '@/app/api/course_members/frontend';
+import type { CourseMember } from '@/app/api/course_members/types';
 import { listCourses } from '@/app/api/list_courses/frontend';
 import { listStaffCourses } from '@/app/api/staff_courses/frontend';
 import { listLabs } from '@/app/api/list_labs/frontend';
 import { removeCourseLab } from '@/app/api/remove_course_lab/frontend';
 import type { Course } from '@/app/api/list_courses/types';
 import type { Lab } from '@/app/api/list_labs/types';
+import CourseMembersDirectoryCard from '@/components/course-members-directory-card';
 import { ins } from '@/components/instructor-shell';
 
 type StaffCourseLabsPageProps = {
@@ -29,6 +32,7 @@ type SharedViewProps = {
   course: Course | null;
   courseId: string;
   courseLabs: CourseLab[];
+  courseMembers: CourseMember[];
   labsNotInCourse: Lab[];
   loading: boolean;
   message: FlashMessage | null;
@@ -57,6 +61,7 @@ function InstructorCourseLabsView({
   course,
   courseId,
   courseLabs,
+  courseMembers,
   labsNotInCourse,
   loading,
   message,
@@ -80,12 +85,6 @@ function InstructorCourseLabsView({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Link
-            href={`/instructor/courses/roster?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnSecondary}
-          >
-            Open roster
-          </Link>
           <Link href="/instructor/labs" className={ins.btnNeutral}>
             Lab library
           </Link>
@@ -126,6 +125,8 @@ function InstructorCourseLabsView({
               </p>
             </article>
           </section>
+
+          <CourseMembersDirectoryCard members={courseMembers} />
 
           <section className={`${ins.card} overflow-hidden`}>
             <div className="flex flex-col gap-2 border-b border-amber-100 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
@@ -250,13 +251,14 @@ function TACourseLabsView({
   course,
   courseId,
   courseLabs,
+  courseMembers,
   loading,
   message,
 }: SharedViewProps) {
   return (
     <div className={ins.pageWrapWide}>
       <Link href={backHref} className={ins.backLink}>
-        ← Back to courses
+        ← Back to dashboard
       </Link>
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -268,32 +270,13 @@ function TACourseLabsView({
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href={`/ta/courses/roster?course_id=${encodeURIComponent(courseId)}`}
+            href={`/ta/courses/grades?course_id=${encodeURIComponent(courseId)}`}
             className={ins.btnSecondary}
           >
-            Roster
-          </Link>
-          <Link
-            href={`/ta/courses/grades?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnNeutral}
-          >
-            Grades
-          </Link>
-          <Link
-            href={`/ta/student-labs-root?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnNeutral}
-          >
-            Review students
+            View all Grades
           </Link>
         </div>
       </header>
-
-      <section className={`${ins.card} ${ins.cardPad}`}>
-        <p className="text-sm text-stone-700">
-          Labs are read-only for TAs. Use this page to open submissions, inspect recent work,
-          and move into grading or student review without changing which labs are assigned.
-        </p>
-      </section>
 
       {message && (
         <div className={message.success ? ins.msgOk : ins.msgErr}>
@@ -307,49 +290,45 @@ function TACourseLabsView({
           <p className="mt-4 text-sm text-stone-600">Loading course labs...</p>
         </div>
       ) : courseLabs.length === 0 ? (
-        <div className={`${ins.card} ${ins.cardPad}`}>
-          <h2 className={ins.h2Card}>No labs assigned</h2>
-          <p className="mt-2 text-sm text-stone-600">
-            This course does not currently have any labs available for review.
-          </p>
-        </div>
-      ) : (
-        <section className={`${ins.card} overflow-hidden`}>
-          <div className="border-b border-amber-100 px-6 py-5">
-            <h2 className={ins.h2Card}>Assigned labs</h2>
-            <p className="mt-1 text-sm text-stone-600">
-              Open submissions for a lab, then review recent attempts or drill into a student
-              workspace.
+        <>
+          <CourseMembersDirectoryCard members={courseMembers} />
+          <div className={`${ins.card} ${ins.cardPad}`}>
+            <h2 className={ins.h2Card}>No labs assigned</h2>
+            <p className="mt-2 text-sm text-stone-600">
+              This course does not currently have any labs available for review.
             </p>
           </div>
-          <ul className={ins.divideList}>
-            {courseLabs.map((lab) => (
-              <li
-                key={lab.lab_uid}
-                className="flex flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="font-semibold text-stone-900">{lab.title}</p>
-                  <p className="mt-1 text-sm text-stone-600">{lab.lab_uid}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/ta/courses/submissions?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(lab.lab_uid)}`}
-                    className={ins.btnSecondary}
-                  >
-                    Open submissions
-                  </Link>
-                  <Link
-                    href={`/ta/courses/grades?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(lab.lab_uid)}`}
-                    className={ins.btnNeutral}
-                  >
-                    Grade tools
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </>
+      ) : (
+        <>
+          <CourseMembersDirectoryCard members={courseMembers} />
+          <section className={`${ins.card} overflow-hidden`}>
+            <div className="border-b border-amber-100 px-6 py-5">
+              <h2 className={ins.h2Card}>Assigned labs</h2>
+            </div>
+            <ul className={ins.divideList}>
+              {courseLabs.map((lab) => (
+                <li
+                  key={lab.lab_uid}
+                  className="flex flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-stone-900">{lab.title}</p>
+                    <p className="mt-1 text-sm text-stone-600">{lab.lab_uid}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/ta/courses/submissions?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(lab.lab_uid)}`}
+                      className={ins.btnSecondary}
+                    >
+                      Open submissions
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
       )}
     </div>
   );
@@ -361,17 +340,19 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
   const courseId = searchParams.get('course_id')?.trim() ?? '';
   const [course, setCourse] = useState<Course | null>(null);
   const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
+  const [courseMembers, setCourseMembers] = useState<CourseMember[]>([]);
   const [allLabs, setAllLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<FlashMessage | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const backHref = `/${portal}/courses`;
+  const backHref = portal === 'ta' ? '/ta' : `/${portal}/courses`;
 
   const load = useCallback(async () => {
     if (!isValidCourseId(courseId)) {
       setCourse(null);
       setCourseLabs([]);
+      setCourseMembers([]);
       setAllLabs([]);
       setLoading(false);
       return;
@@ -381,10 +362,16 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
     try {
       const coursesPromise = portal === 'ta' ? listStaffCourses() : listCourses();
       const courseLabsPromise = getCourseLabs(courseId);
+      const courseMembersPromise = getCourseMembers(courseId);
 
-      const [coursesRes, labsRes, allRes] = canManageLabs
-        ? await Promise.all([coursesPromise, courseLabsPromise, listLabs()])
-        : await Promise.all([coursesPromise, courseLabsPromise, Promise.resolve(null)]);
+      const [coursesRes, labsRes, membersRes, allRes] = canManageLabs
+        ? await Promise.all([coursesPromise, courseLabsPromise, courseMembersPromise, listLabs()])
+        : await Promise.all([
+            coursesPromise,
+            courseLabsPromise,
+            courseMembersPromise,
+            Promise.resolve(null),
+          ]);
 
       if (coursesRes.success && coursesRes.courses) {
         setCourse(coursesRes.courses.find((entry) => entry.course_id === courseId) ?? null);
@@ -398,6 +385,15 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
         setCourseLabs([]);
         if (labsRes.message) {
           setMessage({ success: false, text: labsRes.message });
+        }
+      }
+
+      if (membersRes.success && membersRes.members) {
+        setCourseMembers(membersRes.members);
+      } else {
+        setCourseMembers([]);
+        if (membersRes.message) {
+          setMessage({ success: false, text: membersRes.message });
         }
       }
 
@@ -415,6 +411,7 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
     } catch (error) {
       setCourse(null);
       setCourseLabs([]);
+      setCourseMembers([]);
       setAllLabs([]);
       setMessage({
         success: false,
@@ -496,7 +493,7 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
     ) : (
       <div className={`${ins.pageWrapMd} max-w-3xl`}>
         <Link href={backHref} className={ins.backLink}>
-          ← Back to courses
+          ← Back to dashboard
         </Link>
         <div className={`${ins.card} ${ins.cardPad} mt-6`}>
           <h1 className={ins.h2}>Invalid course</h1>
@@ -514,6 +511,7 @@ function StaffCourseLabsPageContent(props: StaffCourseLabsPageProps) {
     course,
     courseId,
     courseLabs,
+    courseMembers,
     labsNotInCourse,
     loading,
     message,

@@ -4,7 +4,7 @@ import StudentHelpFeedbackForm from "@/components/student-help-feedback-form";
 export default function StudentHelpPage() {
   return (
     <div className="px-4 py-6 md:px-6">
-      <div className="rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-900/70 via-zinc-900/40 to-zinc-800/40 p-6 shadow-lg">
+      <div className="rounded-xl border border-zinc-700 bg-zinc-900/70 p-6 shadow-lg">
         <span className="text-xs uppercase tracking-widest text-zinc-400">
           Support
         </span>
@@ -15,16 +15,10 @@ export default function StudentHelpPage() {
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
             href="/student/docs"
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-md text-white px-4 py-2 text-sm font-medium bg-[#ffb86a]"
           >
             View Documentation
           </Link>
-          <a
-            href="mailto:support@example.com"
-            className="rounded-md border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-900"
-          >
-            Email Support
-          </a>
         </div>
       </div>
 
@@ -51,20 +45,6 @@ export default function StudentHelpPage() {
             Feedback
           </h2>
           <StudentHelpFeedbackForm />
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-900/40 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          FAQ
-        </h3>
-        <div className="mt-3 grid gap-3 text-sm text-zinc-300 md:grid-cols-2">
-          <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/60 p-3">
-            Why is my output empty? Check that you used Run or Start and that your code compiles without errors.
-          </div>
-          <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/60 p-3">
-            Why can&apos;t I step? You must press Start before Step becomes active.
-          </div>
         </div>
       </div>
     </div>

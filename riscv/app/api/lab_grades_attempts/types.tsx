@@ -20,5 +20,5 @@ export const LabGradesAttemptsResponseSchema = z.object({
   attempts: z.array(LabGradesAttemptRowSchema).optional(),
 });
 
+export type LabGradesAttemptRow = z.infer<typeof LabGradesAttemptRowSchema>;
 export type LabGradesAttemptsResponse = z.infer<typeof LabGradesAttemptsResponseSchema>;
-

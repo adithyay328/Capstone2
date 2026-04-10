@@ -3,6 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getLabSubmissions } from "@/app/api/lab_submissions/frontend";
+import type { LabSubmission } from "@/app/api/lab_submissions/types";
 import { listStaffCourses } from "@/app/api/staff_courses/frontend";
 import { getCourseMembers } from "@/app/api/course_members/frontend";
 import { getCourseLabs, type CourseLab } from "@/app/api/course_labs/frontend";
@@ -23,14 +25,19 @@ export default function StaffLabReviewPage({
   const courseId = searchParams.get("course_id") ?? "";
   const studentUsername = searchParams.get("student_username") ?? "";
   const labUid = searchParams.get("lab") ?? "";
+  const requestedGradeSessionId = searchParams.get("grade_session_id") ?? "";
+  const shouldOpenLab = searchParams.get("open") === "1";
   const basePath = `/${portal}/student-labs-root`;
 
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [members, setMembers] = React.useState<CourseMember[]>([]);
   const [labs, setLabs] = React.useState<CourseLab[]>([]);
+  const [submissions, setSubmissions] = React.useState<LabSubmission[]>([]);
   const [coursesLoading, setCoursesLoading] = React.useState(true);
   const [detailsLoading, setDetailsLoading] = React.useState(false);
+  const [attemptsLoading, setAttemptsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [attemptsError, setAttemptsError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -61,6 +68,7 @@ export default function StaffLabReviewPage({
     if (!courseId) {
       setMembers([]);
       setLabs([]);
+      setSubmissions([]);
       return;
     }
 
@@ -100,6 +108,42 @@ export default function StaffLabReviewPage({
     };
   }, [courseId]);
 
+  React.useEffect(() => {
+    if (!courseId || !studentUsername || !labUid) {
+      setSubmissions([]);
+      setAttemptsLoading(false);
+      setAttemptsError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAttempts() {
+      setAttemptsLoading(true);
+      setAttemptsError(null);
+
+      const response = await getLabSubmissions(courseId, labUid, studentUsername);
+
+      if (cancelled) return;
+
+      if (!response.success) {
+        setSubmissions([]);
+        setAttemptsError(response.message ?? "Unable to load student attempts.");
+        setAttemptsLoading(false);
+        return;
+      }
+
+      setSubmissions(response.submissions ?? []);
+      setAttemptsLoading(false);
+    }
+
+    void loadAttempts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, labUid, studentUsername]);
+
   const activeStudents = React.useMemo(
     () =>
       members.filter(
@@ -115,8 +159,44 @@ export default function StaffLabReviewPage({
     [courseId, courses]
   );
 
+  const selectedAttemptValue = React.useMemo(
+    () =>
+      submissions.some(
+        (submission) => submission.gradeSessionId === requestedGradeSessionId
+      )
+        ? requestedGradeSessionId
+        : "",
+    [requestedGradeSessionId, submissions]
+  );
+  const selectedSubmission = React.useMemo(
+    () =>
+      submissions.find((submission) => submission.gradeSessionId === requestedGradeSessionId) ??
+      null,
+    [requestedGradeSessionId, submissions]
+  );
+  const backHref = courseId
+    ? labUid
+      ? `/${portal}/courses/submissions?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`
+      : `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
+    : portal === "instructor"
+      ? "/instructor"
+      : "/ta";
+  const backLabel = courseId
+    ? labUid
+      ? "Back to submissions"
+      : "Back to course labs"
+    : "Back to dashboard";
+
   const updateParams = React.useCallback(
-    (nextValues: { course_id?: string; student_username?: string; lab?: string }) => {
+    (
+      nextValues: {
+        course_id?: string;
+        student_username?: string;
+        lab?: string;
+        grade_session_id?: string;
+      },
+      options?: { open?: boolean }
+    ) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (typeof nextValues.course_id !== "undefined") {
@@ -137,23 +217,33 @@ export default function StaffLabReviewPage({
         else params.delete("lab");
       }
 
+      if (typeof nextValues.grade_session_id !== "undefined") {
+        if (nextValues.grade_session_id) {
+          params.set("grade_session_id", nextValues.grade_session_id);
+        } else {
+          params.delete("grade_session_id");
+        }
+      } else {
+        params.delete("grade_session_id");
+      }
+
+      if (options?.open) params.set("open", "1");
+      else params.delete("open");
+
       const query = params.toString();
       router.replace(query ? `${basePath}?${query}` : basePath);
     },
     [basePath, router, searchParams]
   );
 
-  if (courseId && studentUsername && labUid) {
+  if (shouldOpenLab && courseId && studentUsername && labUid) {
     return <LabRoot />;
   }
 
   return (
     <div className={ins.pageWrapWide}>
-      <Link
-        href={portal === "instructor" ? "/instructor" : "/ta"}
-        className={ins.backLink}
-      >
-        ← Back to dashboard
+      <Link href={backHref} className={ins.backLink}>
+        ← {backLabel}
       </Link>
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -167,22 +257,6 @@ export default function StaffLabReviewPage({
             inspect submissions without touching course administration.
           </p>
         </div>
-        {courseId && (
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/${portal}/courses/roster?course_id=${encodeURIComponent(courseId)}`}
-              className={ins.btnSecondary}
-            >
-              Open roster
-            </Link>
-            <Link
-              href={`/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`}
-              className={ins.btnNeutral}
-            >
-              Course labs
-            </Link>
-          </div>
-        )}
       </header>
 
       <section className={`${ins.card} ${ins.cardPad}`}>
@@ -198,6 +272,7 @@ export default function StaffLabReviewPage({
                   course_id: event.target.value,
                   student_username: "",
                   lab: "",
+                  grade_session_id: "",
                 })
               }
               className={ins.select}
@@ -220,6 +295,7 @@ export default function StaffLabReviewPage({
                 updateParams({
                   student_username: event.target.value,
                   lab: "",
+                  grade_session_id: "",
                 })
               }
               className={ins.select}
@@ -238,7 +314,9 @@ export default function StaffLabReviewPage({
             Lab
             <select
               value={labUid}
-              onChange={(event) => updateParams({ lab: event.target.value })}
+              onChange={(event) =>
+                updateParams({ lab: event.target.value, grade_session_id: "" })
+              }
               className={ins.select}
               disabled={!courseId || !studentUsername || detailsLoading}
             >
@@ -251,6 +329,102 @@ export default function StaffLabReviewPage({
             </select>
           </label>
         </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+            Attempt
+            <select
+              value={selectedAttemptValue}
+              onChange={(event) =>
+                updateParams({ grade_session_id: event.target.value })
+              }
+              className={ins.select}
+              disabled={
+                !courseId ||
+                !studentUsername ||
+                !labUid ||
+                attemptsLoading ||
+                submissions.length === 0
+              }
+            >
+              <option value="">--</option>
+              {submissions.map((submission, index) => (
+                <option
+                  key={submission.gradeSessionId}
+                  value={submission.gradeSessionId}
+                >
+                  {`Attempt ${submissions.length - index} - ${new Date(
+                    submission.submittedAt
+                  ).toLocaleString()} - ${submission.grade.toFixed(2)}%`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={() =>
+              updateParams(
+                {
+                  course_id: courseId,
+                  student_username: studentUsername,
+                  lab: labUid,
+                  grade_session_id: selectedAttemptValue,
+                },
+                { open: true }
+              )
+            }
+            className={ins.btnPrimary}
+            disabled={
+              !courseId ||
+              !studentUsername ||
+              !labUid ||
+              attemptsLoading ||
+              !selectedAttemptValue
+            }
+          >
+            Go
+          </button>
+        </div>
+
+        {!courseId || !studentUsername || !labUid ? null : attemptsLoading ? (
+          <div className={`${ins.cardFlat} mt-6 px-4 py-3 text-sm text-stone-700`}>
+            Loading student attempts...
+          </div>
+        ) : attemptsError ? (
+          <div className={`${ins.msgErr} mt-6`}>{attemptsError}</div>
+        ) : submissions.length === 0 ? (
+          <div className={`${ins.cardFlat} mt-6 px-4 py-3 text-sm text-stone-500`}>
+            No graded attempts are available for this student and lab.
+          </div>
+        ) : selectedSubmission ? (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm shadow-amber-950/10">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className={ins.h2Card}>Selected attempt preview</h2>
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                Grade {selectedSubmission.grade.toFixed(2)}%
+              </span>
+              <span className="text-sm text-stone-700">
+                {selectedSubmission.passedTests}/{selectedSubmission.totalTests} tests passed
+              </span>
+              <span className="text-sm text-stone-600">
+                {new Date(selectedSubmission.submittedAt).toLocaleString()}
+              </span>
+            </div>
+            {selectedSubmission.errorMessage ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {selectedSubmission.errorMessage}
+              </div>
+            ) : null}
+            <pre className="mt-4 max-h-[24rem] overflow-auto rounded-2xl bg-stone-950 p-4 text-sm text-stone-200">
+              {selectedSubmission.submittedCode}
+            </pre>
+          </div>
+        ) : (
+          <div className={`${ins.cardFlat} mt-6 px-4 py-3 text-sm text-stone-700`}>
+            The attempt menu starts on <span className="font-semibold text-stone-900">--</span>. Open it and choose a graded attempt to preview and review.
+          </div>
+        )}
 
         <div className={`${ins.cardFlat} mt-6 px-4 py-3 text-sm text-stone-700`}>
           {coursesLoading

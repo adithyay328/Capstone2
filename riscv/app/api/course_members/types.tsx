@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const CourseMemberSchema = z.object({
   username: z.string(),
+  name: z.string().optional(),
+  asuid: z.string().nullable().optional(),
   role: z.string(),
   status: z.string().optional(),
 });

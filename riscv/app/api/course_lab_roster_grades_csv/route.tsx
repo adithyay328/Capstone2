@@ -3,9 +3,9 @@ import { verifyCookieInternal } from '@/app/verify/internal';
 import { DBConnection } from '@/app/sql/sql';
 import {
   getAssignedCourseLabTitle,
-  getCourseLabRosterGradeRows,
   hasStaffCourseAccess,
 } from '@/app/api/course_lab_roster_grades/data';
+import { formatUserDisplayName } from '@/app/lib/format-user-display-name';
 
 function escapeCsvCell(value: string): string {
   if (/[",\r\n]/.test(value)) {
@@ -18,6 +18,13 @@ function escapeCsvCell(value: string): string {
 function formatGradeForCsv(grade: number): string {
   return Number.isInteger(grade) ? String(grade) : grade.toFixed(2);
 }
+
+type CsvRosterRow = {
+  username: string;
+  asuid: string | null;
+  best_score: number | string | null;
+  latest_submitted_at: Date | string | null;
+};
 
 export async function GET(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
@@ -51,16 +58,64 @@ export async function GET(req: NextRequest) {
       return new Response('This lab is not assigned to the selected course', { status: 404 });
     }
 
-    const members = await getCourseLabRosterGradeRows(client, courseId, labUid);
+    const membersResult = await client.query<CsvRosterRow>(
+      `SELECT
+         cm.username,
+         u.asuid,
+         MAX(cls.grade)::numeric(5,2) AS best_score,
+         MAX(cls.submitted_at)::timestamptz AS latest_submitted_at
+       FROM course_memberships cm
+       JOIN users u ON u.username = cm.username
+       LEFT JOIN course_lab_submissions cls
+         ON cls.username = cm.username
+        AND cls.course_id = cm.course_id
+        AND cls.lab_uid = $2
+       WHERE cm.course_id = $1
+         AND cm.role = 'student'
+         AND cm.status = 'active'
+       GROUP BY cm.username, u.asuid
+       ORDER BY cm.username ASC`,
+      [courseId, labUid]
+    );
+
+    const members = membersResult.rows.map((row) => ({
+      username: row.username,
+      asuid: row.asuid?.trim() ?? '',
+      name: formatUserDisplayName(row.username),
+      bestScore:
+        typeof row.best_score === 'number'
+          ? row.best_score
+          : row.best_score === null
+            ? null
+            : Number(row.best_score),
+      latestSubmittedAt: row.latest_submitted_at
+        ? row.latest_submitted_at instanceof Date
+          ? row.latest_submitted_at.toISOString()
+          : String(row.latest_submitted_at)
+        : '',
+    }));
 
     const lines = [
-      ['asuid', 'name', 'lab', 'grade_received'].join(','),
+      [
+        'course_id',
+        'lab_uid',
+        'lab_name',
+        'username',
+        'asuid',
+        'name',
+        'score',
+        'timestamp',
+      ].join(','),
       ...members.map((member) =>
         [
+          escapeCsvCell(courseId),
+          escapeCsvCell(labUid),
+          escapeCsvCell(labTitle),
+          escapeCsvCell(member.username),
           escapeCsvCell(member.asuid),
           escapeCsvCell(member.name),
-          escapeCsvCell(labTitle),
-          formatGradeForCsv(member.grade),
+          member.bestScore === null ? '' : formatGradeForCsv(member.bestScore),
+          member.latestSubmittedAt ? escapeCsvCell(member.latestSubmittedAt) : '',
         ].join(',')
       ),
     ];
