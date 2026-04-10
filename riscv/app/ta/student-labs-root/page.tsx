@@ -6,7 +6,7 @@ import StaffLabReviewPage from "@/components/staff-lab-review-page";
 export default function TAStudentLabsRootPage() {
   return (
     <Suspense fallback={null}>
-      <StaffLabReviewPage portal="ta" />
+      <StaffLabReviewPage variant="ta" />
     </Suspense>
   );
 }

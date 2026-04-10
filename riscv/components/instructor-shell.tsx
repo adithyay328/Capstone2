@@ -3,27 +3,11 @@
 import type { ReactNode } from "react";
 
 /**
- * Warm light studio: soft vertical gradient + corner glows so white cards read clearly
- * against the page (not flat).
+ * Warm light studio: solid warm background so staff pages stay visually calm and readable.
  */
 export function InstructorStudioBackground({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-[#fffef9] via-[#fff4e0] to-[#ffeccd] text-stone-900">
-      {/* Top-center wash — lifts the header area */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_110%_65%_at_50%_-15%,rgba(255,251,235,0.95),transparent_58%)]"
-        aria-hidden
-      />
-      {/* Bottom-right warmth */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_100%_100%,rgba(255,228,181,0.45),transparent_52%)]"
-        aria-hidden
-      />
-      {/* Bottom-left amber hint — asymmetry adds depth */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_55%_45%_at_0%_95%,rgba(253,230,138,0.22),transparent_50%)]"
-        aria-hidden
-      />
+    <div className="relative min-h-screen overflow-x-hidden bg-[#fff4e0] text-stone-900">
       <div className="relative z-10">{children}</div>
     </div>
   );
@@ -60,7 +44,7 @@ export const ins = {
   select:
     "mt-1 w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-400/35 [&_option]:bg-white",
   btnPrimary:
-    "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-900/15 hover:from-amber-600 hover:to-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+    "inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
   btnSecondary:
     "inline-flex items-center justify-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-amber-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:opacity-50",
   btnNeutral:

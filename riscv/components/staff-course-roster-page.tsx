@@ -10,18 +10,25 @@ import { listStaffCourses } from "@/app/api/staff_courses/frontend";
 import type { Course } from "@/app/api/list_courses/types";
 import CourseRosterReviewLauncher from "@/components/course-roster-review-launcher";
 import { ins } from "@/components/instructor-shell";
+import {
+  getStaffCourseBaseHref,
+  getStaffCoursesHref,
+  type StaffWorkflowVariant,
+} from "@/components/staff-workflow";
 
 type StaffCourseRosterPageProps = {
-  portal: "instructor" | "ta";
+  variant: StaffWorkflowVariant;
 };
 
-function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
+function StaffCourseRosterContent({ variant }: StaffCourseRosterPageProps) {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course_id") ?? "";
   const hasValidCourseId = /^[0-9]{5}$/.test(courseId);
+  const courseBaseHref = getStaffCourseBaseHref(variant);
+  const backLabel = variant === "instructor-workbench" ? "dashboard" : "courses";
   const backHref = hasValidCourseId
-    ? `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
-    : `/${portal}/courses`;
+    ? `${courseBaseHref}/labs?course_id=${encodeURIComponent(courseId)}`
+    : getStaffCoursesHref(variant);
 
   const [course, setCourse] = useState<Course | null>(null);
   const [members, setMembers] = useState<CourseMember[]>([]);
@@ -116,7 +123,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
     return (
       <div className={`${ins.pageWrapMd} max-w-3xl`}>
         <Link href={backHref} className={ins.backLink}>
-          ← Back to courses
+          ← Back to {backLabel}
         </Link>
         <p className="mt-4 text-stone-600">Invalid course.</p>
       </div>
@@ -215,7 +222,7 @@ function StaffCourseRosterContent({ portal }: StaffCourseRosterPageProps) {
                         <CourseRosterReviewLauncher
                           courseId={courseId}
                           courseLabs={courseLabs}
-                          portal={portal}
+                          variant={variant}
                           studentUsername={member.username}
                         />
                       )}

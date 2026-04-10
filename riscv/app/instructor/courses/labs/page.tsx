@@ -3,5 +3,5 @@
 import StaffCourseLabsPage from '@/components/staff-course-labs-page';
 
 export default function InstructorCourseLabsPage() {
-  return <StaffCourseLabsPage portal="instructor" canManageLabs />;
+  return <StaffCourseLabsPage variant="instructor-admin" />;
 }

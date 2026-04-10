@@ -3,5 +3,5 @@
 import StaffCourseRosterPage from "@/components/staff-course-roster-page";
 
 export default function TACourseRosterPage() {
-  return <StaffCourseRosterPage portal="ta" />;
+  return <StaffCourseRosterPage variant="ta" />;
 }

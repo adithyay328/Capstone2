@@ -69,12 +69,12 @@ export default function TADashboardPage() {
         </div>
 
         {loading ? (
-          <div className="mt-6 flex flex-col items-center rounded-2xl border border-amber-100 bg-orange-50/50 py-12">
+          <div className="mt-6 flex flex-col items-center rounded-2xl border border-amber-100 bg-orange-50 py-12">
             <div className={ins.spinner} />
             <p className="mt-4 text-sm text-stone-600">Loading assigned courses...</p>
           </div>
         ) : summaries.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-amber-100 bg-orange-50/50 p-6">
+          <div className="mt-6 rounded-2xl border border-amber-100 bg-orange-50 p-6">
             <p className="text-sm text-stone-600">
               No active TA course assignments are available yet.
             </p>

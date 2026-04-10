@@ -7,19 +7,26 @@ import type { CourseLab } from "@/app/api/course_labs/frontend";
 import { getCourseLabs } from "@/app/api/course_labs/frontend";
 import type { LabGradesSummaryResponse } from "@/app/api/lab_grades_summary/types";
 import { ins } from "@/components/instructor-shell";
+import {
+  getStaffCourseBaseHref,
+  getStaffCoursesHref,
+  type StaffWorkflowVariant,
+} from "@/components/staff-workflow";
 
 type StaffCourseGradesPageProps = {
-  portal: "instructor" | "ta";
+  variant: StaffWorkflowVariant;
 };
 
-function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
+function StaffCourseGradesContent({ variant }: StaffCourseGradesPageProps) {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course_id") ?? "";
   const labUidFromQuery = searchParams.get("lab_uid") ?? "";
   const hasValidCourseId = /^[0-9]{5}$/.test(courseId);
+  const courseBaseHref = getStaffCourseBaseHref(variant);
+  const backLabel = variant === "instructor-workbench" ? "dashboard" : "courses";
   const backHref = hasValidCourseId
-    ? `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
-    : `/${portal}/courses`;
+    ? `${courseBaseHref}/labs?course_id=${encodeURIComponent(courseId)}`
+    : getStaffCoursesHref(variant);
 
   const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +143,7 @@ function StaffCourseGradesContent({ portal }: StaffCourseGradesPageProps) {
     return (
       <div className={ins.pageWrapMd}>
         <Link href={backHref} className={ins.backLink}>
-          ← Back to courses
+          ← Back to {backLabel}
         </Link>
         <p className="mt-4 text-stone-600">Invalid course.</p>
       </div>

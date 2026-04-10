@@ -6,11 +6,15 @@ import { getLabSubmissions } from '@/app/api/lab_submissions/frontend';
 import type { LabSubmission } from '@/app/api/lab_submissions/types';
 import type { CourseLab } from '@/app/api/course_labs/frontend';
 import { ins } from '@/components/instructor-shell';
+import {
+  getStaffStudentLabsHref,
+  type StaffWorkflowVariant,
+} from '@/components/staff-workflow';
 
 type CourseRosterReviewLauncherProps = {
   courseId: string;
   courseLabs: CourseLab[];
-  portal: 'instructor' | 'ta';
+  variant: StaffWorkflowVariant;
   studentUsername: string;
 };
 
@@ -24,7 +28,7 @@ function formatAttemptLabel(submission: LabSubmission, index: number, total: num
 export default function CourseRosterReviewLauncher({
   courseId,
   courseLabs,
-  portal,
+  variant,
   studentUsername,
 }: CourseRosterReviewLauncherProps) {
   const router = useRouter();
@@ -35,10 +39,7 @@ export default function CourseRosterReviewLauncher({
   const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [attemptsError, setAttemptsError] = useState<string | null>(null);
 
-  const reviewBaseHref = useMemo(
-    () => `/${portal}/student-labs-root`,
-    [portal]
-  );
+  const reviewBaseHref = useMemo(() => getStaffStudentLabsHref(variant), [variant]);
 
   useEffect(() => {
     if (!isOpen || !selectedLabUid) {

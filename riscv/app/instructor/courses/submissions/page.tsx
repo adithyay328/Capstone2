@@ -6,7 +6,7 @@ import StaffLabSubmissionsPage from '@/components/staff-lab-submissions-page';
 export default function InstructorCourseSubmissionsPage() {
   return (
     <Suspense fallback={null}>
-      <StaffLabSubmissionsPage portal="instructor" />
+      <StaffLabSubmissionsPage variant="instructor-admin" />
     </Suspense>
   );
 }

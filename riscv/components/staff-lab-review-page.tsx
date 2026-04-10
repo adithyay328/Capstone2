@@ -12,13 +12,20 @@ import type { Course } from "@/app/api/list_courses/types";
 import type { CourseMember } from "@/app/api/course_members/types";
 import { ins } from "./instructor-shell";
 import LabRoot from "./lab_root";
+import {
+  getStaffCourseBaseHref,
+  getStaffDashboardHref,
+  getStaffRoleLabel,
+  getStaffStudentLabsHref,
+  type StaffWorkflowVariant,
+} from "./staff-workflow";
 
 type StaffLabReviewPageProps = {
-  portal: "instructor" | "ta";
+  variant: StaffWorkflowVariant;
 };
 
 export default function StaffLabReviewPage({
-  portal,
+  variant,
 }: StaffLabReviewPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,7 +34,9 @@ export default function StaffLabReviewPage({
   const labUid = searchParams.get("lab") ?? "";
   const requestedGradeSessionId = searchParams.get("grade_session_id") ?? "";
   const shouldOpenLab = searchParams.get("open") === "1";
-  const basePath = `/${portal}/student-labs-root`;
+  const basePath = getStaffStudentLabsHref(variant);
+  const courseBaseHref = getStaffCourseBaseHref(variant);
+  const roleLabel = getStaffRoleLabel(variant);
 
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [members, setMembers] = React.useState<CourseMember[]>([]);
@@ -176,16 +185,15 @@ export default function StaffLabReviewPage({
   );
   const backHref = courseId
     ? labUid
-      ? `/${portal}/courses/submissions?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`
-      : `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`
-    : portal === "instructor"
-      ? "/instructor"
-      : "/ta";
+      ? `${courseBaseHref}/submissions?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`
+      : `${courseBaseHref}/labs?course_id=${encodeURIComponent(courseId)}`
+    : getStaffDashboardHref(variant);
+  const defaultBackLabel = "Back to dashboard";
   const backLabel = courseId
     ? labUid
       ? "Back to submissions"
       : "Back to course labs"
-    : "Back to dashboard";
+    : defaultBackLabel;
 
   const updateParams = React.useCallback(
     (
@@ -249,7 +257,7 @@ export default function StaffLabReviewPage({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className={ins.kicker}>
-            {portal === "instructor" ? "Instructor" : "Teaching Assistant"}
+            {roleLabel}
           </p>
           <h1 className={`${ins.h1} mt-2`}>Student lab review</h1>
           <p className={ins.subtitle}>

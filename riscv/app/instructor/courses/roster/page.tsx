@@ -3,13 +3,11 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getCourseLabs, type CourseLab } from '@/app/api/course_labs/frontend';
 import { getCourseMembers } from '@/app/api/course_members/frontend';
 import { listCourses } from '@/app/api/list_courses/frontend';
 import { removeCourseMember } from '@/app/api/remove_course_member/frontend';
 import type { CourseMember } from '@/app/api/course_members/types';
 import type { Course } from '@/app/api/list_courses/types';
-import CourseRosterReviewLauncher from '@/components/course-roster-review-launcher';
 import { ins } from '@/components/instructor-shell';
 
 function CourseRosterContent() {
@@ -21,7 +19,6 @@ function CourseRosterContent() {
     : '/instructor/courses';
   const [course, setCourse] = useState<Course | null>(null);
   const [members, setMembers] = useState<CourseMember[]>([]);
-  const [courseLabs, setCourseLabs] = useState<CourseLab[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -38,10 +35,9 @@ function CourseRosterContent() {
       try {
         setLoading(true);
 
-        const [coursesRes, membersRes, labsRes] = await Promise.all([
+        const [coursesRes, membersRes] = await Promise.all([
           listCourses(),
           getCourseMembers(courseId),
-          getCourseLabs(courseId),
         ]);
 
         if (cancelled) return;
@@ -58,15 +54,6 @@ function CourseRosterContent() {
           setMembers([]);
           if (membersRes.message) {
             setMessage({ success: false, text: membersRes.message });
-          }
-        }
-
-        if (labsRes.success && labsRes.labs) {
-          setCourseLabs(labsRes.labs);
-        } else {
-          setCourseLabs([]);
-          if (labsRes.message) {
-            setMessage({ success: false, text: labsRes.message });
           }
         }
       } finally {
@@ -146,12 +133,6 @@ function CourseRosterContent() {
           >
             Add user
           </Link>
-          <Link
-            href={`/instructor/courses/grades?course_id=${encodeURIComponent(courseId)}`}
-            className={ins.btnSecondary}
-          >
-            View grades
-          </Link>
         </div>
       </header>
 
@@ -198,7 +179,7 @@ function CourseRosterContent() {
             <div className="border-b border-amber-100 px-6 py-5">
               <h2 className={ins.h2Card}>Members</h2>
               <p className="mt-1 text-sm text-stone-600">
-                Review enrollment and jump into a student lab review when needed.
+                Review enrollment, roles, and remove course members when structure changes.
               </p>
             </div>
 
@@ -228,21 +209,13 @@ function CourseRosterContent() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {member.role === 'student' && (
-                        <CourseRosterReviewLauncher
-                          courseId={courseId}
-                          courseLabs={courseLabs}
-                          portal="instructor"
-                          studentUsername={member.username}
-                        />
-                      )}
                       <button
                         type="button"
                         onClick={() => void handleRemove(member.username)}
                         disabled={removing === member.username}
                         className={ins.btnDanger}
                       >
-                        {removing === member.username ? 'Removing...' : 'Drop'}
+                        {removing === member.username ? 'Removing...' : 'Remove'}
                       </button>
                     </div>
                   </li>

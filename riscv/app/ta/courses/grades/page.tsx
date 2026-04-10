@@ -3,5 +3,5 @@
 import StaffCourseGradesPage from "@/components/staff-course-grades-page";
 
 export default function TACourseGradesPage() {
-  return <StaffCourseGradesPage portal="ta" />;
+  return <StaffCourseGradesPage variant="ta" />;
 }

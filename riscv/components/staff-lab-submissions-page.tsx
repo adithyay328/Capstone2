@@ -9,17 +9,25 @@ import type { Course } from '@/app/api/list_courses/types';
 import type { LabSubmission } from '@/app/api/lab_submissions/types';
 import type { StudentSubmissionOverview } from '@/app/api/course_lab_submissions_overview/types';
 import { ins } from '@/components/instructor-shell';
+import {
+  getStaffCourseBaseHref,
+  getStaffCoursesHref,
+  getStaffStudentLabsHref,
+  type StaffWorkflowVariant,
+} from '@/components/staff-workflow';
 
 type StaffLabSubmissionsPageProps = {
-  portal: 'instructor' | 'ta';
+  variant: StaffWorkflowVariant;
 };
 
 export default function StaffLabSubmissionsPage({
-  portal,
+  variant,
 }: StaffLabSubmissionsPageProps) {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('course_id') ?? '';
   const labUid = searchParams.get('lab_uid') ?? '';
+  const courseBaseHref = getStaffCourseBaseHref(variant);
+  const backLabel = variant === 'instructor-workbench' ? 'dashboard' : 'courses';
   const [course, setCourse] = React.useState<Course | null>(null);
   const [labTitle, setLabTitle] = React.useState('');
   const [students, setStudents] = React.useState<StudentSubmissionOverview[]>([]);
@@ -29,8 +37,8 @@ export default function StaffLabSubmissionsPage({
   const [error, setError] = React.useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = React.useState<LabSubmission | null>(null);
-  const backHref = `/${portal}/courses/labs?course_id=${encodeURIComponent(courseId)}`;
-  const reviewHrefBase = `/${portal}/student-labs-root`;
+  const backHref = `${courseBaseHref}/labs?course_id=${encodeURIComponent(courseId)}`;
+  const reviewHrefBase = getStaffStudentLabsHref(variant);
   const csvHref = `/api/course_lab_roster_grades_csv?course_id=${encodeURIComponent(courseId)}&lab_uid=${encodeURIComponent(labUid)}`;
 
   const formatPercent = React.useCallback((value: number | null) => {
@@ -105,8 +113,8 @@ export default function StaffLabSubmissionsPage({
   if (!courseId || !labUid) {
     return (
       <div className={`${ins.pageWrapMd} max-w-3xl`}>
-        <Link href={`/${portal}/courses`} className={ins.backLink}>
-          ← Back to courses
+        <Link href={getStaffCoursesHref(variant)} className={ins.backLink}>
+          ← Back to {backLabel}
         </Link>
         <div className={`${ins.card} ${ins.cardPad} mt-6`}>
           <p className="text-sm text-stone-600">Missing course or lab selection.</p>
