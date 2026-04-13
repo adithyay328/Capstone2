@@ -74,7 +74,3 @@ class MachineState:
     self.pc = pc
     self.isJumping = False
     self.jumpOffset = 0
-
-    #Memory-mapped hardware registers
-    self.ledRegister = 0
-    self.sevenSegRegister = 0

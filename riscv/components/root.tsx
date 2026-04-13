@@ -49,7 +49,7 @@ const AssemblyInfo = dynamic(() => import("./assembly-info"), {
   ),
 });
 
-const RegisterVisualPanel = dynamic(() => import("@/components/RegisterVisualPanel"), {
+const MemoryVisualPanel = dynamic(() => import("@/components/MemoryVisualPanel"), {
   ssr: false,
   loading: () => (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400">
@@ -230,9 +230,9 @@ const EditorView: React.FC<EditorViewProps> = ({
                 />
               </div>
               <div className="min-w-0">
-                <RegisterVisualPanel
-                  registers={resp?.registers ?? null}
-                  track="x1"
+                <MemoryVisualPanel
+                  memory={resp?.memory ?? null}
+                  trackAddress="0x0"
                   digits={4}
                 />
               </div>

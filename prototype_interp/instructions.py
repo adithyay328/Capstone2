@@ -14,8 +14,6 @@ from machine import Register, MemoryAddress, MachineState
 
 from pydantic import BaseModel
 
-LED_ADDR      = 0x3F0
-SEVENSEG_ADDR = 0x3F4
 LOAD_STORE_IMM_MIN = -2048
 LOAD_STORE_IMM_MAX = 2047
 LOAD_STORE_OPERAND_PATTERN = re.compile(r"^(-?\d+|0[xX][0-9a-fA-F]+)\(([A-Za-z0-9]+)\)$")
@@ -1419,18 +1417,6 @@ class SW(Instruction):
 
     if addr % 4 != 0:
       raise ValueError(f"Unaligned word access: address {addr} is not divisible by 4")
-
-    # Memory-mapped LED
-    if addr == LED_ADDR:
-      state.ledRegister = sVal & 0xFFFFFFFF
-      print("LED UPDATED:", state.ledRegister)
-      return state
-
-    # Memory-mapped 7-seg
-    if addr == SEVENSEG_ADDR:
-      state.sevenSegRegister = sVal & 0xFFFFFFFF
-      print("7SEG UPDATED:", state.sevenSegRegister)
-      return state
 
     # Normal memory write
     if addr + 3 >= len(state.memory):

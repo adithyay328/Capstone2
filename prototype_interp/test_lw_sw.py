@@ -1,6 +1,6 @@
 import pytest
 
-from instructions import LED_ADDR, SEVENSEG_ADDR, LW, SW
+from instructions import LW, SW
 from machine import MachineState
 from stringParse import preprocessAssemblyForEmulator, sourceToInstructions
 
@@ -150,21 +150,31 @@ def test_lw_rejects_unaligned_word_access():
     LW(1, 2, 0).forward(state)
 
 
-def test_sw_updates_led_register():
+def test_sw_updates_memory_mapped_led_address():
   state = MachineState()
   state.regs[1].value = 0x12345678
-  state.regs[2].value = LED_ADDR
+  state.regs[2].value = 0x3F0
 
   SW(1, 2, 0).forward(state)
 
-  assert state.ledRegister == 0x12345678
+  assert [state.memory[i].value for i in range(0x3F0, 0x3F4)] == [
+    0x78,
+    0x56,
+    0x34,
+    0x12,
+  ]
 
 
-def test_sw_updates_seven_segment_register():
+def test_sw_updates_memory_mapped_seven_segment_address():
   state = MachineState()
   state.regs[1].value = 0x89ABCDEF
-  state.regs[2].value = SEVENSEG_ADDR
+  state.regs[2].value = 0x3F4
 
   SW(1, 2, 0).forward(state)
 
-  assert state.sevenSegRegister == 0x89ABCDEF
+  assert [state.memory[i].value for i in range(0x3F4, 0x3F8)] == [
+    0xEF,
+    0xCD,
+    0xAB,
+    0x89,
+  ]

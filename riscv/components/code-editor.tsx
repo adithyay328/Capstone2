@@ -155,7 +155,10 @@ export default function CodeEditor({
 
     // completions
     m.languages.registerCompletionItemProvider("riscv", {
-      provideCompletionItems: (model, position): { suggestions: MonacoEditor.languages.CompletionItem[] } => {
+      provideCompletionItems: (
+        _model: MonacoEditor.editor.ITextModel,
+        position: MonacoEditor.Position
+      ): { suggestions: MonacoEditor.languages.CompletionItem[] } => {
         const range = new m.Range(
           position.lineNumber,
           position.column,
@@ -204,7 +207,10 @@ export default function CodeEditor({
 
     // hover
     m.languages.registerHoverProvider("riscv", {
-      provideHover(model, position) {
+      provideHover(
+        model: MonacoEditor.editor.ITextModel,
+        position: MonacoEditor.Position
+      ) {
         const word = model.getWordAtPosition(position);
         if (!word) return { contents: [] };
         const w = word.word;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import TopRouteProgress from "@/components/top-route-progress";
 
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-neutral-600 text-gray-100">
-        <TopRouteProgress />
+        <Suspense fallback={null}>
+          <TopRouteProgress />
+        </Suspense>
         {children}
       </body>
     </html>

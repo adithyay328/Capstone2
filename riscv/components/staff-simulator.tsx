@@ -7,7 +7,7 @@ import EditorControls from "./editor-controls";
 import EditorPanel from "./editor-panel";
 import RegisterEditor from "./register-editor";
 import MemoryEditor from "./memory-editor";
-import RegisterVisualPanel from "./RegisterVisualPanel";
+import MemoryVisualPanel from "./MemoryVisualPanel";
 import { getClientUsername } from "./client-session";
 import { makeUid } from "./project-helpers";
 import useRunner from "./use-runner";
@@ -535,9 +535,9 @@ export default function StaffSimulator({
                 memoryInputs={memoryOverrides}
               />
               <div className="flex-shrink-0">
-                <RegisterVisualPanel
-                  registers={resp?.registers ?? null}
-                  track="x1"
+                <MemoryVisualPanel
+                  memory={resp?.memory ?? null}
+                  trackAddress="0x0"
                   digits={4}
                 />
               </div>
