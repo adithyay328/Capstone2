@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { GradeStatusRequest, GradeStatusResponse } from "./types";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { modifyCookieData } from "@/app/verify/modify";
+import { getBackendUrl } from "@/app/api/backend-url";
 
-const BACKEND_URL = "http://localhost:25565/grade_status";
+const BACKEND_URL = getBackendUrl("/grade_status");
 
 export async function POST(req: NextRequest) {
   // Verify the cookie to ensure user is authenticated

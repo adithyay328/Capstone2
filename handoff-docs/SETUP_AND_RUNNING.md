@@ -108,6 +108,8 @@ uv run python server.py
 
 The Flask backend runs on `http://localhost:25565`.
 
+The frontend proxy routes use `BACKEND_URL` when it is set, otherwise they default to `http://localhost:25565`. For hosted frontend deployments, deploy the Flask backend separately and set `BACKEND_URL` in the frontend host environment to that backend's public URL.
+
 Terminal 2, frontend:
 
 ```bash

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCookieInternal } from "@/app/verify/internal";
 import { modifyCookieData } from "@/app/verify/modify";
+import { getBackendUrl } from "@/app/api/backend-url";
 import {
   GradeLabRequestSchema,
   type GradeLabResponse,
 } from "./types";
 
-const BACKEND_URL = "http://localhost:25565/grade_lab";
+const BACKEND_URL = getBackendUrl("/grade_lab");
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get("cookie") || "";

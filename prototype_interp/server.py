@@ -847,5 +847,6 @@ def grade_status():
                 pass
 
 if __name__ == '__main__':
-  # Run on port 25565 for testing purposes
-  app.run(debug=True, port=25565)
+    port = int(os.environ.get("PORT", "25565"))
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="0.0.0.0", debug=debug, port=port)

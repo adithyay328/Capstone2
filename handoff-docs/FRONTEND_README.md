@@ -35,7 +35,7 @@ Most API routes are under `riscv/app/api/<name>/route.tsx` or `route.ts`.
 
 Direct database routes use `DBConnection.create()` from `riscv/app/sql/sql.tsx`. Examples include course, lab, workspace, session, user settings, and submission history routes.
 
-Simulator/grading proxy routes call the Flask backend on `localhost:25565`:
+Simulator/grading proxy routes call the Flask backend using `BACKEND_URL`, defaulting to `http://localhost:25565` for local development:
 
 - `riscv/app/api/run/route.ts` -> `POST /data`
 - `riscv/app/api/score/route.tsx` -> `POST /score`

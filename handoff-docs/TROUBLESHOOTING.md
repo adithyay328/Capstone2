@@ -30,7 +30,9 @@ cd prototype_interp
 uv run python server.py
 ```
 
-The backend should be listening on `http://localhost:25565`. The frontend proxy routes currently use hard-coded backend URLs on that port.
+The backend should be listening on `http://localhost:25565` locally. The frontend proxy routes use `BACKEND_URL` when set, otherwise they default to `http://localhost:25565`.
+
+For a hosted frontend, `localhost` points at the frontend host, not your laptop. Deploy the Flask backend separately and set `BACKEND_URL` in the frontend hosting environment, for example `https://your-backend.example.com`.
 
 ## Backend Cannot Connect To Database
 
