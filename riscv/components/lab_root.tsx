@@ -1286,8 +1286,8 @@ export default function LabRoot({
           />
         )}
         <div
-          className={`mx-auto w-full max-w-[var(--lab-shell-max-width)] px-4 pb-8 pt-4 sm:px-6 lg:px-8 ${
-            isStaffReviewMode ? "" : "pl-20 sm:pl-24 lg:pl-24"
+          className={`mx-auto w-full max-w-[var(--lab-shell-max-width)] px-4 pb-8 sm:px-6 lg:px-8 ${
+            isStaffReviewMode ? "pt-4" : "pt-16 md:pl-24 md:pt-4 lg:pl-24"
           }`}
           style={editorLayoutVars}
         >
@@ -1555,9 +1555,6 @@ export default function LabRoot({
                       <h2 className="font-semibold text-sm uppercase tracking-wide">
                         Input Presets
                       </h2>
-                      <p className="mt-1 text-xs text-zinc-400">
-                        Add only the register and memory overrides you want for this lab run.
-                      </p>
                       <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                         <RegisterEditor
                           registers={registerOverrides}

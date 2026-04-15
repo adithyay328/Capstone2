@@ -125,7 +125,7 @@ export default function StudentLabsClient({
         initialOpen={false}
         onOpenProjects={handleOpenProjects}
       />
-      <main className="flex-1 relative px-4 sm:px-6 md:pl-23">
+      <main className="flex-1 relative px-4 pt-16 sm:px-6 md:pl-23 md:pt-0">
         <div className="max-w-4xl mx-auto pt-8">
           <div className="flex items-center mb-6">
             <h1 className="text-3xl font-bold">

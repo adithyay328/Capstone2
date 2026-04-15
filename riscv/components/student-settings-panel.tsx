@@ -69,9 +69,6 @@ export default function StudentSettingsPanel({
     <div className="mx-auto max-w-4xl py-5">
       <div className="max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 text-sm text-zinc-300">
-          Basic account preferences for the student lab experience.
-        </p>
       </div>
 
       <div className={`mt-5 rounded-xl border p-4 text-sm ${statusClassName}`}>
@@ -81,9 +78,6 @@ export default function StudentSettingsPanel({
       <section className="mt-6 rounded-2xl border border-zinc-700 bg-zinc-900/40 p-5 shadow-sm">
         <div className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">Editor</h2>
-          <p className="text-sm text-zinc-400">
-            Preferences here apply to your account and follow you across devices.
-          </p>
         </div>
 
         <div className="mt-6 space-y-6">

@@ -193,11 +193,6 @@ export default function LoginPage() {
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
                 {isAdminPortal ? 'Staff' : 'Student'} access
               </h2>
-              <p className="mt-2 text-sm text-stone-600">
-                {isAdminPortal
-                  ? 'For instructors and teaching assistants.'
-                  : 'For enrolled students in your course.'}
-              </p>
             </div>
 
             <div
@@ -348,10 +343,6 @@ export default function LoginPage() {
               </Link>
             </form>
           </div>
-
-          <p className="mt-8 text-center text-xs text-stone-600 sm:text-sm">
-            Use the portal that matches your account type. Student self-registration is available here.
-          </p>
         </div>
       </main>
     </div>

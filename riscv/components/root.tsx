@@ -855,7 +855,7 @@ function handleSelectProject(projectId: string) {
       />
 
       {/* MAIN AREA */}
-      <main className="relative flex-1 min-w-0 overflow-x-clip px-4 pb-8 pl-20 pt-2 sm:px-6 sm:pl-24 lg:px-8 lg:pl-24">
+      <main className="relative flex-1 min-w-0 overflow-x-clip px-4 pb-8 pt-16 sm:px-6 md:pl-24 md:pt-2 lg:px-8 lg:pl-24">
         {view === "projects" ? (
           <ProjectsView
             projects={projects}
@@ -894,9 +894,6 @@ function handleSelectProject(projectId: string) {
                 <h2 className="font-semibold text-sm uppercase tracking-wide">
                   Input Presets
                 </h2>
-                <p className="mt-1 text-xs text-zinc-400">
-                  Add only the register and memory overrides you want for this project.
-                </p>
                 <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                   <RegisterEditor
                     registers={registerOverrides}

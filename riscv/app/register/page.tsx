@@ -295,10 +295,6 @@ export default function RegisterPage() {
               </button>
             </form>
 
-            <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-              TA and instructor accounts are not public registrations. Those still need to be created by an instructor.
-            </div>
-
             <div className="mt-6 flex justify-center">
               <Link
                 href="/login"
