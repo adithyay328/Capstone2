@@ -1,5 +1,6 @@
--- Master database setup script (non-seed).
--- This file composes all setup scripts except seed_ta_and_courses.sql.
+-- Master database setup script.
+-- Use this as the fallback local schema rebuild path when
+-- db-seeds/local_handoff_dump.sql is missing or stale.
 --
 -- Goals:
 -- 1) Fresh DB: one-run setup of the full schema.

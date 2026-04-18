@@ -1,5 +1,5 @@
 -- =============================================================================
--- Lab 2 — Introduction to Bitwise AND (hosted / production friendly)
+-- Lab 2 — Introduction to Bitwise AND (local fallback seed)
 -- =============================================================================
 -- Same memory layout as Labs 0–1: word A @ 0x0, B @ 0x4, SUM @ 0x8 (little-endian).
 -- Students compute SUM = A & B (bitwise AND) using lw, and, sw.

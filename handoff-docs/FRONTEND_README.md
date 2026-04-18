@@ -1,74 +1,65 @@
-# Frontend README
+# Frontend Readme
 
-The frontend lives in `riscv/` and is a Next.js app using the App Router.
+The frontend lives in `riscv/`. It is a Next.js App Router project with server API routes that talk to PostgreSQL and proxy simulator/grading calls to the Flask backend.
 
-## Main Responsibilities
+## Local Setup
 
-- Auth screens and session handling.
-- Student projects and lab workspace UI.
-- Instructor and TA course/lab/submission pages.
-- RISC-V editor, register/memory input presets, simulator controls, and display panels.
-- Next API routes that either query PostgreSQL directly or proxy requests to the Python backend.
+Create the env file:
 
-## Important Folders
+```bash
+cp riscv/.env.example riscv/.env
+```
 
-- `riscv/app/`: Next.js route tree.
-- `riscv/app/api/`: server-side API routes.
-- `riscv/app/sql/sql.tsx`: PostgreSQL pool setup. It uses `HOSTED_DATABASE_URL` first, then `DATABASE_URL`.
-- `riscv/app/verify/`: session verification and cookie helpers.
-- `riscv/components/`: shared UI and simulator components.
-- `riscv/public/`: static assets.
+Expected local values:
 
-Ignore generated/dependency folders: `riscv/.next`, `riscv/.next-dev`, and `riscv/node_modules`.
+```text
+DATABASE_URL=postgresql://capstone:capstone@localhost:5432/capstone?sslmode=disable
+BACKEND_URL=http://localhost:25565
+```
 
-## Major Route Areas
-
-- Public auth: `riscv/app/login`, `riscv/app/register`, `riscv/app/logout`.
-- Student shell: `riscv/app/student`, `riscv/app/student/labs`, `riscv/app/student/projects`.
-- Instructor shell: `riscv/app/instructor`, `riscv/app/instructor/courses`, `riscv/app/instructor/labs`, `riscv/app/instructor/simulator`.
-- TA shell: `riscv/app/ta`, `riscv/app/ta/courses`, `riscv/app/ta/simulator`.
-- Shared legacy/project pages: `riscv/app/projects`, `riscv/app/labs`, `riscv/app/new-project`.
-
-## API Route Pattern
-
-Most API routes are under `riscv/app/api/<name>/route.tsx` or `route.ts`.
-
-Direct database routes use `DBConnection.create()` from `riscv/app/sql/sql.tsx`. Examples include course, lab, workspace, session, user settings, and submission history routes.
-
-Simulator/grading proxy routes call the Flask backend using `BACKEND_URL`, defaulting to `http://localhost:25565` for local development:
-
-- `riscv/app/api/run/route.ts` -> `POST /data`
-- `riscv/app/api/score/route.tsx` -> `POST /score`
-- `riscv/app/api/grade_lab/route.tsx` -> `POST /grade_lab`
-- `riscv/app/api/grade_status/route.tsx` -> `POST /grade_status`
-
-If the backend is not running, simulator and grading calls will fail even if the frontend is running.
-
-## Simulator UI Flow
-
-- `riscv/components/use-runner.ts` sends code, register overrides, and memory overrides to `/api/run`.
-- `/api/run` proxies the request to the backend.
-- The backend returns an array of machine states with registers and memory as hex strings.
-- `AssemblyInfo` displays changed/seeded registers and memory.
-- `RegisterEditor` and `MemoryEditor` use `OverrideListEditor` to collect input presets.
-- `MemoryVisualPanel`, `SevenSegment`, and `Led` render the memory-mapped display/LED visualization.
-
-Student lab state is handled through `riscv/components/lab_root.tsx`. General project state is handled through `riscv/components/root.tsx`. Staff sandbox behavior is handled through `riscv/components/staff-simulator.tsx`.
-
-## Persistence Areas
-
-- Browser/local workspace state uses helpers in `riscv/components/workspace-store.ts`.
-- Remote project/session persistence uses API routes such as `sync_workspace`, `load_workspace`, `sync_lab_session`, and `load_lab_session`.
-- User settings use `riscv/app/api/user_settings`.
-
-## Common Frontend Commands
+Install dependencies:
 
 ```bash
 cd riscv
 npm ci
-npm run dev
-npm run build
-npm run lint
 ```
 
-Use `npm run clean:next` or `npm run clean:next:dev` when generated Next output becomes stale or pollutes lint/type checks.
+Run locally:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Important Areas
+
+- `app/`: App Router pages and layouts.
+- `app/api/`: server API routes for auth, course/lab management, workspace persistence, settings, grading proxies, and reports.
+- `app/sql/sql.tsx`: PostgreSQL pool setup.
+- `app/verify/`: session verification and cookie helpers.
+- `components/root.tsx`: general project workspace.
+- `components/lab_root.tsx`: student lab workspace.
+- `components/staff-simulator.tsx`: instructor/TA simulator.
+- `components/use-runner.ts`: run/start/step orchestration.
+
+## Simulator Proxy Flow
+
+The browser calls Next API routes such as `/api/run`. Those routes call the local Flask backend using `BACKEND_URL`:
+
+- `/api/run` -> `POST /data`
+- `/api/score` -> `POST /score`
+- `/api/grade_lab` -> `POST /grade_lab`
+- `/api/grade_status` -> `POST /grade_status`
+
+If simulator or grading calls fail locally, confirm the Flask backend is running on `http://localhost:25565` and that `riscv/.env` has `BACKEND_URL=http://localhost:25565`.
+
+## Checks
+
+```bash
+cd riscv
+npm run lint
+npm run build
+```
+
+If generated Next output gets stale, stop `npm run dev`, run `npm run clean:next:dev`, and restart.

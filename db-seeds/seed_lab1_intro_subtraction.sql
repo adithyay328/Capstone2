@@ -1,5 +1,5 @@
 -- =============================================================================
--- Lab 1 — Introduction to Subtraction (hosted / production friendly)
+-- Lab 1 — Introduction to Subtraction (local fallback seed)
 -- =============================================================================
 -- Same memory layout as Lab 0: word A @ 0x0, B @ 0x4, SUM @ 0x8 (little-endian).
 -- Students compute SUM = A - B using lw, sub, sw.

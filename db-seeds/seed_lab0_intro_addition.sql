@@ -1,7 +1,7 @@
 -- =============================================================================
--- Lab 0 — Introduction to Addition (hosted / production friendly)
+-- Lab 0 — Introduction to Addition (local fallback seed)
 -- =============================================================================
--- Run this on your EXTERNAL PostgreSQL after the app schema exists (tables:
+-- Run this after the app schema exists (tables:
 --   public.labs, public.test_cases).
 -- Idempotent: safe to run more than once (ON CONFLICT DO UPDATE).
 --

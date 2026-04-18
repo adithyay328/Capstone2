@@ -52,11 +52,15 @@ From the same dashboard, **Course Controls**:
 
 ## Database
 
-Ensure the course tables exist. Run (in order):
+Follow the root `README.md` local database setup first. The preferred path is
+restoring `db-seeds/local_handoff_dump.sql` into a blank local `capstone`
+database.
 
-- `SQL_SETUP/setupDB_Init.sql`
-- `SQL_SETUP/setupDB_Persistence.sql` (if you use it)
-- `SQL_SETUP/setupDB_Courses.sql`
-- `SQL_SETUP/setupDB_TARoles.sql` (for TA/instructor roles in courses)
+If that dump is not available, use the fallback schema path:
+
+- `psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f SQL_SETUP/setupDB_Master.sql`
+- `psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab0_intro_addition.sql`
+- `psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab1_intro_subtraction.sql`
+- `psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab2_intro_bitwise_and.sql`
 
 Then use the app to create the sample users above so logins work for the demo.

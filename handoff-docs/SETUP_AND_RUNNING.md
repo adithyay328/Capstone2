@@ -1,85 +1,65 @@
 # Setup And Running
 
-This guide assumes you are starting from the Capstone2 repo root.
+This guide assumes you are starting from the Capstone2 repo root. The root `README.md` is the shortest setup path; this file gives the same local flow with extra checks.
 
 ## Prerequisites
 
-- Node.js compatible with the frontend package. The old root README mentions Node `23.5.0`; if the team uses `fnm`, run `fnm use` from the repo root.
-- npm for the Next.js app.
+- Node.js compatible with the frontend package. The previous team used Node `23.5.0`.
+- npm.
 - Python managed through `uv`.
-- PostgreSQL access, either hosted through a connection string or local on port `5432`.
-- `psql` available in your terminal if you are applying schema or seed SQL from the command line.
+- PostgreSQL running locally on port `5432`.
+- `psql` available in your terminal.
 
-## Environment Files
+## Local Environment Files
 
 Frontend:
 
 ```bash
-cd riscv
-cp .env.example .env
-```
-
-Set one of these in `riscv/.env`:
-
-```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+cp riscv/.env.example riscv/.env
 ```
 
 Backend:
 
-Create `prototype_interp/.env` if the backend needs DB access. The backend accepts the same hosted URL variables:
-
-```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+```bash
+cp prototype_interp/.env.example prototype_interp/.env
 ```
 
-If no URL is set, the backend falls back to:
+Expected local values:
 
 ```text
-DB_HOST=localhost
-DB_NAME=capstone
-DB_USER=capstone
-DB_PASSWORD=capstone
-DB_PORT=5432
+DATABASE_URL=postgresql://capstone:capstone@localhost:5432/capstone?sslmode=disable
+BACKEND_URL=http://localhost:25565
 ```
 
-Do not commit real `.env` files.
+`BACKEND_URL` is only needed by the frontend. Do not commit real `.env` files.
 
 ## Database Setup
 
-For a fresh local database, create a DB/user first. Example:
+Create/reset the local database:
 
 ```bash
-psql -U postgres -d postgres
+psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS capstone;"
+psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS capstone;"
+psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE capstone WITH LOGIN PASSWORD 'capstone';"
+psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE capstone OWNER capstone;"
 ```
 
-Then create whatever database/user your `.env` points to. The old local convention is database `capstone`, user `capstone`, password `capstone`.
-
-Apply schema from the repo root:
+Restore the handoff dump:
 
 ```bash
-psql -U capstone -d capstone -f SQL_SETUP/setupDB_Master.sql
+psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/local_handoff_dump.sql
 ```
 
-For hosted DBs, use the connection string instead:
+If the dump file is still a placeholder or does not match the current app, use the fallback schema and lab seeds:
 
 ```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f SQL_SETUP/setupDB_Master.sql
+psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f SQL_SETUP/setupDB_Master.sql
+psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab0_intro_addition.sql
+psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab1_intro_subtraction.sql
+psql -U capstone -d capstone -v ON_ERROR_STOP=1 -f db-seeds/seed_lab2_intro_bitwise_and.sql
 ```
 
-Seed the newer lab set only after the schema exists:
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab0_intro_addition.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab1_intro_subtraction.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab2_intro_bitwise_and.sql
-```
-
-After seeding, assign labs to courses from the instructor UI or insert rows into `public.course_labs`.
+After fallback seeding, assign labs to courses from the instructor UI or insert rows into `public.course_labs`.
 
 ## Install Dependencies
 
@@ -106,10 +86,6 @@ cd prototype_interp
 uv run python server.py
 ```
 
-The Flask backend runs on `http://localhost:25565`.
-
-The frontend proxy routes use `BACKEND_URL` when it is set, otherwise they default to `http://localhost:25565`. For hosted frontend deployments, deploy the Flask backend separately and set `BACKEND_URL` in the frontend host environment to that backend's public URL.
-
 Terminal 2, frontend:
 
 ```bash
@@ -117,7 +93,7 @@ cd riscv
 npm run dev
 ```
 
-The Next.js frontend usually runs on `http://localhost:3000`.
+Open `http://localhost:3000`.
 
 ## Useful Checks
 
@@ -125,8 +101,8 @@ Frontend:
 
 ```bash
 cd riscv
-npm run build
 npm run lint
+npm run build
 ```
 
 Backend:
@@ -134,12 +110,4 @@ Backend:
 ```bash
 cd prototype_interp
 uv run python -m pytest
-```
-
-Note: if `npm run lint` reports errors from `.next-dev`, clean generated output first:
-
-```bash
-cd riscv
-npm run clean:next:dev
-npm run lint
 ```

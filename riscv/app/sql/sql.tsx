@@ -1,18 +1,23 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-/** Neon / team hosted URL, or DATABASE_URL from .env (see riscv/.env.example). */
+/** Prefer local DATABASE_URL from .env; keep HOSTED_DATABASE_URL as legacy fallback. */
 function getDatabaseUrl(): string {
+  const local = process.env.DATABASE_URL?.trim();
+  if (local) return local;
+
   const hosted = process.env.HOSTED_DATABASE_URL?.trim();
   if (hosted) return hosted;
-  return getRequiredEnv("DATABASE_URL");
+
+  throw new Error("Missing required environment variable: DATABASE_URL");
+}
+
+function getSslConfig(databaseUrl: string) {
+  const sslMode = new URL(databaseUrl).searchParams.get("sslmode");
+  if (sslMode === "disable") return false;
+  if (sslMode === "require" || process.env.NODE_ENV === "production") {
+    return { rejectUnauthorized: false };
+  }
+  return false;
 }
 
 type GlobalWithDbPool = typeof globalThis & {
@@ -30,9 +35,10 @@ export type DBClient = {
 function getPool(): Pool {
   const globalWithPool = globalThis as GlobalWithDbPool;
   if (!globalWithPool.__riscvDbPool) {
+    const databaseUrl = getDatabaseUrl();
     globalWithPool.__riscvDbPool = new Pool({
-      connectionString: getDatabaseUrl(),
-      ssl: { rejectUnauthorized: false },
+      connectionString: databaseUrl,
+      ssl: getSslConfig(databaseUrl),
       max: 10,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,

@@ -1,59 +1,50 @@
-# Backend README
+# Backend Readme
 
-The backend lives in `prototype_interp/`. It is a Flask app plus a simple RISC-V emulator.
+The backend lives in `prototype_interp/`. It is a Flask app plus a RISC-V emulator.
 
-## Main Responsibilities
+## Local Setup
 
-- Parse submitted RISC-V assembly.
-- Expand limited lab-style assembly helpers before execution.
-- Execute instructions step by step and return machine states.
-- Grade code against test cases stored in PostgreSQL.
-- Track grade attempt usage and submission results for course labs.
+Create the backend env file from the local example:
 
-## Important Files
+```bash
+cp prototype_interp/.env.example prototype_interp/.env
+```
 
-- `server.py`: Flask routes, DB connection helper, grading logic, and app startup.
-- `stringParse.py`: source tokenization, parser dispatch, `.data` / `.word` preprocessing, and pseudo/lab helper preprocessing.
-- `instructions.py`: instruction classes and parse/execute behavior.
-- `machine.py`: machine state, registers, memory, and program counter state.
-- `runtime.py`: step/run loop that applies instructions to `MachineState`.
-- `test_lw_sw.py`, `test_branches.py`, `test_instructions.py`: pytest coverage.
+Expected local value:
 
-Ignore generated/dependency folders: `prototype_interp/.venv`, `prototype_interp/__pycache__`, and `.pytest_cache`.
+```text
+DATABASE_URL=postgresql://capstone:capstone@localhost:5432/capstone?sslmode=disable
+```
+
+Install dependencies:
+
+```bash
+cd prototype_interp
+uv sync
+```
+
+Run locally:
+
+```bash
+uv run python server.py
+```
+
+The backend listens on `http://localhost:25565`.
 
 ## Flask Endpoints
-
-The backend runs locally on `http://localhost:25565`.
 
 - `POST /data`: run simulator code. Input includes `code`, optional `registers`, and optional `memory`. Output includes `hadError`, `errorMessage`, and `states`.
 - `POST /score`: grade one test case by test UID.
 - `POST /grade_lab`: grade all test cases for a lab in a course, enforce attempt limits, and save submission history when a grade session ID is present.
-- `POST /grade_status`: return grade-attempt usage for a student/course/lab.
+- `POST /grade_status`: return attempts used/remaining for a user, course, and lab.
 
-The frontend proxy routes in `riscv/app/api` call these endpoints.
+Frontend API routes proxy simulator/grading calls to these Flask endpoints.
 
-## Emulator Pipeline
+## Database Access
 
-1. `server.py` receives code through `/data`, `/score`, or `/grade_lab`.
-2. `preprocessAssemblyForEmulator` in `stringParse.py` handles supported lab source features.
-3. `sourceToInstructions` converts source lines to `Instruction` objects.
-4. `Runtime` starts from a `MachineState` and steps through instructions.
-5. Each instruction mutates registers, memory, PC/jump flags, or both.
-6. The route serializes states back to JSON using hex strings for register and memory values.
+`server.py` loads `prototype_interp/.env` if present. The local handoff path uses `DATABASE_URL`.
 
-Memory is byte-addressed and the default machine has 1024 bytes of memory. `lw` and `sw` operate on 4-byte little-endian words and reject unaligned word accesses.
-
-## Backend Environment
-
-`server.py` loads `prototype_interp/.env` if present. It tries connection string variables first:
-
-```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-```
-
-If neither URL is set, it requires:
+If `DATABASE_URL` is absent, the backend can fall back to individual DB fields:
 
 ```text
 DB_HOST=localhost
@@ -63,32 +54,13 @@ DB_PASSWORD=capstone
 DB_PORT=5432
 ```
 
-Do not commit real `.env` files.
+Prefer `DATABASE_URL` for handoff because it matches the frontend env file.
 
-## Commands
-
-```bash
-cd prototype_interp
-uv sync
-uv run python server.py
-```
-
-Run tests:
+## Tests
 
 ```bash
 cd prototype_interp
 uv run python -m pytest
 ```
 
-Run a focused test file:
-
-```bash
-cd prototype_interp
-uv run python -m pytest test_lw_sw.py
-```
-
-## Notes For Changes
-
-- Add new instructions by implementing an `Instruction` subclass in `instructions.py`; subclasses are registered through `Instruction.KNOWN_INSTRUCTIONS`.
-- Keep frontend/backend JSON shapes aligned with `riscv/components/types.ts`.
-- Be careful when changing grading logic: `/grade_lab` both computes grades and writes submission history.
+Keep frontend/backend JSON shapes aligned with `riscv/components/types.ts`.
