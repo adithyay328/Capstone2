@@ -56,6 +56,15 @@ function AddMemberPageContent() {
       setMessage({ success: false, text: getMissingAsuidMessage(user.username) });
       return;
     }
+    if (role === 'instructor') {
+      const shouldProceed = window.confirm(
+        'Promoting this user to Instructor grants instructor dashboard access and course staff permissions. Do you want to proceed?'
+      );
+
+      if (!shouldProceed) {
+        return;
+      }
+    }
     setMessage(null);
     setAdding(user.username);
     try {

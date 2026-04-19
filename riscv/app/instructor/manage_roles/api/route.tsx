@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
   const newRole = parsedBody.data.role;
 
   let db: DBConnection | null = null;
+  let transactionStarted = false;
 
   try {
     db = await DBConnection.create();
@@ -106,15 +107,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (Boolean(targetUserResult.rows[0].instructor)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "This page only changes TA/student roles",
-        } satisfies ManageRoleResponse),
-        { status: 409, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const targetUserIsInstructor = Boolean(targetUserResult.rows[0].instructor);
 
     const targetUserAsuid = targetUserResult.rows[0]?.asuid;
     if (!isValidAsuid(typeof targetUserAsuid === "string" ? targetUserAsuid : null)) {
@@ -150,13 +143,34 @@ export async function POST(req: NextRequest) {
         ? String(existingMembershipResult.rows[0].role)
         : null;
 
-    if (previousRole === "instructor") {
+    if (newRole !== "instructor" && targetUserIsInstructor) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "Cannot change instructor course memberships on this page",
+          message: "Instructor accounts cannot be demoted from this page",
         } satisfies ManageRoleResponse),
         { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (newRole !== "instructor" && previousRole === "instructor") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Instructor course memberships cannot be demoted from this page",
+        } satisfies ManageRoleResponse),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    await client.query("BEGIN");
+    transactionStarted = true;
+
+    const promotedToInstructor = newRole === "instructor" && !targetUserIsInstructor;
+    if (promotedToInstructor) {
+      await client.query(
+        "UPDATE users SET instructor = true WHERE username = $1",
+        [username]
       );
     }
 
@@ -181,11 +195,23 @@ export async function POST(req: NextRequest) {
       role: string;
     };
 
-    await invalidateUserSessions(updatedMembership.username, "role_changed", client);
+    await invalidateUserSessions(
+      updatedMembership.username,
+      promotedToInstructor ? "instructor_promoted" : "role_changed",
+      client
+    );
 
-    const message = previousRole
-      ? `Updated ${updatedMembership.username} in course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`
-      : `Assigned ${updatedMembership.username} as ${updatedMembership.role} in course ${updatedMembership.course_id}.`;
+    await client.query("COMMIT");
+    transactionStarted = false;
+
+    const message =
+      promotedToInstructor
+        ? previousRole
+          ? `Promoted ${updatedMembership.username} to instructor and updated course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`
+          : `Promoted ${updatedMembership.username} to instructor and assigned them as ${updatedMembership.role} in course ${updatedMembership.course_id}.`
+        : previousRole
+          ? `Updated ${updatedMembership.username} in course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`
+          : `Assigned ${updatedMembership.username} as ${updatedMembership.role} in course ${updatedMembership.course_id}.`;
 
     return new Response(
       JSON.stringify({
@@ -201,6 +227,13 @@ export async function POST(req: NextRequest) {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
+    if (db && transactionStarted) {
+      try {
+        await db.client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Manage roles rollback error:", rollbackError);
+      }
+    }
     console.error("Manage roles error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(

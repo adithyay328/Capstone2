@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!verifyResponse.data?.username || verifyResponse.data.student !== false) {
+  if (!verifyResponse.data?.username || verifyResponse.data.instructor !== true) {
     return new Response(
       JSON.stringify({ success: false, message: 'Only instructors can add course members' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
   const { course_id, username, role } = parsed.data;
   const addedBy = verifyResponse.data.username as string;
   let db: DBConnection | null = null;
+  let transactionStarted = false;
 
   try {
     db = await DBConnection.create();
@@ -76,19 +77,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    if (role === 'instructor') {
+      await client.query('UPDATE users SET instructor = true WHERE username = $1', [username]);
+    }
+
     await client.query(
       `INSERT INTO course_memberships (course_id, username, role, status, added_by)
        VALUES ($1, $2, $3, 'active', $4)
        ON CONFLICT (course_id, username) DO UPDATE SET role = $3, status = 'active'`,
       [course_id, username, role, addedBy]
     );
-    await invalidateUserSessions(username, 'course_membership_changed', client);
+    await invalidateUserSessions(
+      username,
+      role === 'instructor' ? 'instructor_promoted' : 'course_membership_changed',
+      client
+    );
+
+    await client.query('COMMIT');
+    transactionStarted = false;
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Member added' }),
+      JSON.stringify({
+        success: true,
+        message:
+          role === 'instructor'
+            ? 'Member promoted to instructor and added to course'
+            : 'Member added',
+      }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
+    if (db && transactionStarted) {
+      try {
+        await db.client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Add course member rollback error:', rollbackError);
+      }
+    }
     console.error('Add course member error:', error);
     return new Response(
       JSON.stringify({

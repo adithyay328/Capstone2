@@ -11,6 +11,7 @@ import { getMissingAsuidMessage, isValidAsuid } from "@/app/lib/asuid";
 const roleOptions: Array<{ value: CourseMembershipRole; label: string }> = [
   { value: "student", label: "Student" },
   { value: "ta", label: "TA" },
+  { value: "instructor", label: "Instructor" },
 ];
 
 export default function ManageRolesPage() {
@@ -23,6 +24,17 @@ export default function ManageRolesPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (role === "instructor") {
+      const shouldProceed = window.confirm(
+        "Promoting this user to Instructor grants instructor dashboard access and course staff permissions. Do you want to proceed?"
+      );
+
+      if (!shouldProceed) {
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setMessage(null);
 
@@ -72,7 +84,7 @@ export default function ManageRolesPage() {
         <p className={`${ins.kicker} mt-4`}>Roles</p>
         <h1 className={`${ins.h1} mt-2`}>Manage course roles</h1>
         <p className={ins.subtitle}>
-          Promote or demote a course member between student and TA for a single course.
+          Promote or demote a course member between student, TA, and instructor roles.
         </p>
       </div>
 
@@ -82,7 +94,8 @@ export default function ManageRolesPage() {
           <code className="rounded bg-stone-900 px-1.5 py-0.5 text-amber-200">
             course_memberships.role
           </code>{" "}
-          for one user in one course. Instructor memberships are intentionally excluded.
+          for one user in one course. Selecting Instructor also grants instructor dashboard
+          access.
         </p>
       </section>
 
