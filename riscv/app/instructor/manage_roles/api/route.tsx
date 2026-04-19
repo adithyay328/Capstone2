@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
   const newRole = parsedBody.data.role;
 
   let db: DBConnection | null = null;
+  let transactionStarted = false;
 
   try {
     db = await DBConnection.create();
@@ -92,11 +93,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (Boolean(targetUserResult.rows[0].instructor)) {
+    const targetIsInstructor = Boolean(targetUserResult.rows[0].instructor);
+
+    if (targetIsInstructor && newRole !== "instructor") {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "This page only changes TA/student roles",
+          message: "Instructor accounts can only be assigned the instructor role from this page",
         } satisfies ManageRoleResponse),
         { status: 409, headers: { "Content-Type": "application/json" } }
       );
@@ -125,13 +128,23 @@ export async function POST(req: NextRequest) {
         ? String(existingMembershipResult.rows[0].role)
         : null;
 
-    if (previousRole === "instructor") {
+    if (previousRole === "instructor" && newRole !== "instructor") {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "Cannot change instructor course memberships on this page",
+          message: "Cannot demote instructor course memberships from this page",
         } satisfies ManageRoleResponse),
         { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    await client.query("BEGIN");
+    transactionStarted = true;
+
+    if (newRole === "instructor" && !targetIsInstructor) {
+      await client.query(
+        "UPDATE users SET instructor = true WHERE username = $1",
+        [username]
       );
     }
 
@@ -150,15 +163,21 @@ export async function POST(req: NextRequest) {
       [courseId, username, newRole, authData.username]
     );
 
+    await client.query("COMMIT");
+    transactionStarted = false;
+
     const updatedMembership = upsertMembershipResult.rows[0] as {
       course_id: string;
       username: string;
       role: string;
     };
 
-    const message = previousRole
-      ? `Updated ${updatedMembership.username} in course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`
-      : `Assigned ${updatedMembership.username} as ${updatedMembership.role} in course ${updatedMembership.course_id}.`;
+    const promotedToInstructor = newRole === "instructor" && !targetIsInstructor;
+    const message = promotedToInstructor
+      ? `Promoted ${updatedMembership.username} to instructor and assigned them as instructor in course ${updatedMembership.course_id}.`
+      : previousRole
+        ? `Updated ${updatedMembership.username} in course ${updatedMembership.course_id} from ${previousRole} to ${updatedMembership.role}.`
+        : `Assigned ${updatedMembership.username} as ${updatedMembership.role} in course ${updatedMembership.course_id}.`;
 
     return new Response(
       JSON.stringify({
@@ -174,6 +193,14 @@ export async function POST(req: NextRequest) {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
+    if (transactionStarted && db) {
+      try {
+        await db.client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Manage roles rollback error:", rollbackError);
+      }
+    }
+
     console.error("Manage roles error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(

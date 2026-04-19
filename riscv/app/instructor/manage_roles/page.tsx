@@ -11,6 +11,7 @@ import type {
 const roleOptions: { value: CourseMembershipRole; label: string }[] = [
   { value: "student", label: "Student" },
   { value: "ta", label: "TA" },
+  { value: "instructor", label: "Instructor" },
 ];
 
 export default function ManageRolesPage() {
@@ -23,13 +24,27 @@ export default function ManageRolesPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    const trimmedUsername = username.trim();
+    const trimmedCourseId = courseId.trim();
+
+    if (role === "instructor") {
+      const shouldProceed = window.confirm(
+        `Warning: this will promote ${trimmedUsername} to an instructor account and assign them as an instructor in course ${trimmedCourseId}. They will have instructor dashboard access after their next login. Do you want to proceed?`
+      );
+
+      if (!shouldProceed) {
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setMessage(null);
 
     try {
       const response = await updateCourseRole({
-        username,
-        courseId,
+        username: trimmedUsername,
+        courseId: trimmedCourseId,
         role,
       });
 
@@ -63,14 +78,14 @@ export default function ManageRolesPage() {
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Manage Roles</h1>
           <p className="text-sm text-slate-600">
-            Change course membership roles for TA and student accounts.
+            Change course membership roles for student, TA, and instructor accounts.
           </p>
         </div>
 
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">
             This tool updates <code>course_memberships.role</code> for a single user in a single
-            course. Instructor accounts are not editable from this page.
+            course. Choosing Instructor also promotes the account to instructor access.
           </p>
         </section>
 

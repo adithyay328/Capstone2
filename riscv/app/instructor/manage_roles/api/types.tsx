@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CourseMembershipRoleSchema = z.enum(["student", "ta"]);
+export const CourseMembershipRoleSchema = z.enum(["student", "ta", "instructor"]);
 
 export const ManageRoleRequestSchema = z.object({
   username: z.string().trim().min(1, "Username is required"),
