@@ -1,10 +1,12 @@
-# Capstone2
+# Project 2 — Web RISC-V (RV32I) Emulator with Course Integrations
 
-Capstone2 is a RISC V learning and grading application with a Next.js frontend, a Flask backend, and a PostgreSQL database.
+A web-based RISC-V learning and grading application with a Next.js frontend, a Flask backend, and a PostgreSQL database.
 
-## Start Here
+## Easy Guide to Setup and Installation
 
-For full setup, architecture, database, and troubleshooting instructions, go to [handoff-docs](./handoff-docs/README.md).
+Follow [SETUP_AND_RUNNING.md](./SETUP_AND_RUNNING.md) to configure the database, backend, frontend, and general installation/setup information
+
+## Detailed Documentation:
 
 Useful detailed docs:
 

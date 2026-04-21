@@ -2,57 +2,9 @@
 
 This guide assumes you are starting from the Capstone2 repo root.
 
-## Prerequisites
+MAIN GUIDE TO SETUP AND RUN THIS REPOSITORY AS A FUNCTIONING APP
 
-- Node.js compatible with the frontend package. The old root README mentions Node `23.5.0`; if the team uses `fnm`, run `fnm use` from the repo root.
-- npm for the Next.js app.
-- Python managed through `uv`.
-- PostgreSQL access, either hosted through a connection string or local on port `5432`.
-- `psql` available in your terminal if you are applying schema or seed SQL from the command line.
-
-## Environment Files
-
-Frontend:
-
-```bash
-cd riscv
-cp .env.example .env
-```
-
-Set this in `riscv/.env`:
-
-```text
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-```
-
-Backend:
-
-Create `prototype_interp/.env` if the backend needs DB access. Use the same database URL there:
-
-```text
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-```
-
-If `DATABASE_URL` is not set, the backend falls back to:
-
-```text
-DB_HOST=localhost
-DB_NAME=capstone
-DB_USER=capstone
-DB_PASSWORD=capstone
-DB_PORT=5432
-```
-
-Do not commit real `.env` files.
-
-## Database Setup
-
-Follow the instructions here:
-
-Capstone2/handoff-docs/Database_Setup_instructions.md
-
-
-## Install Dependencies
+## Step 1: Install Dependencies
 
 General:
 
@@ -90,7 +42,55 @@ cd prototype_interp
 uv sync
 ```
 
-## Run Locally
+## Step 2: Database Setup
+
+Follow the instructions here:
+
+Capstone2/handoff-docs/Database_Setup_instructions.md
+
+
+## Step 3: Configure Environment Variables
+
+Frontend:
+
+```bash
+cd riscv
+cp .env.example .env
+```
+
+Set this in `riscv/.env` (there should already be a working url from env.example if you follow this guide exactly, but here is the skeleton for the url):
+
+
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+BACKEND_URL=http://localhost:25565
+
+Backend:
+
+```bash
+cd prototype_interp
+cp .env.example .env
+```
+
+Set this in `prototype_interp` (there should already be a working url from env.example if you follow this guide exactly, but here is the skeleton for the url):
+
+
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+
+
+If `DATABASE_URL` is not set, the backend falls back to:
+
+```text
+DB_HOST=localhost
+DB_NAME=capstone
+DB_USER=capstone
+DB_PASSWORD=capstone
+DB_PORT=5432
+```
+
+## IMPORTANT: Do not commit real `.env` files.
+
+
+## Step 4: Run the application
 
 Terminal 1, backend:
 
@@ -110,7 +110,11 @@ cd riscv
 npm run dev
 ```
 
+NOTE: POSTGRES DATABASE MUST BE RUNNING AND CONNECTED IN ORDER TO START THIS APPLICATION
+
+
 The Next.js frontend usually runs on `http://localhost:3000`.
+
 
 ## Useful Checks
 
