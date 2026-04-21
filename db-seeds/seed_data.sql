@@ -48,6 +48,12 @@ SET lab_uid = EXCLUDED.lab_uid,
     result_registers = EXCLUDED.result_registers,
     result_memory = EXCLUDED.result_memory;
 
+
+---------------------------------------------------------------------------
+-- ALL SEEDS BELOW HAVE PASSWORD: 
+--teacher password is teacher
+--student password is student
+---------------------------------------------------------------------------
 INSERT INTO public.users (username, asuid, salt, password_hash, instructor)
 VALUES
 (
@@ -70,7 +76,11 @@ SET asuid = EXCLUDED.asuid,
     password_hash = EXCLUDED.password_hash,
     instructor = EXCLUDED.instructor;
 
--- SEED PASSWORDS: ta123456
+
+
+---------------------------------------------------------------------------
+-- ALL SEEDS BELOW HAVE PASSWORD: ta123456
+---------------------------------------------------------------------------
 WITH seed_users (username, asuid, instructor, salt, password_hash) AS (
     VALUES
         ('instructor_seed', '1219000001', true,  'seed_salt', '$argon2id$v=19$m=65536,t=3,p=4$MDWUiQd/aYY3aWDHyAQUTA$zH08wsnPASz/Jl0Mky4SUfJaMJyHARUKzrWyMg2+/90'),
