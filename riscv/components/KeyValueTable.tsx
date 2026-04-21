@@ -82,6 +82,10 @@ export default function KeyValueTable({
   };
 
   const handleDeleteRow = (id: string) => {
+    if (!window.confirm(`Delete this row from "${title}"?`)) {
+      return;
+    }
+
     onChange(entries.filter(entry => entry.id !== id));
   };
 

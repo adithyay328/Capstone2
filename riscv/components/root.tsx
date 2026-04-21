@@ -490,6 +490,12 @@ const persist = React.useCallback(
     (projectId: string) => {
       if (typeof window === "undefined") return;
 
+      const projectName =
+        projects.find((project) => project.id === projectId)?.name ?? "this project";
+      if (!window.confirm(`Delete "${projectName}"? This cannot be undone.`)) {
+        return;
+      }
+
       setProjects((prev) => {
         const nextProjects = prev.filter((p) => p.id !== projectId);
         if (nextProjects.length === prev.length) return prev;
@@ -519,7 +525,7 @@ const persist = React.useCallback(
         return nextProjects;
       });
     },
-    [currentProjectId, loadProjectIntoState, uid, cacheUsername]
+    [currentProjectId, loadProjectIntoState, uid, cacheUsername, projects]
   );
 
   const updateProjectById = React.useCallback(

@@ -37,6 +37,14 @@ export default function DropMemberPage() {
   }, [courseId]);
 
   const handleRemove = async (username: string) => {
+    if (
+      !window.confirm(
+        `Remove "${username}" from course ${courseId}?`
+      )
+    ) {
+      return;
+    }
+
     setMessage(null);
     setRemoving(username);
     try {
@@ -57,7 +65,7 @@ export default function DropMemberPage() {
       <Link href="/instructor" className={ins.backLink}>
         ← Back to dashboard
       </Link>
-      <h1 className={`${ins.h1} mt-4`}>Drop Student from Course</h1>
+      <h1 className={`${ins.h1} mt-4`}>Drop User from Course</h1>
       <p className={ins.subtitle}>Select a course, then remove a member from the roster.</p>
 
       {message && (

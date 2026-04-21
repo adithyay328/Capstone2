@@ -88,17 +88,6 @@ export default function ManageRolesPage() {
         </p>
       </div>
 
-      <section className={`${ins.card} ${ins.cardPad}`}>
-        <p className="text-sm text-stone-700">
-          This tool updates{" "}
-          <code className="rounded bg-stone-900 px-1.5 py-0.5 text-amber-200">
-            course_memberships.role
-          </code>{" "}
-          for one user in one course. Selecting Instructor also grants instructor dashboard
-          access.
-        </p>
-      </section>
-
       <form onSubmit={handleSubmit} className={`${ins.card} ${ins.cardPad} space-y-5`}>
         <div>
           <label htmlFor="username" className={ins.label}>

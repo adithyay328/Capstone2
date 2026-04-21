@@ -254,13 +254,21 @@ export default function OverrideListEditor({
 
   const removeRow = React.useCallback(
     (rowId: string) => {
+      if (
+        !window.confirm(
+          `Remove this ${config.keyLabel.toLowerCase()} override?`
+        )
+      ) {
+        return;
+      }
+
       setRows((currentRows) => {
         const nextRows = currentRows.filter((row) => row.id !== rowId);
         onChange(rowsToOverrides(nextRows, kind));
         return nextRows;
       });
     },
-    [kind, onChange]
+    [config.keyLabel, kind, onChange]
   );
 
   const duplicateDraftKey = rows.some(

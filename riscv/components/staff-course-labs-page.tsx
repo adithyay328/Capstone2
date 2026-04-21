@@ -598,6 +598,12 @@ function StaffCourseLabsPageContent({ variant }: StaffCourseLabsPageProps) {
   const handleRemove = async (labUid: string) => {
     if (!canManageLabs) return;
 
+    const labTitle =
+      courseLabs.find((lab) => lab.lab_uid === labUid)?.title ?? labUid;
+    if (!window.confirm(`Remove lab "${labTitle}" from course ${courseId}?`)) {
+      return;
+    }
+
     setMessage(null);
     setRemoving(labUid);
     try {

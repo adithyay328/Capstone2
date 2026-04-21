@@ -32,6 +32,18 @@ function AddMemberPageContent() {
     if (defaultCourseId) setCourseId(defaultCourseId);
   }, [defaultCourseId]);
 
+  useEffect(() => {
+    if (!message) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setMessage(null);
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [message]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setSearching(true);
@@ -86,8 +98,14 @@ function AddMemberPageContent() {
       <p className={ins.subtitle}>Select course, search for a user, choose role, then add.</p>
 
       {message && (
-        <div className={`mt-4 ${message.success ? ins.msgOk : ins.msgErr}`}>
-          {message.text}
+        <div className="pointer-events-none fixed inset-x-4 top-4 z-50 flex justify-end sm:inset-x-6 sm:top-6">
+          <div
+            role={message.success ? 'status' : 'alert'}
+            aria-live={message.success ? 'polite' : 'assertive'}
+            className={`pointer-events-auto w-full max-w-sm shadow-lg ${message.success ? ins.msgOk : ins.msgErr}`}
+          >
+            {message.text}
+          </div>
         </div>
       )}
 

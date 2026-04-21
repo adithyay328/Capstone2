@@ -78,6 +78,11 @@ function CourseRosterContent() {
   );
 
   const handleRemove = async (username: string) => {
+    const courseLabel = course ? `${course.code} — ${course.title}` : `course ${courseId}`;
+    if (!window.confirm(`Remove "${username}" from ${courseLabel}?`)) {
+      return;
+    }
+
     setMessage(null);
     setRemoving(username);
     try {
