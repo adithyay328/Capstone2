@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { saveUserSettings } from "@/app/api/user_settings/frontend";
 import {
   DEFAULT_USER_SETTINGS,
@@ -20,6 +21,7 @@ export default function StudentSettingsPanel({
   initialSaveState = "idle",
   initialMessage = "These preferences are saved to your account.",
 }: StudentSettingsPanelProps) {
+  const router = useRouter();
   const [settings, setSettings] = React.useState<UserSettings>(initialSettings);
   const [saveState, setSaveState] = React.useState<SaveState>(initialSaveState);
   const [message, setMessage] = React.useState(initialMessage);
@@ -50,6 +52,7 @@ export default function StudentSettingsPanel({
     setSettings(response.settings);
     setSaveState("saved");
     setMessage("Settings saved for your account.");
+    router.refresh();
   };
 
   const resetToDefaults = () => {

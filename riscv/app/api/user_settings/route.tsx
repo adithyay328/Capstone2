@@ -11,6 +11,13 @@ import {
   mapRowToSettings,
 } from './internal';
 
+export const dynamic = 'force-dynamic';
+
+const NO_STORE_HEADERS = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+} as const;
+
 export async function GET(req: NextRequest) {
   const cookieHeader = req.headers.get('cookie') || '';
   const result = await loadUserSettingsForCookie(cookieHeader);
@@ -26,7 +33,7 @@ export async function GET(req: NextRequest) {
       {
         status: 401,
         headers: {
-          'Content-Type': 'application/json',
+          ...NO_STORE_HEADERS,
           'Set-Cookie': modifiedCookie,
         },
       }
@@ -41,7 +48,7 @@ export async function GET(req: NextRequest) {
       } satisfies UserSettingsResponse),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_STORE_HEADERS,
       }
     );
   }
@@ -53,7 +60,7 @@ export async function GET(req: NextRequest) {
     } satisfies UserSettingsResponse),
     {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: NO_STORE_HEADERS,
     }
   );
 }
@@ -73,7 +80,7 @@ export async function POST(req: NextRequest) {
       {
         status: 401,
         headers: {
-          'Content-Type': 'application/json',
+          ...NO_STORE_HEADERS,
           'Set-Cookie': modifiedCookie,
         },
       }
@@ -96,7 +103,7 @@ export async function POST(req: NextRequest) {
       } satisfies UserSettingsResponse),
       {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_STORE_HEADERS,
       }
     );
   }
@@ -141,7 +148,7 @@ export async function POST(req: NextRequest) {
       } satisfies UserSettingsResponse),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_STORE_HEADERS,
       }
     );
   } catch (error: unknown) {
@@ -155,7 +162,7 @@ export async function POST(req: NextRequest) {
       } satisfies UserSettingsResponse),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_STORE_HEADERS,
       }
     );
   } finally {
