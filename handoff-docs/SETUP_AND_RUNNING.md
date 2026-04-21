@@ -11,6 +11,7 @@ General:
 Install fnm:
 1. brew install fnm
 2. Choose one of the following:
+
 Windows: 
 notepad $PROFILE
 fnm env --use-on-cd | Out-String | Invoke-Expression
