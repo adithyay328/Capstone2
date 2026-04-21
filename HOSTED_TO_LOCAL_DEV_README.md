@@ -44,7 +44,7 @@ BACKEND_URL=http://localhost:25565
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
-If `HOSTED_DATABASE_URL` is set, it takes precedence over `DATABASE_URL`. Keep only one database URL unless you intentionally want `HOSTED_DATABASE_URL` to win.
+Use the same `DATABASE_URL` in both env files so the frontend and backend point at the same database.
 
 ### Mode B: Fully Local Frontend, Backend, And Database
 
@@ -93,7 +93,7 @@ BACKEND_URL=http://localhost:25565
 DATABASE_URL=postgresql://capstone:capstone@localhost:5432/capstone?sslmode=disable
 ```
 
-Remove or comment out `HOSTED_DATABASE_URL` in both env files for fully local DB mode. If `HOSTED_DATABASE_URL` is still present, the app will keep using the hosted database.
+For fully local DB mode, make sure both env files use the local `DATABASE_URL` shown above.
 
 ## 3. Install Dependencies
 

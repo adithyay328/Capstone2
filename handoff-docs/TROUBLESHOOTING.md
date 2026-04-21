@@ -5,12 +5,12 @@
 Symptoms:
 
 - Login/register/API calls fail.
-- Error mentions missing `HOSTED_DATABASE_URL` or `DATABASE_URL`.
+- Error mentions missing `DATABASE_URL`.
 
 Check:
 
 - `riscv/.env` exists.
-- It contains `HOSTED_DATABASE_URL` or `DATABASE_URL`.
+- It contains `DATABASE_URL`.
 - The URL points to the same database where schema/seeds were applied.
 - Hosted DB URLs usually need `sslmode=require`.
 
@@ -44,7 +44,7 @@ Symptoms:
 Check `prototype_interp/.env`. Prefer:
 
 ```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
 If no URL is set, provide all fallback DB variables.

@@ -14,7 +14,7 @@ The frontend lives in `riscv/` and is a Next.js app using the App Router.
 
 - `riscv/app/`: Next.js route tree.
 - `riscv/app/api/`: server-side API routes.
-- `riscv/app/sql/sql.tsx`: PostgreSQL pool setup. It uses `HOSTED_DATABASE_URL` first, then `DATABASE_URL`.
+- `riscv/app/sql/sql.tsx`: PostgreSQL pool setup. It uses `DATABASE_URL`.
 - `riscv/app/verify/`: session verification and cookie helpers.
 - `riscv/components/`: shared UI and simulator components.
 - `riscv/public/`: static assets.

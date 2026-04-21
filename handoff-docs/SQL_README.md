@@ -7,33 +7,7 @@ The database is PostgreSQL. The frontend and backend both connect to the same da
 - `SQL_SETUP/setupDB_Master.sql`: preferred schema setup entry point.
 - `SQL_SETUP/setupDB_Init.sql`: original core tables and older seed content.
 - `SQL_SETUP/setupDB_*.sql`: idempotent setup/migration scripts grouped by feature.
-- `SQL_SETUP/setupAll.sql`: flattened combined setup file.
 - `db-seeds/`: newer standalone lab seed files.
-- `schema.sql`: older/minimal schema reference; do not assume it is the full current setup.
-
-## Recommended Setup Flow
-
-From the repo root:
-
-```bash
-psql -U capstone -d capstone -f SQL_SETUP/setupDB_Master.sql
-```
-
-For hosted DBs:
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f SQL_SETUP/setupDB_Master.sql
-```
-
-Then seed optional labs:
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab0_intro_addition.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab1_intro_subtraction.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab2_intro_bitwise_and.sql
-```
-
-`setupDB_Master.sql` detects whether core tables exist. On a fresh DB it runs `setupDB_Init.sql`; on an existing DB it skips destructive init and applies the other setup scripts.
 
 ## Table Groups
 

@@ -43,10 +43,7 @@ load_local_env()
 
 # Database connection helper
 def get_db_connection():
-    url = (
-        (os.environ.get("HOSTED_DATABASE_URL") or "").strip()
-        or (os.getenv("DATABASE_URL") or "").strip()
-    )
+    url = (os.getenv("DATABASE_URL") or "").strip()
     if url:
         return psycopg2.connect(url)
 
