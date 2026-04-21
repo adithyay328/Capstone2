@@ -5,12 +5,12 @@
 Symptoms:
 
 - Login/register/API calls fail.
-- Error mentions missing `HOSTED_DATABASE_URL` or `DATABASE_URL`.
+- Error mentions missing `DATABASE_URL`.
 
 Check:
 
 - `riscv/.env` exists.
-- It contains `HOSTED_DATABASE_URL` or `DATABASE_URL`.
+- It contains `DATABASE_URL`.
 - The URL points to the same database where schema/seeds were applied.
 - Hosted DB URLs usually need `sslmode=require`.
 
@@ -30,7 +30,9 @@ cd prototype_interp
 uv run python server.py
 ```
 
-The backend should be listening on `http://localhost:25565`. The frontend proxy routes currently use hard-coded backend URLs on that port.
+The backend should be listening on `http://localhost:25565` locally. The frontend proxy routes use `BACKEND_URL` when set, otherwise they default to `http://localhost:25565`.
+
+For a hosted frontend, `localhost` points at the frontend host, not your laptop. Deploy the Flask backend separately and set `BACKEND_URL` in the frontend hosting environment, for example `https://your-backend.example.com`.
 
 ## Backend Cannot Connect To Database
 
@@ -42,7 +44,7 @@ Symptoms:
 Check `prototype_interp/.env`. Prefer:
 
 ```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
 If no URL is set, provide all fallback DB variables.
@@ -61,7 +63,7 @@ Common causes:
 
 - Running seed files before schema setup.
 - Using a different database URL for frontend, backend, and `psql`.
-- Running old/minimal `schema.sql` and expecting the full app schema.
+- Running an outdated or partial schema script and expecting the full app schema.
 - Missing course assignment after seeding labs.
 
 ## Lint Fails On Generated `.next-dev`

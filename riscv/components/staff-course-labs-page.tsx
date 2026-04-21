@@ -352,9 +352,6 @@ function InstructorWorkbenchCourseLabsView({
           <section className={`${ins.card} overflow-hidden`}>
             <div className="border-b border-amber-100 px-6 py-5">
               <h2 className={ins.h2Card}>Assigned labs</h2>
-              <p className="mt-1 text-sm text-stone-600">
-                Open lab submissions for the course without touching course setup.
-              </p>
             </div>
 
             <ul className={ins.divideList}>

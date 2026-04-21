@@ -19,25 +19,21 @@ cd riscv
 cp .env.example .env
 ```
 
-Set one of these in `riscv/.env`:
+Set this in `riscv/.env`:
 
 ```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
 Backend:
 
-Create `prototype_interp/.env` if the backend needs DB access. The backend accepts the same hosted URL variables:
+Create `prototype_interp/.env` if the backend needs DB access. Use the same database URL there:
 
 ```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
-If no URL is set, the backend falls back to:
+If `DATABASE_URL` is not set, the backend falls back to:
 
 ```text
 DB_HOST=localhost
@@ -51,37 +47,34 @@ Do not commit real `.env` files.
 
 ## Database Setup
 
-For a fresh local database, create a DB/user first. Example:
+Follow the instructions here:
 
-```bash
-psql -U postgres -d postgres
-```
+Capstone2/handoff-docs/Database_Setup_instructions.md
 
-Then create whatever database/user your `.env` points to. The old local convention is database `capstone`, user `capstone`, password `capstone`.
-
-Apply schema from the repo root:
-
-```bash
-psql -U capstone -d capstone -f SQL_SETUP/setupDB_Master.sql
-```
-
-For hosted DBs, use the connection string instead:
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f SQL_SETUP/setupDB_Master.sql
-```
-
-Seed the newer lab set only after the schema exists:
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab0_intro_addition.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab1_intro_subtraction.sql
-psql "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require" -f db-seeds/seed_lab2_intro_bitwise_and.sql
-```
-
-After seeding, assign labs to courses from the instructor UI or insert rows into `public.course_labs`.
 
 ## Install Dependencies
+
+General:
+
+Install fnm:
+1. brew install fnm
+2. Choose one of the following:
+Windows: 
+notepad $PROFILE
+fnm env --use-on-cd | Out-String | Invoke-Expression
+
+Mac:
+echo 'eval "$(fnm env --use-on-cd)"' >> ~/.zshrc
+source ~/.zshrc
+
+Linux
+echo 'eval "$(fnm env --use-on-cd)"' >> ~/.bashrc
+source ~/.bashrc
+
+3. cd riscv
+4. fnm install 23.5.0
+5. fnm use 23.5.0
+6. echo “23.5.0” > .nvmrc (SKIP STEP 6 IF THIS FILE IS ALREADY IN REPO)
 
 Frontend:
 
@@ -107,6 +100,8 @@ uv run python server.py
 ```
 
 The Flask backend runs on `http://localhost:25565`.
+
+The frontend proxy routes use `BACKEND_URL` when it is set, otherwise they default to `http://localhost:25565`. For hosted frontend deployments, deploy the Flask backend separately and set `BACKEND_URL` in the frontend host environment to that backend's public URL.
 
 Terminal 2, frontend:
 

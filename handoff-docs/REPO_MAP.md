@@ -4,11 +4,10 @@ This map focuses on source files and handoff-relevant folders. It intentionally 
 
 ## Root
 
-- `README.md`: older brief setup note.
-- `database_setup.md`: older local PostgreSQL setup notes.
-- `schema.sql`: older/minimal schema reference.
+- `README.md`: root overview and quick start.
+- `LICENSE`: project license.
+- `.nvmrc`: pinned Node.js version for the frontend toolchain.
 - `gitinfo.md`: branch workflow note.
-- `package.json`: root package metadata; the active frontend package is in `riscv/`.
 - `handoff-docs/`: new onboarding documentation bundle.
 
 ## `riscv/`
@@ -60,15 +59,14 @@ Schema setup and migration-style SQL.
 - `setupDB_ASUID.sql`: ASU ID/user migration.
 - `setupDB_TARoles.sql`: TA profile, course sections, and section enrollment helpers.
 - `setupDB_RISCV_LoadStore_Syntax.sql`: seed lab syntax patch.
-- `setupAll.sql`: flattened combined setup.
 
 ## `db-seeds/`
 
-Standalone lab seeds for hosted/production-style setup.
+Seed SQL for starter content and legacy/dev data.
 
-- `README.txt`: seed usage note.
+- `seed_data.sql`: legacy/dev seed bundle with sample users, courses, labs, and related records.
 - `seed_lab0_intro_addition.sql`
 - `seed_lab1_intro_subtraction.sql`
 - `seed_lab2_intro_bitwise_and.sql`
 
-Run these only after the schema exists, then assign labs to a course.
+Run these only after the schema exists. The standalone `seed_lab*.sql` files are the preferred starter lab seeds.

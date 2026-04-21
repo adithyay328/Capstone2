@@ -1,18 +1,12 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-/** Neon / team hosted URL, or DATABASE_URL from .env (see riscv/.env.example). */
+/** Database URL from .env or the hosting provider environment. */
 function getDatabaseUrl(): string {
-  const hosted = process.env.HOSTED_DATABASE_URL?.trim();
-  if (hosted) return hosted;
-  return getRequiredEnv("DATABASE_URL");
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error("Missing required environment variable: DATABASE_URL");
+  }
+  return url;
 }
 
 type GlobalWithDbPool = typeof globalThis & {

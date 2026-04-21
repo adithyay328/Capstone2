@@ -45,15 +45,13 @@ Memory is byte-addressed and the default machine has 1024 bytes of memory. `lw` 
 
 ## Backend Environment
 
-`server.py` loads `prototype_interp/.env` if present. It tries connection string variables first:
+`server.py` loads `prototype_interp/.env` if present. It uses `DATABASE_URL` first:
 
 ```text
-HOSTED_DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
-# or
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
 ```
 
-If neither URL is set, it requires:
+If `DATABASE_URL` is not set, it requires:
 
 ```text
 DB_HOST=localhost
@@ -62,8 +60,6 @@ DB_USER=capstone
 DB_PASSWORD=capstone
 DB_PORT=5432
 ```
-
-Do not commit real `.env` files.
 
 ## Commands
 

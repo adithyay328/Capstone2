@@ -1,3 +1,12 @@
+-- =============================================================================
+-- Legacy/dev seed bundle
+-- =============================================================================
+-- Idempotent: safe to rerun. Existing keyed rows are updated only when the seed
+-- values changed; otherwise repeated runs become no-ops. Rows that are already
+-- present under conflicting usernames/ASUIDs in the supplemental seed-user
+-- block are skipped.
+-- =============================================================================
+
 INSERT INTO public.labs (uid, title, md)
 VALUES
 (
@@ -12,13 +21,16 @@ VALUES
 )
 ON CONFLICT (uid) DO UPDATE
 SET title = EXCLUDED.title,
-    md = EXCLUDED.md;
+    md = EXCLUDED.md
+WHERE public.labs.title IS DISTINCT FROM EXCLUDED.title
+   OR public.labs.md IS DISTINCT FROM EXCLUDED.md;
 
 INSERT INTO public.secrets (name, value)
 VALUES
 ('hmac', $secret_hmac$FYqCDN07YW74MitmBjkSx5zWw26uuTpGiGzY3kk5_chRR4ss_ePhrbmdIXeQnV06Mp4jr7SY23t6dll45mAHeU5GedbAzcnouE_Wr_9n-hi-enOzUp9CzZNuspz9V0VZIaF8KVHWg4ZpJjqskxpwJ9r9UU7y4RFU1vIAZZXpQdcJT2lUo3Q833p6rUCqj-yDbDNWL5VavTUJWROKq6CLFxE03o0bXLKdBMrK5emGUj3PgizLP5RtP2eZbdTLihqZHaWFCD_L1mE36bzxo8Yx2qDH1MznrY0Vvz1tJACq2LkObto6S-Pt2g0Fozt1KYzG6DwnUVYtP9Lk-5OgTGUbjyEkVDeDWXqbAOWtGgGBCBjUm1ur7AIApxwePufFMosDtSHhE9nuN071UZ_zUFHwaFbBpTOhl5-FhDcnkTWSD9OhFOa0Xn3lbQN80H-fCV39ipDZ1_1Y9XQLHyRx-uOixTYbXFdLN1y-eR8PCUF9M4uDES50GsDEaw1CFALDMjEINCHFiH9IRF_zKS--Vceyko5sybl9vwfV_EYA3W3e8uS2N0FwXBUk3iw4UZPCzqEyvU2Mi4EBmBbYrpXqn53Dqy08N3EY1DwpUDdEltJeURfWa8hbGCwbrTDHSe1y-QOWE5RqCCXxKGSnUktp9fw99TrI-Quga0arhpE--fU75Xs6fHfo_ZK2VjcFIfDj45MUUwxgo4bSau3uRYSJ0G3k86Gwsc5oqj3_ONwLteZSEEAgh2d64OavK4k_rziJP7_n1EWDVBWwUst4-BNLm0qZY-jufe57bAnRP3sU8VKXO_UqZfjAzk3K5_FCi7YKPuD3d15Qn_WBT743DIAH8sJO7OroFN7sgcOSMMTlaLosJGfs47YEeYzlC9JLPWkWsBPVWumH9El6Ni_i43Lu9I3Gsv6ZtKpc0_YWMN8lpkW-UVnmuonaUy3swPAYjVdxLKZk5xGkNtpQ4Nm0u6hIZx1l-B7QIFwHAp0PVxNy6sWMMKoy_z4G9tLSdJhJYfg4X9bNYKreZX3V1zq_KVP63A2xbCIaHGIAKJbjfyCCP_aZW1Jh10kwAurxyRoTm3OXjFyMiepvFcEQFkofpZjFYH7PS5tB5ilIcJlQ_pa6V0ESv8FYb3dt-6r67nhdTop0vKlKSpCiMXDPRm3ziM70q0HnG_l7Kcs1INgVhDdvNQKz3GE8So3q54QvwgMjQCsSuX7v-wJny5LsfLMK_bfdOJECXfy9kBoLJCcqSfNjqpC5K4Q1CJxGHSS_E8GViwJ6CA8tW8JNsjAp95XAMjEq8j7tbkaDDeKFKKkqe0TAyAO69moJHjzKwO8TZ1pM-KRAt8S1Xey1Oz_iW1Pirf00RITU5-b9TzCClr6HywP14Ka7K280MKuWZ87i8WRNtLUBN9IGQnB2d6wkBqc4Q8yvaPQqfXUGT4Yyu4-HOgfvROf86d_XI_77OiyJIVwL3DTyhNrZN30_4NcSUUsAwnVN4n_RY5p7S06lsa4MV8DvW0uj83KRMgC1JOrZM8spJvrN14q8L0cm_FNAGlwVRZbczIdYTBodXq4NlXaCp1rRfk31lzGClyNdqOPXAaCcFQxRkQaeMQndXGBnY9uj6LnIkZFEMvfL6tQSlwZon4-UujG_B2of_R8vEQ5gwMES94HHwDxpXfbeHW5Ut6KMP_S1d7p9SUdMH6BiH_tvEuwedgvvShjhFKtyG5tQpmpzUvZVfq9PjSfsZQ8Az_QY2sS088aInZ7BU8salPXdcvPR6rYgFtmWsCnHifyfgewEpqjv_uWmL57pbbJ8JfyGxuVy0BGb1A2aM6q1Fq9zXLaU5KTOHXdVE_8P-FtHp-7cOCoxVkvL_HVv1QykYYxBdiNe3RQfuJs-UHLc3ymdyL5MYwPE5rWVlaOzHDmSgzdF0gyHX18M_8A0S_REvYh-6uGY_jP5_Y4xy6X104cGj-HtjmLJAwwpXzosGN34bg_HfE5yxxpP_9q5ZCUKs4S1Ru7N$secret_hmac$)
 ON CONFLICT (name) DO UPDATE
-SET value = EXCLUDED.value;
+SET value = EXCLUDED.value
+WHERE public.secrets.value IS DISTINCT FROM EXCLUDED.value;
 
 INSERT INTO public.test_cases (uid, lab_uid, name, seed_registers, seed_memory, result_registers, result_memory)
 VALUES
@@ -46,8 +58,20 @@ SET lab_uid = EXCLUDED.lab_uid,
     seed_registers = EXCLUDED.seed_registers,
     seed_memory = EXCLUDED.seed_memory,
     result_registers = EXCLUDED.result_registers,
-    result_memory = EXCLUDED.result_memory;
+    result_memory = EXCLUDED.result_memory
+WHERE public.test_cases.lab_uid IS DISTINCT FROM EXCLUDED.lab_uid
+   OR public.test_cases.name IS DISTINCT FROM EXCLUDED.name
+   OR public.test_cases.seed_registers IS DISTINCT FROM EXCLUDED.seed_registers
+   OR public.test_cases.seed_memory IS DISTINCT FROM EXCLUDED.seed_memory
+   OR public.test_cases.result_registers IS DISTINCT FROM EXCLUDED.result_registers
+   OR public.test_cases.result_memory IS DISTINCT FROM EXCLUDED.result_memory;
 
+
+---------------------------------------------------------------------------
+-- ALL SEEDS BELOW HAVE PASSWORD: 
+--teacher password is teacher
+--student password is student
+---------------------------------------------------------------------------
 INSERT INTO public.users (username, asuid, salt, password_hash, instructor)
 VALUES
 (
@@ -68,9 +92,17 @@ ON CONFLICT (username) DO UPDATE
 SET asuid = EXCLUDED.asuid,
     salt = EXCLUDED.salt,
     password_hash = EXCLUDED.password_hash,
-    instructor = EXCLUDED.instructor;
+    instructor = EXCLUDED.instructor
+WHERE public.users.asuid IS DISTINCT FROM EXCLUDED.asuid
+   OR public.users.salt IS DISTINCT FROM EXCLUDED.salt
+   OR public.users.password_hash IS DISTINCT FROM EXCLUDED.password_hash
+   OR public.users.instructor IS DISTINCT FROM EXCLUDED.instructor;
 
--- SEED PASSWORDS: ta123456
+
+
+---------------------------------------------------------------------------
+-- ALL SEEDS BELOW HAVE PASSWORD: ta123456
+---------------------------------------------------------------------------
 WITH seed_users (username, asuid, instructor, salt, password_hash) AS (
     VALUES
         ('instructor_seed', '1219000001', true,  'seed_salt', '$argon2id$v=19$m=65536,t=3,p=4$MDWUiQd/aYY3aWDHyAQUTA$zH08wsnPASz/Jl0Mky4SUfJaMJyHARUKzrWyMg2+/90'),
@@ -93,7 +125,8 @@ eligible_users AS (
 )
 INSERT INTO public.users (username, asuid, salt, password_hash, instructor)
 SELECT username, asuid, salt, password_hash, instructor
-FROM eligible_users;
+FROM eligible_users
+ON CONFLICT DO NOTHING;
 
 -- Optional TA profile info
 INSERT INTO public.ta_profiles (username, first_name, last_name, email, phone, office_location, active)
@@ -108,7 +141,13 @@ SET first_name = EXCLUDED.first_name,
     phone = EXCLUDED.phone,
     office_location = EXCLUDED.office_location,
     active = EXCLUDED.active,
-    updated_at = now();
+    updated_at = now()
+WHERE public.ta_profiles.first_name IS DISTINCT FROM EXCLUDED.first_name
+   OR public.ta_profiles.last_name IS DISTINCT FROM EXCLUDED.last_name
+   OR public.ta_profiles.email IS DISTINCT FROM EXCLUDED.email
+   OR public.ta_profiles.phone IS DISTINCT FROM EXCLUDED.phone
+   OR public.ta_profiles.office_location IS DISTINCT FROM EXCLUDED.office_location
+   OR public.ta_profiles.active IS DISTINCT FROM EXCLUDED.active;
 
 -- -------------------------------------------------------------------
 -- 2) Seed courses
@@ -122,7 +161,10 @@ ON CONFLICT (course_id) DO UPDATE
 SET code = EXCLUDED.code,
     title = EXCLUDED.title,
     term = EXCLUDED.term,
-    updated_at = now();
+    updated_at = now()
+WHERE public.courses.code IS DISTINCT FROM EXCLUDED.code
+   OR public.courses.title IS DISTINCT FROM EXCLUDED.title
+   OR public.courses.term IS DISTINCT FROM EXCLUDED.term;
 
 -- -------------------------------------------------------------------
 -- 3) Seed memberships (instructor / ta / student)
@@ -148,8 +190,10 @@ VALUES
 ON CONFLICT (course_id, username) DO UPDATE
 SET role = EXCLUDED.role,
     status = EXCLUDED.status,
-    added_by = EXCLUDED.added_by,
-    added_at = now();
+    added_by = EXCLUDED.added_by
+WHERE public.course_memberships.role IS DISTINCT FROM EXCLUDED.role
+   OR public.course_memberships.status IS DISTINCT FROM EXCLUDED.status
+   OR public.course_memberships.added_by IS DISTINCT FROM EXCLUDED.added_by;
 
 -- -------------------------------------------------------------------
 -- 4) Seed sections
@@ -163,7 +207,8 @@ VALUES
     ('31001', 'B', 'CSE310 Section B')
 ON CONFLICT (course_id, section_code) DO UPDATE
 SET section_name = EXCLUDED.section_name,
-    updated_at = now();
+    updated_at = now()
+WHERE public.course_sections.section_name IS DISTINCT FROM EXCLUDED.section_name;
 
 -- -------------------------------------------------------------------
 -- 5) Seed TA section assignments
@@ -190,8 +235,9 @@ JOIN public.course_sections cs
  AND cs.section_code = x.section_code
 ON CONFLICT (section_id, ta_username) DO UPDATE
 SET status = EXCLUDED.status,
-    added_by = EXCLUDED.added_by,
-    added_at = now();
+    added_by = EXCLUDED.added_by
+WHERE public.ta_section_enrollments.status IS DISTINCT FROM EXCLUDED.status
+   OR public.ta_section_enrollments.added_by IS DISTINCT FROM EXCLUDED.added_by;
 
 
 -- Seed data for labs, secrets, test cases, and sample users (migrated from allinone.sql)

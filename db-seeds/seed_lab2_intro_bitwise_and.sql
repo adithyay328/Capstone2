@@ -3,7 +3,8 @@
 -- =============================================================================
 -- Same memory layout as Labs 0–1: word A @ 0x0, B @ 0x4, SUM @ 0x8 (little-endian).
 -- Students compute SUM = A & B (bitwise AND) using lw, and, sw.
--- Idempotent: ON CONFLICT DO UPDATE.
+-- Idempotent: safe to rerun. Unchanged rows are skipped; changed seed content
+-- is updated in place.
 -- Lab UID: lab2-intro-bitwise-and
 -- =============================================================================
 
@@ -79,7 +80,9 @@ $LAB2_MD$
 )
 ON CONFLICT (uid) DO UPDATE
 SET title = EXCLUDED.title,
-    md = EXCLUDED.md;
+    md = EXCLUDED.md
+WHERE public.labs.title IS DISTINCT FROM EXCLUDED.title
+   OR public.labs.md IS DISTINCT FROM EXCLUDED.md;
 
 -- Same seed words as Labs 0–1; expected SUM = (A & B) at 0x8–0xb.
 
@@ -136,4 +139,10 @@ SET lab_uid = EXCLUDED.lab_uid,
     seed_registers = EXCLUDED.seed_registers,
     seed_memory = EXCLUDED.seed_memory,
     result_registers = EXCLUDED.result_registers,
-    result_memory = EXCLUDED.result_memory;
+    result_memory = EXCLUDED.result_memory
+WHERE public.test_cases.lab_uid IS DISTINCT FROM EXCLUDED.lab_uid
+   OR public.test_cases.name IS DISTINCT FROM EXCLUDED.name
+   OR public.test_cases.seed_registers IS DISTINCT FROM EXCLUDED.seed_registers
+   OR public.test_cases.seed_memory IS DISTINCT FROM EXCLUDED.seed_memory
+   OR public.test_cases.result_registers IS DISTINCT FROM EXCLUDED.result_registers
+   OR public.test_cases.result_memory IS DISTINCT FROM EXCLUDED.result_memory;

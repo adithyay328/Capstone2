@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getBackendUrl } from "@/app/api/backend-url";
 
 type RunRequest = { 
   code: string;
@@ -15,7 +16,7 @@ type RunResponse = {
   }>;
 };
 
-const BACKEND_URL = "http://localhost:25565/data";
+const BACKEND_URL = getBackendUrl("/data");
 
 export async function POST(req: Request) {
   let body: RunRequest;

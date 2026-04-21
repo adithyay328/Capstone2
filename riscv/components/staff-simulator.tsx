@@ -49,7 +49,7 @@ const ROLE_COPY: Record<StaffRole, RoleCopy> = {
     dashboardHref: "/instructor",
     dashboardLabel: "Back to Instructor Dashboard",
     description:
-      "Run and step through RISC-V code without touching student workspaces or saved labs.",
+      "RISC-V Testing Simulator",
   },
   ta: {
     badge: "Teaching Assistant",
@@ -57,7 +57,7 @@ const ROLE_COPY: Record<StaffRole, RoleCopy> = {
     dashboardHref: "/ta",
     dashboardLabel: "Back to TA Dashboard",
     description:
-      "Use an isolated simulator to test code, reproduce issues, and inspect runtime state.",
+      "RISC-V Testing Simulator",
   },
 };
 
@@ -483,9 +483,6 @@ export default function StaffSimulator({
 
         <div className="mb-3 w-full max-w-[46.875rem] sm:min-w-[26.875rem] min-w-0">
           <div className="text-xs font-semibold text-zinc-200">Personal Sandbox</div>
-          <div className="text-[11px] text-zinc-400">
-            One saved simulator per staff account. No projects, labs, or grading state are mixed in.
-          </div>
           <InstructionsPanel
             open={instructionsOpen}
             onClose={() => setInstructionsOpen(false)}
@@ -549,9 +546,6 @@ export default function StaffSimulator({
               <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Input Presets
               </h2>
-              <p className="mt-1 text-xs text-zinc-400">
-                Add only the register and memory overrides you want for this sandbox.
-              </p>
               <div className="mt-3 flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
                 <RegisterEditor
                   registers={registerOverrides}

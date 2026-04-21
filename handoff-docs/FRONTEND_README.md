@@ -14,7 +14,7 @@ The frontend lives in `riscv/` and is a Next.js app using the App Router.
 
 - `riscv/app/`: Next.js route tree.
 - `riscv/app/api/`: server-side API routes.
-- `riscv/app/sql/sql.tsx`: PostgreSQL pool setup. It uses `HOSTED_DATABASE_URL` first, then `DATABASE_URL`.
+- `riscv/app/sql/sql.tsx`: PostgreSQL pool setup. It uses `DATABASE_URL`.
 - `riscv/app/verify/`: session verification and cookie helpers.
 - `riscv/components/`: shared UI and simulator components.
 - `riscv/public/`: static assets.
@@ -35,7 +35,7 @@ Most API routes are under `riscv/app/api/<name>/route.tsx` or `route.ts`.
 
 Direct database routes use `DBConnection.create()` from `riscv/app/sql/sql.tsx`. Examples include course, lab, workspace, session, user settings, and submission history routes.
 
-Simulator/grading proxy routes call the Flask backend on `localhost:25565`:
+Simulator/grading proxy routes call the Flask backend using `BACKEND_URL`, defaulting to `http://localhost:25565` for local development:
 
 - `riscv/app/api/run/route.ts` -> `POST /data`
 - `riscv/app/api/score/route.tsx` -> `POST /score`

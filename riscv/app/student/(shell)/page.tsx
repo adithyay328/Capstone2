@@ -64,7 +64,7 @@ export default async function StudentDashboardPage() {
           Welcome {welcomeName}
         </h1>
         <p className="mt-4 max-w-2xl text-base text-zinc-300 sm:text-lg">
-          Pick a lane and move. Your most common actions are right here.
+          Pick an option or use the sidebar
         </p>
       </section>
 

@@ -32,6 +32,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (!target || !asideRef.current) return;
@@ -90,18 +105,40 @@ const Sidebar: React.FC<SidebarProps> = ({
 
 
   return (
-    <aside
-      ref={asideRef}
-      className={`fixed inset-y-0 h-full left-0 z-40 flex flex-col border-r border-orange-300 bg-[rgb(34,33,34)] text-slate-100 transition-[width] duration-300 ease-out ${
-        isOpen ? "w-64" : "w-16"
-      }`}
-      aria-label="Sidebar"
-      onClick={(event) => {
-        const target = event.target as HTMLElement | null;
-        if (target?.closest("button, a")) return;
-        setIsOpen((prev) => !prev);
-      }}
-    >
+    <>
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="fixed left-3 top-3 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-orange-300/60 bg-[rgb(34,33,34)] text-white shadow-lg shadow-black/30 transition-colors hover:bg-[rgb(59,56,59)] md:hidden"
+          aria-label="Open sidebar"
+          aria-expanded={isOpen}
+        >
+          <MenuIcon className="h-5 w-5" />
+        </button>
+      )}
+
+      {isOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-black/45 md:hidden"
+          aria-label="Close sidebar"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      <aside
+        ref={asideRef}
+        className={`fixed inset-y-0 left-0 z-40 flex h-full flex-col border-r border-orange-300 bg-[rgb(34,33,34)] text-slate-100 transition-[width,transform] duration-300 ease-out ${
+          isOpen ? "w-72 translate-x-0 md:w-64" : "w-72 -translate-x-full md:w-16 md:translate-x-0"
+        }`}
+        aria-label="Sidebar"
+        onClick={(event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.closest("button, a")) return;
+          setIsOpen((prev) => !prev);
+        }}
+      >
       {/* menu toggle button*/}
       <button
             type="button"
@@ -209,7 +246,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span className="block text-center">v0.1</span>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
