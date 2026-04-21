@@ -19,8 +19,9 @@ Generated folders such as `riscv/.next`, `riscv/.next-dev`, `riscv/node_modules`
 3. Follow [SETUP_AND_RUNNING.md](./SETUP_AND_RUNNING.md) to configure the database, backend, and frontend.
 4. Use [FRONTEND_README.md](./FRONTEND_README.md) when working in `riscv/`.
 5. Use [BACKEND_README.md](./BACKEND_README.md) when working in `prototype_interp/`.
-6. Use [SQL_README.md](./DATABASE_AND_SQL.md) before changing schema, seeds, labs, courses, attempts, or submissions.
-7. Check [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) when local setup fails.
+6. Use [SQL_README.md](./SQL_README.md) before changing schema, seeds, labs, courses, attempts, or submissions.
+8. Check [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) when local setup fails.
+9. Use [LOCAL_TO_HOSTED_DEPLOYMENT.md](./LOCAL_TO_HOSTED_DEPLOYMENT.md) when moving a working local setup into hosted deployment.
 
 ## Local Architecture
 

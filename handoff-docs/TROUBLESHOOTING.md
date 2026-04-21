@@ -63,7 +63,7 @@ Common causes:
 
 - Running seed files before schema setup.
 - Using a different database URL for frontend, backend, and `psql`.
-- Running old/minimal `schema.sql` and expecting the full app schema.
+- Running an outdated or partial schema script and expecting the full app schema.
 - Missing course assignment after seeding labs.
 
 ## Lint Fails On Generated `.next-dev`

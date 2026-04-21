@@ -3,7 +3,8 @@
 -- =============================================================================
 -- Run this on your EXTERNAL PostgreSQL after the app schema exists (tables:
 --   public.labs, public.test_cases).
--- Idempotent: safe to run more than once (ON CONFLICT DO UPDATE).
+-- Idempotent: safe to run more than once. Unchanged rows are skipped; changed
+-- seed content is updated in place.
 --
 -- This does NOT link the lab to a course. After seeding, either:
 --   - use the instructor UI: assign lab to course, or
@@ -84,7 +85,9 @@ $LAB0_MD$
 )
 ON CONFLICT (uid) DO UPDATE
 SET title = EXCLUDED.title,
-    md = EXCLUDED.md;
+    md = EXCLUDED.md
+WHERE public.labs.title IS DISTINCT FROM EXCLUDED.title
+   OR public.labs.md IS DISTINCT FROM EXCLUDED.md;
 
 -- SUM is checked at byte address 0x8 (same layout as starter: A @ 0x0, B @ 0x4, SUM @ 0x8).
 
@@ -141,4 +144,10 @@ SET lab_uid = EXCLUDED.lab_uid,
     seed_registers = EXCLUDED.seed_registers,
     seed_memory = EXCLUDED.seed_memory,
     result_registers = EXCLUDED.result_registers,
-    result_memory = EXCLUDED.result_memory;
+    result_memory = EXCLUDED.result_memory
+WHERE public.test_cases.lab_uid IS DISTINCT FROM EXCLUDED.lab_uid
+   OR public.test_cases.name IS DISTINCT FROM EXCLUDED.name
+   OR public.test_cases.seed_registers IS DISTINCT FROM EXCLUDED.seed_registers
+   OR public.test_cases.seed_memory IS DISTINCT FROM EXCLUDED.seed_memory
+   OR public.test_cases.result_registers IS DISTINCT FROM EXCLUDED.result_registers
+   OR public.test_cases.result_memory IS DISTINCT FROM EXCLUDED.result_memory;
