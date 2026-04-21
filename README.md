@@ -4,7 +4,7 @@ A web-based RISC-V learning and grading application with a Next.js frontend, a F
 
 ## Easy Guide to Setup and Installation
 
-Follow [SETUP_AND_RUNNING.md](./SETUP_AND_RUNNING.md) to configure the database, backend, frontend, and general installation/setup information
+Follow [SETUP_AND_RUNNING.md](./handoff-docs/SETUP_AND_RUNNING.md) to configure the database, backend, frontend, and general installation/setup information
 
 ## Detailed Documentation:
 
